@@ -28,9 +28,17 @@ public:
     Vector2Int GetSize() const { return m_size; }
     void SetSize(const Vector2Int& size) { m_size = size; }
 
+    TileInfo* GetTile(int32 x, int32 y) { return &m_tiles[y * m_size.x + x]; }
+
     void GenerateDefaultMap();
+    void GenerateClearMap();
     void FillRectWith(const RectInt& rect, uint16 fgItem, uint16 bgItem, float chance);
     bool FillRectWith(const RectInt& rect, const TileMapFillVector& fgItems, const TileMapFillVector& bgItems);
+
+    void SetMainDoorTile(TileInfo* pTile) { m_pMainDoorTile = pTile; }
+    TileInfo* GetMainDoorTile() { return m_pMainDoorTile; }
+
+    bool IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBackground);
 
 private:
     void FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance);
@@ -39,4 +47,6 @@ private:
 private:
     Vector2Int m_size;
     std::vector<TileInfo> m_tiles;
+
+    TileInfo* m_pMainDoorTile;
 };

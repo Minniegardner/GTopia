@@ -21,7 +21,7 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
     if(!pProto) {
         return false;
     }
-    protocol = (uint32)ToInt(string(pProto->value, pProto->size));
+    protocol = ToUInt(string(pProto->value, pProto->size));
 
     /*auto pHash = packet.Find(CompileTimeHashString("hash"));
     if(!pHash) {
@@ -64,18 +64,23 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
     }
     gameVersion = ToFloat(string(pGameVersion->value, pGameVersion->size));
 
+    auto pCountry = packet.Find(CompileTimeHashString("country"));
+    if(pCountry) {
+        country = string(pCountry->value, pCountry->size);
+    }
+
     if(asGameServer) {
         auto pToken = packet.Find(CompileTimeHashString("token"));
         if(!pToken) {
             return false;
         }
-        token = (uint32)ToInt(string(pToken->value, pToken->size));
+        token = ToUInt(string(pToken->value, pToken->size));
 
         auto pUser = packet.Find(CompileTimeHashString("user"));
         if(!pUser) {
             return false;
         }
-        user = (uint32)ToInt(string(pUser->value, pUser->size));
+        user = ToUInt(string(pUser->value, pUser->size));
     }
 
     return true;

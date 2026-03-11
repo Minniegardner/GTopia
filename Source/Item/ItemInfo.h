@@ -80,6 +80,7 @@ public:
     bool HasFlag(uint16 flag) { return (flags & flag) != 0; }
     void Serialize(MemoryBuffer& memBuffer, bool write, uint16 version);
     bool IsBackground();
+    bool IsMainDoor();
 };
 
 bool IsIllegalItem(uint32 itemID);

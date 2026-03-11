@@ -5,16 +5,11 @@
 
 RoleManager::RoleManager()
 {
-    InitRolePerms();
 }
 
 RoleManager::~RoleManager()
 {
-    for(auto& [_, pRole] : m_roles) {
-        SAFE_DELETE(pRole);
-    }
-
-    m_roles.clear();
+    Kill();
 }
 
 bool RoleManager::Load(const string& filePath)
@@ -42,10 +37,17 @@ bool RoleManager::Load(const string& filePath)
 
         auto args = Split(line, '|');
 
+        if(args[0] == "init_perms") {
+            for(uint16 i = 1; i < args.size(); ++i) {
+                m_permList[args[i]] = (eRolePerm)(m_permList.size() + 1);
+            }
+        }
+
         if(args[0] == "add_role") {
             Role* pRole = new Role();
+            
             pRole->m_name = args[1];
-            pRole->m_id = ToInt(args[2]);
+            pRole->m_id = ToUInt(args[2]);
             pRole->m_prefix = args[3];
             pRole->m_suffix = args[4];
 
@@ -59,6 +61,10 @@ bool RoleManager::Load(const string& filePath)
             }
 
             for(uint8 i = 1; i < args.size(); ++i) {
+                if(args[i].empty()) {
+                    continue;
+                }
+
                 pLastRole->m_inherits.push_back(ToInt(args[i]));
             }
         }
@@ -145,6 +151,15 @@ bool RoleManager::ResolveRole(Role* pRole)
     return true;
 }
 
+void RoleManager::Kill()
+{
+    for(auto& [_, pRole] : m_roles) {
+        SAFE_DELETE(pRole);
+    }
+
+    m_roles.clear();
+}
+
 Role* RoleManager::GetRole(int32 id)
 {
     auto it = m_roles.find(id);
@@ -155,16 +170,10 @@ Role* RoleManager::GetRole(int32 id)
     return it->second;
 }
 
-void InitRolePerms()
+bool RoleManager::GetRolePermFromString(const string& permStr, eRolePerm& permOut)
 {
-    /** for now hardcoded */
-    sPermStrMap["chat"] = ROLE_PERM_CHAT;
-}
-
-bool GetRolePermFromString(const string& permStr, eRolePerm& permOut)
-{
-    auto it = sPermStrMap.find(permStr);
-    if(it == sPermStrMap.end()) {
+    auto it = m_permList.find(permStr);
+    if(it == m_permList.end()) {
         return false;
     }
 
@@ -172,4 +181,4 @@ bool GetRolePermFromString(const string& permStr, eRolePerm& permOut)
     return true;
 }
 
-RoleManager *GetRoleManager() { return RoleManager::GetInstance(); }
+RoleManager* GetRoleManager() { return RoleManager::GetInstance(); }

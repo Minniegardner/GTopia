@@ -1,4 +1,6 @@
-.vscode/
-Runtime/
-Build/build_*/
-HTTPServer/static/
+.vscode/*
+Runtime/*
+Build/build_*/*
+HTTPServer/static/*
+ThirdParty/blend2d/*
+Test/*

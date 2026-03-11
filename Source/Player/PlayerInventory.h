@@ -8,9 +8,9 @@
 
 struct InventoryItemInfo
 {
-    int16 id;
-    uint8 count;
-    uint8 flags;
+    uint16 id = 0;
+    uint8 count = 0;
+    uint8 flags = 0;
 
     void Serialize(MemoryBuffer& memBuffer, bool write);
 };
@@ -27,7 +27,7 @@ public:
     PlayerInventory();
 
 public:
-    void Serialize(MemoryBuffer& memBuffer, bool write, uint32 protocol, bool database);
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database);
     InventoryItemInfo* GetItemByID(uint16 itemID);
 
     uint8 AddItem(uint16 itemID, uint8 count, eInventoryErrors& errorCode);
@@ -36,7 +36,8 @@ public:
 
     void RemoveFromQuickSlots(uint16 itemID);
 
-    uint32 GetMemEstimate(bool database, uint32 protocol = 0);
+    uint32 GetMemEstimate(bool database);
+    void SetVersion(uint32 protocol);
 
 private:
     uint8 m_version;

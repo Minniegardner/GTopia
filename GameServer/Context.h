@@ -18,6 +18,7 @@ public:
 
 public:
     void Init() override;
+    void Kill() override;
 
 public:
     GameConfig* GetGameConfig() { return m_pGameConfig; }

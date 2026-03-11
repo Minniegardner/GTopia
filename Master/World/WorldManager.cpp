@@ -86,7 +86,7 @@ void WorldManager::ManagePlayerJoin(uint16 serverID, int32 playerNetID, const st
         req.extraData[2] = playerNetID;
         req.extraData[3] = upperWorldName;
 
-        DatabaseWorldExistsByName(GetContext()->GetDatabasePool(), req);
+        DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_EXISTS_BY_NAME, req);
         return;
     }
 
@@ -111,7 +111,7 @@ void WorldManager::CheckWorldExists(QueryTaskResult&& result)
         req.extraData = std::move(result.extraData);
         req.extraData[0] = WORLD_DB_STATE_CREATE;
 
-        DatabaseWorldCreate(GetContext()->GetDatabasePool(), req);
+        DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_CREATE, req);
         return;
     }
 

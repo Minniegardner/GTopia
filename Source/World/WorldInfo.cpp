@@ -28,11 +28,8 @@ bool WorldInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database)
     return true;
 }
 
-void WorldInfo::GenerateWorld(eWorldGenerationType type, const Vector2Int& worldSize)
-{    
-    if(worldSize.x != 0 && worldSize.y != 0) {
-        m_pTileMgr->SetSize(worldSize);
-    }
+void WorldInfo::GenerateWorld(eWorldGenerationType type)
+{
 
     switch(type) {
         case WORLD_GENERATION_DEFAULT: {

@@ -23,10 +23,10 @@ struct PlayerLoginDetail
     string rid;
 
     string wk;
-    int32 zf;
+    int32 zf = -1;
 
-    uint32 token;
-    uint32 user;
+    uint32 token = 0;
+    uint32 user = 0;
 
     bool Serialize(ParsedTextPacket<25>& packet, Player* pPlayer, bool asGameServer);
 };

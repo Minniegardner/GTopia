@@ -32,6 +32,16 @@ public:
     bool IsConnected() const { return m_connected; }
 
 private:
+    template<class T>
+    void RegisterEvent(eTCPPacketType packet)
+    {
+        m_events.Register(
+            packet,
+            Delegate<NetClient*, VariantVector&>::Create<&T::Execute>()
+        );
+    }
+
+private:
     NetClient* m_pNetClient;
     bool m_connected;
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;

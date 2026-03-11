@@ -139,30 +139,49 @@ bool ServerManager::SendPacketRaw(uint16 serverID, VariantVector& data)
     return pNetClient->Send(data);
 }
 
-void ServerManager::AddServer(uint16 serverID, NetClient* pClient)
+void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)
 {
-    auto it = m_servers.find(serverID);
-    if(it != m_servers.end() || serverID == 0) {
+    if(serverType != CONFIG_SERVER_GAME && serverType != CONFIG_SERVER_RENDERER) {
         pClient->status = SOCKET_CLIENT_CLOSE;
+        LOGGER_LOG_WARN("Unknown server %d type %d, closing", serverID, serverType);
+        return;
+    }
 
+    auto it = m_servers.find(serverID);
+    if(serverID == 0|| it != m_servers.end()) {
+        pClient->status = SOCKET_CLIENT_CLOSE;
         LOGGER_LOG_ERROR("Server %d already exists but we tried to add it again??", serverID);
         return;
     }
 
     auto serverNetInfo = GetContext()->GetGameConfig()->servers[serverID];
-    if(serverNetInfo.lanIP.empty() || serverNetInfo.wanIP.empty()) {
+    if(serverNetInfo.serverType != serverType || serverNetInfo.lanIP.empty() || serverNetInfo.wanIP.empty()) {
         pClient->status = SOCKET_CLIENT_CLOSE;
         return;
     }
 
-    LOGGER_LOG_INFO("Server %d added to cache %s:%d", serverID, serverNetInfo.wanIP.c_str(), serverNetInfo.udpPort);
-    ServerInfo* pServer = new ServerInfo();
-    pServer->serverID = serverID;
-    pServer->socketConnID = pClient->connectionID;
-    pServer->wanIP = serverNetInfo.wanIP;
-    pServer->port = serverNetInfo.udpPort;
+    string serverTypeStr = "game";
+    if(serverType == CONFIG_SERVER_RENDERER) serverTypeStr = "renderer";
 
-    m_servers.insert_or_assign(pServer->serverID, pServer);
+    LOGGER_LOG_INFO("Server %d (%s) added to cache %s:%d", serverID, serverTypeStr.c_str(), serverNetInfo.wanIP.c_str(), serverNetInfo.udpPort);
+    if(serverType == CONFIG_SERVER_GAME) {
+        ServerInfo* pServer = new ServerInfo();
+        pServer->serverID = serverID;
+        pServer->socketConnID = pClient->connectionID;
+        pServer->wanIP = serverNetInfo.wanIP;
+        pServer->port = serverNetInfo.udpPort;
+    
+        m_servers.insert_or_assign(pServer->serverID, pServer);
+    }
+    else if(serverType == CONFIG_SERVER_RENDERER) {
+        RendererInfo* pServer = new RendererInfo();
+        pServer->serverID = serverID;
+        pServer->socketConnID = pClient->connectionID;
+        pServer->wanIP = serverNetInfo.wanIP;
+        pServer->port = serverNetInfo.udpPort;
+    
+        m_renderers.insert_or_assign(pServer->serverID, pServer);
+    }
 }
 
 void ServerManager::RemoveServer(uint16 serverID)

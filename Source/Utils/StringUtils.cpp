@@ -1,6 +1,6 @@
 #include "StringUtils.h"
 
-uint32 HashString(const string &str)
+uint32 HashString(const string& str)
 {
     return HashString(str.c_str());
 }
@@ -47,6 +47,42 @@ string ToHex(const void* str, uint32 size)
     }
 
     return out;
+}
+
+int32 CharToInt(char input)
+{
+    if(input >= '0' && input <= '9') {
+        return input - '0';
+    }
+
+    if(input >= 'A' && input <= 'F') {
+        return input - 'A' + 10;
+    }
+
+    if(input >= 'a' && input <= 'f') {
+        return input - 'a' + 10;
+    }
+
+    return 0;
+}
+
+void HexToBytes(const string& str, uint8* target)
+{
+    HexToBytes(str.c_str(), target);
+}
+
+void HexToBytes(const char *str, uint8 *target)
+{
+    if(!str || !target) {
+        return;
+    }
+
+    const char* src = str;
+
+    while(*src && *(src + 1)) {
+        *(target++) = CharToInt(*src) * 16 + CharToInt(src[1]);
+        src += 2;
+    }
 }
 
 string ToUpper(const string& str)
@@ -115,9 +151,49 @@ float ToFloat(const char* str)
     return std::stof(str);
 }
 
+void RemoveExtraWhiteSpaces(string& str)
+{
+    RemoveExtraWhiteSpaces(&str[0]);
+
+    str.resize(strlen(&str[0]));
+}
+
+void RemoveExtraWhiteSpaces(char *str)
+{
+    if(!str) {
+        return;
+    }
+
+    char* src = str;
+    char* out = str;
+
+    if(*src == ' ') {
+        *out++ = ' ';
+
+        while(*src == ' ') {
+            src++;
+        }
+    }
+
+    while(*src) {
+        if (*src != ' ' || (out > str && *(out - 1) != ' ')) {
+            *out++ = *src;
+        }
+
+        src++;
+    }
+
+    if(out > str && *(out - 1) == ' ') {
+        out--;
+    }
+
+    *out = '\0';
+
+}
+
 int32 ToInt(const string& str)
 {
-    return int32();
+    return ToInt(str.c_str());
 }
 
 int32 ToInt(const char* str)
@@ -211,7 +287,7 @@ std::vector<string> Split(const char* str, uint32 size, char delim)
         }
     }
 
-    if(lastDelim != str) {
+    if(lastDelim != strEnd) {
         ptrdiff_t diff = strEnd - lastDelim;
         token.emplace_back(string(lastDelim, diff));
     }

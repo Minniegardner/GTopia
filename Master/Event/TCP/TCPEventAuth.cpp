@@ -6,7 +6,7 @@
 
 void TCPEventAuth::Execute(NetClient* pClient, VariantVector& data)
 {
-    if(data.size() != 3) {
+    if(data.size() != 4) {
         pClient->status = SOCKET_CLIENT_CLOSE;
         return;
     }
@@ -26,6 +26,6 @@ void TCPEventAuth::Execute(NetClient* pClient, VariantVector& data)
     packet[0] = TCP_PACKET_AUTH;
     packet[1] = true;
 
-    GetServerManager()->AddServer(data[2].GetUINT(), pClient);
+    GetServerManager()->AddServer(data[2].GetUINT(), pClient, data[3].GetINT());
     pClient->Send(packet);
 }

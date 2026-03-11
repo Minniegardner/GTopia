@@ -42,6 +42,7 @@ bool TileExtra::Serialize(MemoryBuffer& memBuffer, bool write, bool database, Ti
 
     switch(m_type) {
         case TILE_EXTRA_TYPE_DOOR: {
+            memBuffer.ReadWrite(m_type, write);
             memBuffer.ReadWriteString(m_name, write);
 
             if(database) {

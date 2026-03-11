@@ -38,8 +38,8 @@ string GetProgramPath()
     string path(sizeNeeded, 0);
     WideCharToMultiByte(CP_UTF8, 0, buf, len, path.data(), sizeNeeded, NULL, NULL);
 
-    uint32 pos = path.find_last_of("\\/");
-    if(pos != string::npos) {
+    int32 pos = path.find_last_of("\\/");
+    if(pos != -1) {
         path = path.substr(0, pos);
     }
 

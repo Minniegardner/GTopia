@@ -1,17 +1,18 @@
 #include "PlayerDBTable.h"
 
-void DatabaseGetPlayerByMac(DatabasePool* pPool, QueryRequest& req, bool prepared)
+void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred)
 {
-    uint16 flags = QUERY_FLAG_RETURN_RESULT;
-    if(prepared) {
-        flags |= QUERY_FLAG_PREPARED;
+    TableQuery& query = sQueryTable[queryID];
+
+    if(preapred) {
+        query.flags |= QUERY_FLAG_PREPARED;
     }
 
     DatabaseExec(
-        pPool, 
-        "SELECT ID FROM Players WHERE Name = '' AND Mac = ? AND RID = UNHEX(?) AND PlatformType = ? LIMIT 1;",
+        pPool,
+        query.query,
         req,
-        flags
+        query.flags
     );
 }
 
@@ -25,21 +26,6 @@ QueryRequest MakePlayerByMacReq(const string& mac, const string& rid, uint8 plat
     req.data[1] = rid;
     req.data[2] = platformType;
     return req;
-}
-
-void DatabasePlayerCreate(DatabasePool* pPool, QueryRequest& req, bool prepared)
-{
-    uint16 flags = QUERY_FLAG_RETURN_INCREMENT;
-    if(prepared) {
-        flags |= QUERY_FLAG_PREPARED;
-    }
-
-    DatabaseExec(
-        pPool, 
-        "INSERT INTO Players (GuestName, PlatformType, GuestID, Mac, RID, CreationDate, LastSeenTime) VALUES (?, ?, ?, ?, UNHEX(?), SYSDATE(), NOW());",
-        req,
-        flags
-    );
 }
 
 QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, uint16 guestID, const string& mac, const string& rid, int32 ownerID)
@@ -56,17 +42,24 @@ QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, ui
     return req;
 }
 
-/*void DatabasePlayerSetIdentifiers(DatabasePool* pPool, QueryRequest& req, bool prepared)
+QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID)
 {
-    uint16 flags = QUERY_FLAG_NONE;
-    if(prepared) {
-        flags |= QUERY_FLAG_PREPARED;
-    }
+    QueryRequest req;
+    req.ownerID = ownerID;
 
-    DatabaseExec(
-        pPool, 
-        "UPDATE Players SET Mac = ?, RID = UNHEX(?) WHERE ID = ?;",
-        req,
-        flags
-    );
-}*/
+    req.data.resize(1);
+    req.data[0] = userID;
+    return req;
+}
+
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(3);
+    req.data[0] = roleID,
+    req.data[1] = inventoryData,
+    req.data[2] = userID;
+    return req;
+}

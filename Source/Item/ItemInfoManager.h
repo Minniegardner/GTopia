@@ -28,6 +28,8 @@ public:
     bool Load(const string& filePath);
     bool LoadByItemsDat(const string& filePath);
 
+    void Kill();
+
     void LoadFileHashes(const std::unordered_map<string, uint32>& hashData, bool forOgg);
     void SaveToClientData(bool forOgg);
     
@@ -36,6 +38,8 @@ public:
     uint32 GetItemCount() const { return m_itemCount; }
 
     ItemsClientData& GetClientData(uint8 platformType);
+
+    const std::vector<ItemInfo*>& GetItems() const { return m_items; } 
 
 private:
     void SetupItemExtras();

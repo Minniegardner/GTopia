@@ -10,6 +10,7 @@ struct PlayerSession
     uint32 loginToken;
     uint16 serverID;
     string ip;
+    uint64 loginTime;
 };
 
 class GameServer : public ServerBase {

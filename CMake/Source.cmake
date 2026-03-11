@@ -16,6 +16,8 @@ set(THIRD_PARTY_ROOT "${CMAKE_CURRENT_LIST_DIR}/../ThirdParty")
 set(THIRD_PARTY_ENET "${THIRD_PARTY_ROOT}/enet")
 set(THIRD_PARTY_CONCURRENTQUEUE "${THIRD_PARTY_ROOT}/concurrentqueue")
 set(THIRD_PARTY_NLOHMANN "${THIRD_PARTY_ROOT}/nlohmann")
+set(THIRD_PARTY_BLEND2D "${THIRD_PARTY_ROOT}/blend2d")
+set(THIRD_PARTY_ZLIB "${THIRD_PARTY_ROOT}/zlib")
 
 set(SOURCE_DEFAULT_FILES
     ${SOURCE_IO}/File.cpp
@@ -61,6 +63,22 @@ set(SOURCE_NETWORK_FILES
     ${THIRD_PARTY_ENET}/win32.c
 )
 
+set(SOURCE_ZLIB_FILES
+    ${THIRD_PARTY_ZLIB}/adler32.c
+    ${THIRD_PARTY_ZLIB}/crc32.c
+    ${THIRD_PARTY_ZLIB}/deflate.c
+    ${THIRD_PARTY_ZLIB}/inffast.c
+    ${THIRD_PARTY_ZLIB}/inflate.c
+    ${THIRD_PARTY_ZLIB}/inftrees.c
+    ${THIRD_PARTY_ZLIB}/gzclose.c
+    ${THIRD_PARTY_ZLIB}/gzlib.c
+    ${THIRD_PARTY_ZLIB}/gzread.c
+    ${THIRD_PARTY_ZLIB}/gzwrite.c
+    ${THIRD_PARTY_ZLIB}/trees.c
+    ${THIRD_PARTY_ZLIB}/uncompr.c
+    ${THIRD_PARTY_ZLIB}/zutil.c
+)
+
 if(WIN32)
     list(APPEND SOURCE_DEFAULT_FILES ${SOURCE_ROOT}/OS/Windows/WindowsPrecompiled.cpp)
 else()
@@ -69,6 +87,7 @@ endif(WIN32)
 
 function(add_default_sources target_name)
     target_sources(${target_name} PRIVATE ${SOURCE_DEFAULT_FILES})
+    target_include_directories(${target_name} PRIVATE ${THIRD_PARTY_CONCURRENTQUEUE}/include)
 endfunction(add_default_sources target_name)
 
 function(add_database_sources target_name)
@@ -77,4 +96,10 @@ endfunction(add_database_sources target_name)
 
 function(add_network_sources target_name)
     target_sources(${target_name} PRIVATE ${SOURCE_NETWORK_FILES})
+    target_include_directories(${target_name} PRIVATE ${THIRD_PARTY_ENET}/include)
 endfunction(add_network_sources target_name)
+
+function(add_zlib_sources target_name)
+    target_sources(${target_name} PRIVATE ${SOURCE_ZLIB_FILES})
+    target_include_directories(${target_name} PRIVATE ${THIRD_PARTY_ZLIB})
+endfunction(add_zlib_sources target_name)

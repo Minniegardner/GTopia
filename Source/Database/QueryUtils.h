@@ -51,4 +51,10 @@ struct QueryTaskResult
     }
 };
 
+struct TableQuery
+{
+    const char* query;
+    uint16 flags;
+};
+
 QueryTaskRequest MakeErrorQueryTask();

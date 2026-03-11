@@ -19,6 +19,7 @@ public:
     void SendOnConsoleMessage(const string& message);
     void SendOnRequestWorldSelectMenu(const string& worldMenu);
     void SendOnFailedToEnterWorld();
+    void SendOnSpawn(const string& spawnData);
 
     void SendCallFunctionPacket(VariantVector& data, int32 netID = -1, int32 delay = -1);
 
@@ -27,6 +28,7 @@ public:
 
 #ifdef SERVER_GAME
     const PlayerInventory& GetInventory() const { return m_inventory; }
+    void SendInventoryPacket();
 #endif
 
 protected:

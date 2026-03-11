@@ -119,7 +119,7 @@ int main(int argc, char const* argv[])
     }
 
     auto pGameConfig = GetContext()->GetGameConfig();
-    if(pGameConfig->LoadServers(GetProgramPath() + "/servers.txt") == 0) {
+    if(pGameConfig->LoadServersMaster(GetProgramPath() + "/servers.txt") == 0) {
         LOGGER_LOG_ERROR("Failed to load servers.txt");
         return 0;
     }

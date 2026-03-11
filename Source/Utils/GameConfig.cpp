@@ -8,7 +8,7 @@ GameConfig::GameConfig()
 {
 }
 
-bool GameConfig::LoadConfig(const string &filePath)
+bool GameConfig::LoadConfig(const string& filePath)
 {
     File file;
     if(!file.Open(filePath)) {
@@ -43,16 +43,20 @@ bool GameConfig::LoadConfig(const string &filePath)
             cdnServer = args[1];
             cdnPath = args[2];
         }
+
+        if(args[0] == "rendererStaticPath") {
+            rendererStaticPath = args[1];
+        }
+
+        if(args[0] == "worldSavePath") {
+            worldSavePath = args[1];
+        }
     }
 
     return true;
 }
 
-#ifdef SERVER_MASTER
-uint16 GameConfig::LoadServers(const string& filePath)
-#else
-uint16 GameConfig::LoadServers(const string &filePath, uint16 serverID)
-#endif
+uint16 GameConfig::LoadServersMaster(const string &filePath)
 {
     File file;
     if(!file.Open(filePath)) {
@@ -61,7 +65,6 @@ uint16 GameConfig::LoadServers(const string &filePath, uint16 serverID)
 
     uint32 fileSize = file.GetSize();
     string fileData(fileSize, '\0');
-
     if(file.Read(fileData.data(), fileSize) != fileSize) {
         return 0;
     }
@@ -70,10 +73,6 @@ uint16 GameConfig::LoadServers(const string &filePath, uint16 serverID)
 
     uint16 tcpStart = 18500;
     uint16 udpStart = 18000;
-
-#ifndef SERVER_MASTER
-    uint32 currServerIdEnd = 0;
-#endif
 
     for(auto& line : lines) {
         if(line.empty() || line[0] == '#') {
@@ -86,51 +85,96 @@ uint16 GameConfig::LoadServers(const string &filePath, uint16 serverID)
             tcpStart = (uint16)ToUInt(args[1]);
         }
 
-        if(args[0] == "udp_start") {
+        else if(args[0] == "udp_start") {
             udpStart = (uint16)ToUInt(args[1]);
         }
 
-        if(args[0] == "set_master") {
-            uint16 masterServerID = 0;
-
-            servers.emplace_back(
-                ServerConfigSchema{
-                    masterServerID, args[1], args[2],
-                    tcpStart, udpStart
-                }
-            );
+        else if(args[0] == "set_master") {
+            AddServer(0, args[1], args[2], tcpStart, udpStart, CONFIG_SERVER_MASTER);
         }
 
-        if(args[0] == "add_server") {
-            uint16 serverCount = ToUInt(args[3]);
-#ifdef SERVER_MASTER
+        else if(args[0] == "add_server" || args[0] == "add_renderer") {
+            uint16 serverCount = (uint16)ToUInt(args[3]);
+            eConfigServerType type = CONFIG_SERVER_GAME;
+
+            if(args[0] == "add_renderer") {
+                type = CONFIG_SERVER_RENDERER;
+            }
+
             for(uint16 i = 0; i < serverCount; ++i) {
                 uint16 serverID = servers.size();
-
-                servers.emplace_back(
-                    ServerConfigSchema{
-                        serverID, args[1], args[2],
-                        (uint16)(tcpStart + serverID), (uint16)(udpStart + serverID)
-                    }
-                );
+                AddServer(serverID, args[1], args[2], tcpStart, udpStart, type);
             }
-#else
-            uint32 start = currServerIdEnd + 1;
-            currServerIdEnd = start + serverCount + 1;
-
-            if(serverID >= start && serverID <= currServerIdEnd) {
-                servers.emplace_back(
-                    ServerConfigSchema{
-                        serverID, args[1], args[2],
-                        (uint16)(tcpStart + serverID), (uint16)(udpStart + serverID)
-                    }
-                );
-
-                break;
-            }
-#endif
         }
     }
 
     return servers.size();
+}
+
+uint16 GameConfig::LoadServersClient(const string& filePath, uint16 serverID)
+{
+    File file;
+    if(!file.Open(filePath)) {
+        return 0;
+    }
+
+    uint32 fileSize = file.GetSize();
+    string fileData(fileSize, '\0');
+    if(file.Read(fileData.data(), fileSize) != fileSize) {
+        return 0;
+    }
+
+    auto lines = Split(fileData, '\n');
+
+    uint16 tcpStart = 18500;
+    uint16 udpStart = 18000;
+    uint32 currServerIdEnd = 0;
+
+    for(auto& line : lines) {
+        if(line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        auto args = Split(line, '|');
+
+        if(args[0] == "tcp_start") {
+            tcpStart = (uint16)ToUInt(args[1]);
+        }
+
+        else if(args[0] == "udp_start") {
+            udpStart = (uint16)ToUInt(args[1]);
+        }
+
+        else if(args[0] == "set_master") {
+            AddServer(0, args[1], args[2], tcpStart, udpStart, CONFIG_SERVER_MASTER);
+        }
+
+        else if(args[0] == "add_server" || args[0] == "add_renderer") {
+           uint16 serverCount = (uint16)ToUInt(args[3]);
+           uint32 start = currServerIdEnd + 1;
+           currServerIdEnd = start + serverCount - 1;
+       
+           if(serverID >= start && serverID <= currServerIdEnd) {
+               eConfigServerType type = CONFIG_SERVER_GAME;
+
+                if(args[0] == "add_renderer") {
+                    type = CONFIG_SERVER_RENDERER;
+                }
+               AddServer(serverID, args[1], args[2], tcpStart, udpStart, type);
+               break;
+           }
+       }
+    }
+
+    return servers.size();
+}
+
+void GameConfig::AddServer(uint16 serverID, const string& lanIP, const string& wanIP, uint16 tcpStart, uint16 udpStart, eConfigServerType serverType)
+{
+    servers.emplace_back(ServerConfigSchema{
+        serverID, lanIP, wanIP,
+        (uint16)(tcpStart + serverID),
+        (uint16)(udpStart + serverID),
+        serverType
+    });
 }

@@ -25,6 +25,8 @@ enum eTileFlags
     TILE_FLAG_PAINTED_BLUE = 1 << 15
 };
 
+class WorldTileManager;
+
 class TileInfo {
 public:
     TileInfo();
@@ -33,8 +35,11 @@ public:
 public:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database);
 
-    void SetFG(uint16 itemID);
+    void SetFG(uint16 itemID, WorldTileManager* pTileMgr);
     void SetBG(uint16 itemID);
+
+    uint16 GetFG() const { return m_fg; }
+    uint16 GetBG() const { return m_bg; }
 
     void SetPos(Vector2Int pos) { m_pos = pos; }
     Vector2Int GetPos() const { return m_pos; }
@@ -43,6 +48,8 @@ public:
     void RemoveFlag(uint16 flag) { m_flags &= ~flag; }
     bool HasFlag(uint16 flag) { return m_flags & flag; };
     void ToggleFlag(uint16 flag) { m_flags ^= flag; }
+
+    TileExtra* GetExtra() { return m_pExtraData; }
 
 private:
     uint16 m_fg;

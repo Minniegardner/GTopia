@@ -112,6 +112,17 @@ bool ItemInfo::IsBackground()
     return false;
 }
 
+bool ItemInfo::IsMainDoor()
+{
+    if(
+        id == ITEM_ID_MAIN_DOOR
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 bool IsIllegalItem(uint32 itemID)
 {
     switch(itemID) {

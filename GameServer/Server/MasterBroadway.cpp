@@ -31,25 +31,10 @@ void MasterBroadway::RegisterEvents()
 {
     ServerBroadwayBase::RegisterEvents();
 
-    m_events.Register(
-        TCP_PACKET_HELLO,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventHello::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_AUTH,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventAuth::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_PLAYER_CHECK_SESSION,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventPlayerSession::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_WORLD_INIT,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventWorldInit::Execute>()
-    );
+    RegisterEvent<TCPEventHello>(TCP_PACKET_HELLO);
+    RegisterEvent<TCPEventAuth>(TCP_PACKET_AUTH);
+    RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
+    RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
 }
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)

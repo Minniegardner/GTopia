@@ -54,7 +54,7 @@ void GamePlayer::LoginGetAccount()
 
     if(m_loginDetail.tankIDName.empty()) {
         QueryRequest req = MakePlayerByMacReq(m_loginDetail.mac, m_loginDetail.rid, m_loginDetail.platformType, GetNetID());
-        DatabaseGetPlayerByMac(GetContext()->GetDatabasePool(), req);
+        DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_MAC, req);
     }
     else {
 
@@ -85,7 +85,7 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
             m_loginDetail.rid,
             GetNetID());
 
-        DatabasePlayerCreate(GetContext()->GetDatabasePool(), req);
+        DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_CREATE, req);
         m_state = PLAYER_STATE_CREATING_ACCOUNT;
     }
 

@@ -10,6 +10,7 @@
 #include "Server/MasterBroadway.h"
 #include "Player/PlayerTribute.h"
 #include "World/WorldManager.h"
+#include "Player/RoleManager.h"
 
 const int32 TICK_RATE = 20;
 const uint64 TICK_INTERVAL = 1000/TICK_RATE;
@@ -127,7 +128,6 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
     }
 }
 
-
 bool LoadItemData()
 {
     ItemInfoManager* pItemMgr = GetItemInfoManager();
@@ -164,19 +164,16 @@ bool LoadItemData()
     pItemMgr->LoadFileHashes(hashData, false);
     pItemMgr->SaveToClientData(false);
 
-    auto item = pItemMgr->GetItemByID(14);
-    LOGGER_LOG_ERROR("%s %s %d %d %d", item->name.c_str(), item->textureFile.c_str(), item->textureHash, item->textureX, item->textureY);
-
     pItemMgr->LoadFileHashes(hashData, true);
     pItemMgr->SaveToClientData(true);
 
-    PlayerTribute* pPlayerTrib = GetPlayerTributeManager();
+    /*PlayerTribute* pPlayerTrib = GetPlayerTributeManager();
     if(!pPlayerTrib->Load(GetProgramPath() + "/player_tribute.txt")) {
         LOGGER_LOG_ERROR("Failed to load player_tribute.txt anyways skipping it");
     }
     else {
         pPlayerTrib->SaveToClientData();
-    }
+    }*/
 
     return true;
 }
@@ -203,7 +200,7 @@ int main(int argc, char const* argv[])
     }
 
     auto pGameConfig = GetContext()->GetGameConfig();
-    if(pGameConfig->LoadServers(GetProgramPath() + "/servers.txt", GetContext()->GetID()) != 2) {
+    if(pGameConfig->LoadServersClient(GetProgramPath() + "/servers.txt", GetContext()->GetID()) != 2) {
         LOGGER_LOG_ERROR("Failed to load servers.txt");
         return 0;
     }
@@ -249,17 +246,23 @@ int main(int argc, char const* argv[])
     if(!GetMasterBroadway()->IsConnected()) {
         LOGGER_LOG_ERROR("Failed to connect to master... killing");
         GetMasterBroadway()->Kill();
+        GetContext()->Kill();
         GetLog()->Flush();
         GetLog()->Kill();
-        GetContext()->Kill();
         return 0;
     }
+
+    LOGGER_LOG_INFO("Connected to master server");
 
     if(!LoadItemData()) {
         return 0;
     }
 
-    LOGGER_LOG_INFO("Connected to master server");
+    if(!GetRoleManager()->Load(GetProgramPath() + "/roles.txt")) {
+        LOGGER_LOG_ERROR("Failed to load roles.txt");
+        return 0;
+    }
+
     GetMasterBroadway()->SendHelloPacket();
 
     DatabaseConnectConfig dbConfig;
@@ -314,10 +317,10 @@ int main(int argc, char const* argv[])
 
     GetGameServer()->Kill();
     GetMasterBroadway()->Kill();
+    GetContext()->Kill();
 
     GetLog()->Flush();
     GetLog()->Kill();
-    GetContext()->Kill();
 
     mysql_library_end();
     return 0;

@@ -37,7 +37,6 @@ target_include_directories(ItemManager PRIVATE
     ${SOURCE_ROOT}
     ${ITEM_MANAGER_ROOT}
     ${THIRD_PARTY_NLOHMANN}/include
-    ${THIRD_PARTY_CONCURRENTQUEUE}/include
     ${OPENSSL_INCLUDE_DIR}
 )
 

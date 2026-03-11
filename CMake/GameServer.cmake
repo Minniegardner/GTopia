@@ -15,6 +15,7 @@ set(GAME_PLAYER "${GAME_ROOT}/Player")
 set(GAME_SERVER "${GAME_ROOT}/Server")
 set(GAME_EVENT "${GAME_ROOT}/Event")
 set(GAME_WORLD "${GAME_ROOT}/World")
+set(GAME_COMMAND "${GAME_ROOT}/Command")
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
@@ -36,6 +37,9 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/EnterGame.cpp
     ${GAME_EVENT}/UDP/GameMessage/RefreshTributeData.cpp
     ${GAME_EVENT}/UDP/GameMessage/JoinRequest.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Input.cpp
+
+    ${GAME_COMMAND}/RenderWorld.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp
@@ -45,6 +49,8 @@ set(GAME_FILES PRIVATE
     ${GAME_WORLD}/WorldManager.cpp
     ${GAME_WORLD}/World.cpp
 
+    ${SOURCE_PLAYER}/Role.cpp
+    ${SOURCE_PLAYER}/RoleManager.cpp
     ${SOURCE_PLAYER}/Player.cpp
     ${SOURCE_PLAYER}/PlayerTribute.cpp
     ${SOURCE_PLAYER}/PlayerInventory.cpp
@@ -74,8 +80,6 @@ set_target_properties(GameServer PROPERTIES
 target_include_directories(GameServer PRIVATE
     ${SOURCE_ROOT}
     ${GAME_ROOT}
-    ${THIRD_PARTY_ENET}/include
-    ${THIRD_PARTY_CONCURRENTQUEUE}/include
     ${MYSQL_INCLUDE_DIR}
 )
 

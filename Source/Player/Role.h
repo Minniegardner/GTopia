@@ -2,7 +2,15 @@
 
 #include "../Precompiled.h"
 
-enum eRolePerm;
+enum eRolePerm
+{
+    ROLE_PERM_NONE,
+
+    ROLE_PERM_MSTATE,
+    ROLE_PERM_SMSTATE,
+
+    ROLE_PERM_SIZE
+};
 
 enum eRoleResolve
 {
@@ -21,7 +29,7 @@ public:
 public:
     const string& GetName() const { return m_name; }
 
-    int32 GetID() const { return m_id; }
+    uint32 GetID() const { return m_id; }
     const string& GetPrefix() const { return m_prefix; }
     const string& GetSuffix() const { return m_suffix; }
     char GetNameColor() const { return m_nameColor; }
@@ -34,12 +42,12 @@ private:
 
 private:
     string m_name;
-    int32 m_id;
+    uint32 m_id;
     string m_prefix;
     string m_suffix;
     char m_nameColor;
     char m_chatColor;
-    std::vector<int32> m_inherits;
+    std::vector<uint32> m_inherits;
 
     eRoleResolve m_state;
     

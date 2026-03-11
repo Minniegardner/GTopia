@@ -25,6 +25,8 @@ public:
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile);
 
     string GetName() const { return m_name; }
+    void SetName(const string& name) { m_name = name; }
+
     string GetText() const  { return m_text; }
     string GetID() const { return m_id; }
 

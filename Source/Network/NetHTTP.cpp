@@ -69,7 +69,7 @@ void NetHTTP::OnDataReceive(NetClient* pClient)
             int32 bodyLineEnd = data.find("\r\n");
 
             if(bodyLineEnd != -1) {
-                uint32 chunkSize = (uint32)stoul(data.substr(0, bodyLineEnd), nullptr, 16); // LOL add that to StringUtils
+                uint32 chunkSize = (uint32)stoul(data.substr(0, bodyLineEnd), nullptr, 16);
     
                 if(chunkSize == 0) {
                     pClient->recvQueue.Skip(2);
@@ -169,8 +169,8 @@ void NetHTTP::ParseHeader(const string& header)
             line.pop_back();
         }
     
-        uint32 colon = line.find(':');
-        if(colon == -1) {
+        usize colon = line.find(':');
+        if(colon == string::npos) {
             continue;
         }
     

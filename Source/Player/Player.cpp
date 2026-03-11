@@ -104,6 +104,15 @@ void Player::SendOnFailedToEnterWorld()
     SendCallFunctionPacket(data);
 }
 
+void Player::SendOnSpawn(const string& spawnData)
+{
+    VariantVector data(2);
+    data[0] = "OnSpawn";
+    data[1] = spawnData;
+
+    SendCallFunctionPacket(data);
+}
+
 void Player::SendCallFunctionPacket(VariantVector& data, int32 netID, int32 delay)
 {
     if(!m_pPeer) {
@@ -123,3 +132,33 @@ void Player::SendCallFunctionPacket(VariantVector& data, int32 netID, int32 dela
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &gamePacket, sizeof(GameUpdatePacket), pData, m_pPeer);
     SAFE_DELETE_ARRAY(pData);
 }
+
+#ifdef SERVER_GAME
+#include "IO/File.h"
+void Player::SendInventoryPacket()
+{
+    if(!m_pPeer) {
+        return;
+    }
+
+    GameUpdatePacket gamePacket;
+    gamePacket.type = NET_GAME_PACKET_SEND_INVENTORY_STATE;
+    gamePacket.flags |= NET_GAME_PACKET_FLAGS_EXTENDED;
+
+    uint32 memSize = m_inventory.GetMemEstimate(false);
+    gamePacket.extraDataSize = memSize;
+
+    uint8* pData = new uint8[memSize];
+
+    MemoryBuffer memBuffer(pData, memSize);
+    m_inventory.Serialize(memBuffer, true, false);
+
+    File file;
+    file.Open(GetProgramPath() + "/inv.dat", FILE_MODE_WRITE);
+    file.Write(pData, memSize);
+    file.Close();
+
+    SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &gamePacket, sizeof(GameUpdatePacket), pData, m_pPeer);
+    SAFE_DELETE_ARRAY(pData);
+}
+#endif

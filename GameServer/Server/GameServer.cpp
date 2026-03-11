@@ -4,11 +4,15 @@
 #include "../Player/GamePlayer.h"
 #include "Packet/PacketUtils.h"
 #include "IO/Log.h"
+#include "../World/WorldManager.h"
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
 #include "../Event/UDP/GameMessage/EnterGame.h"
 #include "../Event/UDP/GameMessage/JoinRequest.h"
 #include "../Event/UDP/GameMessage/RefreshTributeData.h"
+#include "../Event/UDP/GameMessage/Input.h"
+
+#include "../Command/RenderWorld.h"
 
 GameServer::GameServer()
 {
@@ -48,51 +52,64 @@ void GameServer::OnEventReceive(ENetEvent& event)
 
     uint32 msgType = GetMessageTypeFromEnetPacket(event.packet);
     LOGGER_LOG_DEBUG("%s", GetTextFromEnetPacket(event.packet));
+    LOGGER_LOG_DEBUG("messageType: %d", msgType);
 
     switch(msgType) {
-        case NET_MESSAGE_GENERIC_TEXT: {
+        case NET_MESSAGE_GENERIC_TEXT:
+        case NET_MESSAGE_GAME_MESSAGE: {
+
+            if(pPlayer->HasState(PLAYER_STATE_LOGIN_REQUEST)) {
+                ParsedTextPacket<25> packet;
+                ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
+
+                pPlayer->StartLoginRequest(packet);
+                return;
+            }
+            else if(pPlayer->HasState(PLAYER_STATE_ENTERING_GAME)) {
+                ParsedTextPacket<8> packet;
+                ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
             
-            switch(pPlayer->GetState()) {
-                case PLAYER_STATE_LOGIN_REQUEST: {
-                    ParsedTextPacket<25> packet;
-                    ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
+                auto pAction = packet.Find(CompileTimeHashString("action"));
+                if(pAction) {
+                    uint32 packetType = HashString(pAction->value, pAction->size);
 
-                    pPlayer->StartLoginRequest(packet);
-                    break;
-                }
-
-                case PLAYER_STATE_ENTERING_GAME: {
-                    ParsedTextPacket<8> packet;
-                    ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
-                
-                    auto pAction = packet.Find(CompileTimeHashString("action"));
-                    if(pAction) {
-                        uint32 packetType = HashString(pAction->value, pAction->size);
-
-                        if(
-                            packetType == CompileTimeHashString("refresh_item_data") ||
-                            packetType == CompileTimeHashString("enter_game") ||
-                            packetType == CompileTimeHashString("refresh_player_tribute_data")
-                        ) {
-                            m_messagePacket.Dispatch(packetType, pPlayer, packet);   
-                        }
+                    if(
+                        packetType == CompileTimeHashString("refresh_item_data") ||
+                        packetType == CompileTimeHashString("enter_game") ||
+                        packetType == CompileTimeHashString("refresh_player_tribute_data")
+                    ) {
+                        m_messagePacket.Dispatch(packetType, pPlayer, packet);   
                     }
-                    break;
                 }
+                return;
             }
 
-            break;
-        }
-
-        case NET_MESSAGE_GAME_MESSAGE: {
+            if(
+                !pPlayer->HasState(PLAYER_STATE_IN_GAME)
+            ) {
+                return;
+            }
+            
             ParsedTextPacket<8> packet;
             ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
         
             auto pAction = packet.Find(CompileTimeHashString("action"));
             if(pAction) {
                 uint32 packetType = HashString(pAction->value, pAction->size);
+
                 m_messagePacket.Dispatch(packetType, pPlayer, packet);
             }
+
+            break;
+        }
+
+        case NET_MESSAGE_GAME_PACKET: {
+            if(pPlayer->GetCurrentWorld() == 0) {
+                // :) resp
+                return;
+            }
+
+            GetWorldManager()->OnHandleGamePacket(event);
             break;
         }
     }
@@ -118,30 +135,35 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
 
 void GameServer::RegisterEvents()
 {
-    m_messagePacket.Register(
-        CompileTimeHashString("refresh_item_data"),
-        Delegate<GamePlayer*, ParsedTextPacket<8>&>::Create<&RefreshItemData::Execute>()
-    );
+    RegisterMessagePacket<RefreshItemData>(CompileTimeHashString("refresh_item_data"));
+    RegisterMessagePacket<EnterGame>(CompileTimeHashString("enter_game"));
+    RegisterMessagePacket<RefreshTributeData>(CompileTimeHashString("refresh_player_tribute_data"));
+    RegisterMessagePacket<JoinRequest>(CompileTimeHashString("join_request"));
+    RegisterMessagePacket<Input>(CompileTimeHashString("input"));
 
-    m_messagePacket.Register(
-        CompileTimeHashString("enter_game"),
-        Delegate<GamePlayer*, ParsedTextPacket<8>&>::Create<&EnterGame::Execute>()
-    );
+    RegisterCommand<RenderWorld>();
+}
 
-    m_messagePacket.Register(
-        CompileTimeHashString("refresh_player_tribute_data"),
-        Delegate<GamePlayer*, ParsedTextPacket<8>&>::Create<&RefreshTributeData::Execute>()
-    );
+void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
+{
+    if(!pPlayer || args.empty()) {
+        return;
+    }
 
-    m_messagePacket.Register(
-        CompileTimeHashString("join_request"),
-        Delegate<GamePlayer*, ParsedTextPacket<8>&>::Create<&JoinRequest::Execute>()
+    m_commands.Dispatch(
+        HashString(args[0].substr(1)),
+        pPlayer, args
     );
 }
 
+#include "Item/ItemInfoManager.h"
+#include "Player/RoleManager.h"
 void GameServer::Kill()
 {
     ServerBase::Kill();
+
+    GetItemInfoManager()->Kill();
+    GetRoleManager()->Kill();
 
     for(auto& [_, pPlayer] : m_playerCache) {
         SAFE_DELETE(pPlayer);

@@ -6,7 +6,7 @@
 
 void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
 {
-    VariantVector packet(3);
+    VariantVector packet(4);
     packet[0] = TCP_PACKET_AUTH;
 
     /**
@@ -16,6 +16,7 @@ void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
      */
     packet[1] = data[1].GetString();
     packet[2] = (uint32)GetContext()->GetID();
+    packet[3] = CONFIG_SERVER_GAME;
 
     pClient->Send(packet);
 }

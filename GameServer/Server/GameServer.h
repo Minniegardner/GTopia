@@ -3,6 +3,7 @@
 #include "Server/ServerBase.h"
 #include "Event/EventDispatcher.h"
 #include "../Player/GamePlayer.h"
+#include "../Command/CommandBase.h"
 
 class GameServer : public ServerBase {
 public:
@@ -22,8 +23,33 @@ public:
     void RegisterEvents() override;
     void Kill() override;
 
+public:
+    void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
+
+private:
+    template<class T>
+    void RegisterMessagePacket(uint32 eventHash)
+    {
+        m_messagePacket.Register(
+            eventHash,
+            Delegate<GamePlayer*, ParsedTextPacket<8>&>::Create<&T::Execute>()
+        );
+    }
+
+    template<class T>
+    void RegisterCommand()
+    {
+        for(auto& alias : T::GetInfo().aliases) {
+            m_commands.Register(
+                alias,
+                Delegate<GamePlayer*, std::vector<string>&>::Create<&T::Execute>()
+            );
+        }
+    }
+
 private:
     EventDispatcher<uint32, GamePlayer*, ParsedTextPacket<8>&> m_messagePacket;
+    EventDispatcher<uint32, GamePlayer*, std::vector<string>&> m_commands;
 };
 
 GameServer* GetGameServer();

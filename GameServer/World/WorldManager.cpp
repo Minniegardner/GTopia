@@ -1,5 +1,4 @@
 #include "WorldManager.h"
-#include "Packet/GamePacket.h"
 #include "../Context.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/GameServer.h"
@@ -29,7 +28,7 @@ void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
     data[2] = worldID;
 
     string path = GetContext()->GetGameConfig()->worldSavePath
-    + "world_" + ToString(worldID) + ".bin";
+    + "/world_" + ToString(worldID) + ".bin";
 
     World* pWorld = nullptr;
 
@@ -61,6 +60,26 @@ void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
         pWorld = new World();
         pWorld->GenerateWorld(WORLD_GENERATION_DEFAULT);
         pWorld->SetName(result.result->GetField("Name", 0).GetString());
+
+        LOGGER_LOG_DEBUG("Saving new world %d, %s", worldID, path.c_str());
+
+        File file;
+        if(!file.Open(path, FILE_MODE_WRITE)) {
+            LOGGER_LOG_WARN("Failed to save new world, hope to save in auto save");
+        }
+        else {
+            MemoryBuffer memSize;
+            pWorld->Serialize(memSize, true, true);
+            
+            uint32 worldMemSize = memSize.GetOffset();
+            uint8* pWorldData = new uint8[worldMemSize];
+        
+            MemoryBuffer memBuffer(pWorldData, worldMemSize);
+            pWorld->Serialize(memBuffer, true, true);
+
+            file.Write(pWorldData, worldMemSize);
+            file.Close();
+        }
     }
 
     pWorld->SetID(worldID);
@@ -93,7 +112,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
     }
     else if(result[1].GetType() == VARIANT_TYPE_STRING) {
         QueryRequest req = MakeGetWorldData(result[1].GetString(), GetNetID());
-        DatabaseGetWorldData(GetContext()->GetDatabasePool(), req);
+        DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_GET_DATA, req);
         return;
     }
 
@@ -124,7 +143,7 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
-    pPlayer->SetJoinWorld(worldName);
+    pPlayer->SetJoinWorld(true);
     World* pWorld = GetWorldByName(worldName);
 
     if(pWorld) {
@@ -132,7 +151,7 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
             pPlayer->SendOnFailedToEnterWorld();
         }
 
-        pPlayer->SetJoinWorld("EXIT");
+        pPlayer->SetJoinWorld(false);
         return;
     }
 
@@ -145,6 +164,25 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
     GetMasterBroadway()->SendPacketRaw(data);
 }
 
+void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    uint32 worldID = pPlayer->GetCurrentWorld();
+    if(worldID == 0) {
+        return;
+    }
+
+    World* pWorld = GetWorldByID(worldID);
+    if(!pWorld) {
+        return;
+    }
+
+    pWorld->PlayerLeaverWorld(pPlayer);
+}
+
 World* WorldManager::GetWorldByID(uint32 worldID)
 {
     auto it = m_worlds.find(worldID);
@@ -155,7 +193,7 @@ World* WorldManager::GetWorldByID(uint32 worldID)
     return nullptr;
 }
 
-World *WorldManager::GetWorldByName(const string &worldName)
+World* WorldManager::GetWorldByName(const string &worldName)
 {
     string searchName = ToLower(worldName);
     for(auto& [_, pWorld] : m_worlds) {
@@ -165,6 +203,22 @@ World *WorldManager::GetWorldByName(const string &worldName)
     }
 
     return nullptr;
+}
+
+void WorldManager::OnHandleGamePacket(ENetEvent& event)
+{
+    GameUpdatePacket* pGamePacket = GetGamePacketFromEnetPacket(event.packet);
+    if(!pGamePacket) {
+        return;
+    }
+
+    GamePlayer* pPlayer = (GamePlayer*)event.peer->data;
+    if(event.peer != pPlayer->GetPeer()) {
+        return;
+    }
+
+    World* pWorld = GetWorldByID(pPlayer->GetCurrentWorld());
+    m_packetEvents.Dispatch((eGamePacketType)pGamePacket->type, pPlayer, pWorld, pGamePacket);
 }
 
 WorldManager* GetWorldManager() { return WorldManager::GetInstance(); }

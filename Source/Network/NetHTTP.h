@@ -3,10 +3,6 @@
 #include "../Precompiled.h"
 #include "NetSocket.h"
 
-/**
- * simple http made for parsing wiki
- */
-
 #define HTTP_TIMEOUT_MS 10 * 1000
 
 enum eHTTPError

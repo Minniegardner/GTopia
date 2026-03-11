@@ -4,13 +4,13 @@
 #include "../IO/Log.h"
 
 Role::Role()
-: m_state(ROLE_RESOLVE_NONE)
+: m_state(ROLE_RESOLVE_NONE), m_chatColor(0), m_nameColor(0)
 {
 }
 
 void Role::AddPerm(eRolePerm perm)
 {
-    uint32 permIdx = static_cast<uint32>(perm);
+    uint32 permIdx = (uint32)(perm);
     uint32 blockIdx = permIdx / 32;
     uint32 bitIdx = permIdx % 32;
 

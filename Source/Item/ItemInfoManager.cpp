@@ -11,14 +11,7 @@ ItemInfoManager::ItemInfoManager()
 
 ItemInfoManager::~ItemInfoManager()
 {
-    for(auto& pItem : m_items) {
-        SAFE_DELETE(pItem);
-    }
-
-    SAFE_DELETE_ARRAY(m_itemDataMp3.pItemData);
-    SAFE_DELETE_ARRAY(m_itemDataOgg.pItemData);
-
-    m_items.clear();
+    Kill();
 }
 
 bool ItemInfoManager::Load(const string& filePath)
@@ -66,8 +59,8 @@ bool ItemInfoManager::Load(const string& filePath)
 
             pItem->id = ToUInt(args[1]);
             pItem->name = args[2];
-            //pItem->type = StrToItemType(args[3]);
-            //pItem->material = StrToItemMaterial(args[4]);
+            pItem->type = StrToItemType(args[3]);
+            pItem->material = StrToItemMaterial(args[4]);
             pItem->textureFile = args[5];
 
             auto coords = Split(args[6], ',');
@@ -163,6 +156,22 @@ bool ItemInfoManager::Load(const string& filePath)
                 pLastItem->animMS = (uint32)ToInt(args[2]);
             }
         }
+
+        if(args[0] == "set_max_hold") {
+            if(!pLastItem) {
+                continue;
+            }
+
+            pLastItem->maxCanHold = ToUInt(args[1]);
+        }
+
+        if(args[0] == "set_rarity") {
+            if(!pLastItem) {
+                continue;
+            }
+
+            pLastItem->rarity = (int16)ToInt(args[1]);
+        }
     }
 
     m_itemCount = m_items.size();
@@ -200,6 +209,18 @@ bool ItemInfoManager::LoadByItemsDat(const string& filePath)
 
     SAFE_DELETE_ARRAY(data);
     return true;
+}
+
+void ItemInfoManager::Kill()
+{
+    for(auto& pItem : m_items) {
+        SAFE_DELETE(pItem);
+    }
+
+    SAFE_DELETE_ARRAY(m_itemDataMp3.pItemData);
+    SAFE_DELETE_ARRAY(m_itemDataOgg.pItemData);
+
+    m_items.clear();
 }
 
 void ItemInfoManager::LoadFileHashes(const std::unordered_map<string, uint32>& hashData, bool forOgg)
@@ -247,7 +268,6 @@ void ItemInfoManager::SaveToClientData(bool forOgg)
 
     uint32 memSize = memSizeBuffer.GetOffset();
     uint8* pData = new uint8[memSize];
-    memset(pData, 0, memSize);
 
     MemoryBuffer memBuffer(pData, memSize);
     memBuffer.Write(m_version);

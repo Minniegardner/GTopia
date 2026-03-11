@@ -34,6 +34,11 @@ public:
         return false;
     }
 
+    Vector2<T> operator*(int32 rhs)
+    {
+        return Vector2<T>(x * rhs, y * rhs);
+    }
+
     Vector2<T>& operator+=(const Vector2<T>& rhs)
     {
         x += rhs.x; y += rhs.y;

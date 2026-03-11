@@ -17,6 +17,11 @@ uint32 HashString(const char* str);
 string ToHex(const string& str);
 string ToHex(const void* str, uint32 size);
 
+int32 CharToInt(char input);
+
+void HexToBytes(const string& str, uint8* target);
+void HexToBytes(const char* str, uint8* target);
+
 string ToUpper(const string& str);
 string ToUpper(const char* str);
 
@@ -25,6 +30,9 @@ string ToLower(const char* str);
 
 float ToFloat(const string& str);
 float ToFloat(const char* str);
+
+void RemoveExtraWhiteSpaces(string& str);
+void RemoveExtraWhiteSpaces(char* str);
 
 int32 ToInt(const string& str);
 int32 ToInt(const char* str);

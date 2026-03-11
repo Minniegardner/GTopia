@@ -57,8 +57,6 @@ set_target_properties(Master PROPERTIES
 target_include_directories(Master PRIVATE
     ${SOURCE_ROOT}
     ${MASTER_ROOT}
-    ${THIRD_PARTY_ENET}/include
-    ${THIRD_PARTY_CONCURRENTQUEUE}/include
     ${MYSQL_INCLUDE_DIR}
 )
 

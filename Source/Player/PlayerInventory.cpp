@@ -12,14 +12,7 @@ void InventoryItemInfo::Serialize(MemoryBuffer& memBuffer, bool write)
 PlayerInventory::PlayerInventory()
 : m_capacity(INVENTORY_DEFAULT_CAPACITY)
 {
-    /*if(protocol < 93) {
-        m_version = 0;
-    }
-    else {
-        m_version = 1;
-    }*/
-
-    for(auto i = 0; i < BODY_PART_SIZE; ++i) {
+    for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
         m_clothes[i] = 0;
     }
 
@@ -27,24 +20,28 @@ PlayerInventory::PlayerInventory()
 
     m_items.emplace_back(InventoryItemInfo{ ITEM_ID_FIST, 1, 0 });
     m_items.emplace_back(InventoryItemInfo{ ITEM_ID_WRENCH, 1, 0 });
+
+    m_quickSlots[0] = ITEM_ID_FIST;
 }
 
-void PlayerInventory::Serialize(MemoryBuffer& memBuffer, bool write, uint32 protocol, bool database)
+void PlayerInventory::Serialize(MemoryBuffer& memBuffer, bool write, bool database)
 {
-    memBuffer.ReadWrite(m_version, write);
+    if(!database) {
+        memBuffer.ReadWrite(m_version, write);
+    }
+
     memBuffer.ReadWrite(m_capacity, write);
 
     uint16 invItemSize = m_items.size();
-    if(database) {
+    if(database || m_version > 0) {
         memBuffer.ReadWrite(invItemSize, write);
     }
     else {
-        if(protocol < 94) {
-            uint8 tempInvSize = (uint8)invItemSize;
-            memBuffer.ReadWrite(tempInvSize, write);
-        }
-        else {
-            memBuffer.ReadWrite(invItemSize, write);
+        uint8 tempInvSize = (uint8)invItemSize;
+        memBuffer.ReadWrite(tempInvSize, write);
+
+        if(!write) {
+            invItemSize = tempInvSize;
         }
     }
 
@@ -52,20 +49,36 @@ void PlayerInventory::Serialize(MemoryBuffer& memBuffer, bool write, uint32 prot
         m_items.reserve(m_capacity);
     }
 
-    if(protocol < 94 && !database && invItemSize > 255) {
+    if(m_version == 0 && !database && invItemSize > 255) {
         invItemSize = 250;
     }
 
+    ItemInfoManager* pItemMgr = GetItemInfoManager();
+
     for(uint16 i = 0; i < invItemSize; ++i) {
-        InventoryItemInfo item;
-        item.Serialize(memBuffer, write);
-
-        if(!write && (IsIllegalItem(item.id)) || item.id < 0) {
-            LOGGER_LOG_WARN("Illegal item %d found in player inventory skipping adding", item.id);
-            continue;
+        if(write) {
+            m_items[i].Serialize(memBuffer, true);
         }
+        else {
+            InventoryItemInfo item;
+            item.Serialize(memBuffer, write);
+    
+            if(IsIllegalItem(item.id) || item.id < 0) {
+                LOGGER_LOG_WARN("Illegal item %d found in player inventory skipping adding", item.id);
+                continue;
+            }
 
-        m_items.push_back(std::move(item));
+            ItemInfo* pItem = pItemMgr->GetItemByID(item.id);
+            if(!pItem) {
+                continue;
+            }
+
+            if(pItem->type == ITEM_TYPE_CLOTHES && item.flags == 1) {
+                m_clothes[pItem->bodyPart] = item.id;
+            }
+    
+            m_items.push_back(std::move(item));
+        }
     }
 }
 
@@ -155,16 +168,32 @@ void PlayerInventory::RemoveFromQuickSlots(uint16 itemID)
     }
 }
 
-uint32 PlayerInventory::GetMemEstimate(bool database, uint32 protocol)
+uint32 PlayerInventory::GetMemEstimate(bool database)
 {
-    uint32 memEstimate = m_items.size() * sizeof(InventoryItemInfo);
+    uint32 memEstimate = sizeof(m_capacity) + m_items.size() * sizeof(InventoryItemInfo);
 
-    if(!database && protocol < 94) {
-        memEstimate += sizeof(uint8);
+    if(!database) {
+        memEstimate += sizeof(m_version);
+    }
+
+    if(database || m_version > 0) {
+        memEstimate += sizeof(uint16);
     }
     else {
-        memEstimate += sizeof(uint16);
+        memEstimate += sizeof(uint8);
     }
 
     return memEstimate;
+}
+
+void PlayerInventory::SetVersion(uint32 protocol)
+{
+    /*if(protocol < 94) {
+        m_version = 0;
+    }
+    else {
+        m_version = 1;
+    }*/
+
+    m_version = 0;
 }

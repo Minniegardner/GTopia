@@ -4,13 +4,15 @@
 #include "../Memory/MemoryBuffer.h"
 #include "../Proton/ProtonUtils.h"
 
+#include "../IO/Log.h"
+
 PlayerTribute::PlayerTribute()
-: m_dataVec(2)
 {
 }
 
 PlayerTribute::~PlayerTribute()
 {
+    SAFE_DELETE_ARRAY(m_clientData.pData);
 }
 
 bool PlayerTribute::Load(const string& filePath)
@@ -29,6 +31,8 @@ bool PlayerTribute::Load(const string& filePath)
 
     auto lines = Split(fileData, '\n');
 
+    m_dataVec.resize(2);
+
     uint8 currHeader = 0;
     for(auto& line : lines) {
         if(line.empty() || line[0] == '#') {
@@ -36,17 +40,19 @@ bool PlayerTribute::Load(const string& filePath)
         }
 
         auto args = Split(line, '|');
+
         if(args[0] == "set_header") {
             if(args[1] == "epic_players") {
                 currHeader = 0;
             }
-            else if(args[1] == "exceptional_mentors") {
+
+            if(args[1] == "exceptional_mentors") {
                 currHeader = 1;
             }
             continue;
         }
 
-        m_dataVec[currHeader] += line;
+        m_dataVec[currHeader] += line + "\n";
     }
 
     return true;

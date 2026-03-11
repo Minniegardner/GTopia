@@ -4,7 +4,8 @@
 #include "../Math/Random.h"
 
 WorldTileManager::WorldTileManager()
-: m_size(WORLD_DEFAULT_WIDTH, WORLD_DEFAULT_HEIGHT)
+: m_size(WORLD_DEFAULT_WIDTH, WORLD_DEFAULT_HEIGHT),
+m_pMainDoorTile(nullptr)
 {
 }
 
@@ -40,7 +41,7 @@ void WorldTileManager::Clear(bool reInit)
 
     if(reInit) {
         m_tiles.resize(m_size.x * m_size.y);
-        for(uint32 i = 0; i < m_tiles.size(); ++i) { m_tiles[i].SetPos(Vector2Int(i % m_size.x, i / m_size.x));}
+        for(uint32 i = 0; i < m_tiles.size(); ++i) { m_tiles[i].SetPos(Vector2Int(i % m_size.x, i / m_size.x)); }
     }
 }
 
@@ -57,6 +58,33 @@ void WorldTileManager::GenerateDefaultMap()
             { { ITEM_ID_DIRT, 94 }, { ITEM_ID_ROCK, 6 } },
             { { ITEM_ID_CAVE_BACKGROUND, 100 } }); 
     FillRectWithThickness(1, layer, ITEM_ID_DIRT, ITEM_ID_CAVE_BACKGROUND, 100); 
+
+
+    int32 doorPosX = RandomRangeInt(10, layer.Width() - 10);
+    TileInfo* pDoorTile = GetTile(doorPosX, layer.top - 1);
+
+    pDoorTile->SetFG(ITEM_ID_MAIN_DOOR, this);
+    pDoorTile->GetExtra()->SetName("EXIT");
+
+    TileInfo* pBedrockTile = GetTile(doorPosX, layer.top);
+    pBedrockTile->SetFG(ITEM_ID_BEDROCK, this);
+}
+
+void WorldTileManager::GenerateClearMap()
+{
+    Clear(true);
+
+    RectInt layer(0, 0, m_size.x, m_size.y);
+    FillRectWithThickness(6, layer, ITEM_ID_BEDROCK, ITEM_ID_CAVE_BACKGROUND, 100);  
+
+    int32 doorPosX = RandomRangeInt(10, m_size.x - 10);
+    TileInfo* pDoorTile = GetTile( doorPosX, layer.top - 1 );
+
+    pDoorTile->SetFG(ITEM_ID_MAIN_DOOR, this);
+    pDoorTile->GetExtra()->SetName("EXIT");
+
+    TileInfo* pBedrockTile = GetTile( doorPosX, layer.top );
+    pBedrockTile->SetFG(ITEM_ID_BEDROCK, this);
 }
 
 void WorldTileManager::FillRectWith(const RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)
@@ -85,7 +113,7 @@ void WorldTileManager::FillRectWith(const RectInt& rect, uint16 fgItem, uint16 b
         for(auto x = xStart; x < xEnd; ++x) {
             if(RandomNextFloat() <= probablity) {
                 if(pItemFg) {
-                    pTile->SetFG(pItemFg->id);
+                    pTile->SetFG(pItemFg->id, this);
                 }
                 
                 if(pItemBg) {
@@ -149,7 +177,7 @@ bool WorldTileManager::FillRectWith(const RectInt& rect, const TileMapFillVector
             }
 
             if(ItemInfo* pFgItem = PickItem(fgItems, totalFgChance)) {
-                pTile->SetFG(pFgItem->id);
+                pTile->SetFG(pFgItem->id, this);
             }
 
             pTile++;
@@ -159,7 +187,21 @@ bool WorldTileManager::FillRectWith(const RectInt& rect, const TileMapFillVector
     return true;
 }
 
-void WorldTileManager::FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)
+bool WorldTileManager::IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBackground)
+{
+    TileInfo* pTarget = GetTile(x, y);
+    if(!pTarget) {
+        return false;
+    }
+
+    if(forBackground) {
+        return pTile->GetBG() == pTarget->GetBG();
+    }
+
+    return pTile->GetFG() == pTarget->GetFG();
+}
+
+void WorldTileManager::FillRectWithThickness(uint16 thickness, RectInt &rect, uint16 fgItem, uint16 bgItem, float chance)
 {
     rect.top = rect.bottom - thickness;
     FillRectWith(rect, fgItem, bgItem, chance);

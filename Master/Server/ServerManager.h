@@ -21,6 +21,14 @@ struct ServerInfo
     uint16 port;
 };
 
+struct RendererInfo
+{
+    uint16 serverID = 0;
+    int32 socketConnID = -1;
+    string wanIP;
+    uint16 port;
+};
+
 class ServerManager : public ServerBroadwayBase {
 public:
     ServerManager();
@@ -41,7 +49,7 @@ public:
     void RegisterEvents() override;
 
 public:
-    void AddServer(uint16 serverID, NetClient* pClient);
+    void AddServer(uint16 serverID, NetClient* pClient, int8 serverType);
     void RemoveServer(uint16 serverID);
     ServerInfo* GetBestServer();
 
@@ -50,6 +58,7 @@ public:
 
 private:
     std::unordered_map<uint16, ServerInfo*> m_servers;
+    std::unordered_map<uint16, RendererInfo*> m_renderers;
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
 };
 

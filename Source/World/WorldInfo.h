@@ -28,10 +28,14 @@ public:
 
 public:
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database);
-    void GenerateWorld(eWorldGenerationType type, const Vector2Int& worldSize = {0, 0});
+    void GenerateWorld(eWorldGenerationType type);
 
     void SetName(const string& worldName) { m_name = worldName; }
     const string& GetWorlName() const { return m_name; } 
+
+    uint32 GetCurrentWeather() const { return m_currentWeather; }
+
+    WorldTileManager* GetTileManager() { return m_pTileMgr; };
 
 private:
     uint16 m_version;

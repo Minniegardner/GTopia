@@ -74,3 +74,19 @@ bool IsFileExists(const string& path)
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
 }
+
+bool IsFolderExists(const string& path)
+{
+    struct stat buffer;
+    return ((stat(path.c_str(), &buffer) == 0) && (buffer.st_mode & S_IFMT) == S_IFDIR);
+}
+
+string GetFileExtension(const string& file)
+{
+    usize index = file.find_last_of('.');
+    if(index != string::npos) {
+        return file.substr(index + 1, file.length());
+    }
+
+    return "";
+}

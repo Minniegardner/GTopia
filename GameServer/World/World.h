@@ -2,6 +2,7 @@
 
 #include "Precompiled.h"
 #include "World/WorldInfo.h"
+#include <functional>
 
 class GamePlayer;
 
@@ -15,6 +16,9 @@ public:
     uint32 GetID() const { return m_worldID; }
 
     bool PlayerJoinWorld(GamePlayer* pPlayer);
+    void PlayerLeaverWorld(GamePlayer* pPlayer);
+
+    void SendToAll(const std::function<void(GamePlayer*)>& func);
 
 private:
     uint32 m_worldID;

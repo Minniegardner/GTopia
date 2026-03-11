@@ -15,4 +15,12 @@ void Context::Init()
     m_pGameConfig = new GameConfig();
 }
 
+void Context::Kill()
+{
+    ContextBase::Kill();
+
+    SAFE_DELETE(m_pDbPool);
+    SAFE_DELETE(m_pGameConfig);
+}
+
 Context* GetContext() { return Context::GetInstance(); }

@@ -15,8 +15,7 @@ void RefreshTributeData::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packe
     gamePacket.type = NET_GAME_PACKET_SEND_PLAYERRIBUTE_DATA;
     gamePacket.netID = -1;
     gamePacket.flags |= NET_GAME_PACKET_FLAGS_EXTENDED;
-
     gamePacket.extraDataSize = clientData.size;
 
-    SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), clientData.pData, pPlayer->GetPeer());
+    SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &gamePacket, sizeof(GameUpdatePacket), clientData.pData, pPlayer->GetPeer());
 }

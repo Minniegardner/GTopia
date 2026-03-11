@@ -28,16 +28,16 @@ MemoryBuffer::MemoryBuffer(const std::vector<uint8>& data)
 
 uint32 MemoryBuffer::ReadRaw(void* pDest, uint32 size)
 {
-    if (size == 0) {
+    if(size == 0) {
         return 0;
     }
 
-    if (m_countOnly) {
+    if(m_countOnly) {
         m_pos += size;
         return size;
     }
 
-    if (!pDest || m_pos + size > m_bufferSize) {
+    if(!pDest || m_pos + size > m_bufferSize) {
         return 0;
     }
 
@@ -49,16 +49,16 @@ uint32 MemoryBuffer::ReadRaw(void* pDest, uint32 size)
 
 uint32 MemoryBuffer::WriteRaw(const void* pData, uint32 size)
 {
-    if (size == 0) {
+    if(size == 0) {
         return 0;
     }
 
-    if (m_countOnly) {
+    if(m_countOnly) {
         m_pos += size;
         return size;
     }
 
-    if (!m_ableToWrite || !pData || m_pos + size > m_bufferSize) {
+    if(!m_ableToWrite || !pData || m_pos + size > m_bufferSize) {
         return 0;
     }
 
@@ -71,16 +71,16 @@ uint32 MemoryBuffer::WriteRaw(const void* pData, uint32 size)
 uint32 MemoryBuffer::ReadStringRaw(string& pDest)
 {
     uint16 strLen = 0;
-    if (ReadRaw(&strLen, 2) != 2) {
+    if(ReadRaw(&strLen, 2) != 2) {
         return 0;
     }
 
-    if (m_countOnly) {
+    if(m_countOnly) {
         m_pos += strLen;
         return strLen + 2;
     }
 
-    if (m_pos + strLen > m_bufferSize) {
+    if(m_pos + strLen > m_bufferSize) {
         return 0;
     }
 
@@ -114,3 +114,36 @@ uint32 MemoryBuffer::Seek(uint32 position)
     m_pos = position;
     return m_pos;
 }
+
+#ifdef USE_ZLIB
+#include <zlib.h>
+uint8* zLibInflateToMemory(uint8 *pCompData, uint32 compSize, uint32 decompSize)
+{
+    z_stream strm;
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+
+    uint8* pOut = new uint8[decompSize + 1];
+    strm.avail_in = compSize;
+    strm.next_in = pCompData;
+    strm.avail_out = decompSize;
+    strm.next_out = pOut;
+
+    int32 ret = inflateInit(&strm);
+    if(ret != Z_OK) {
+        SAFE_DELETE_ARRAY(pOut);
+        return nullptr;
+    }
+
+    ret = inflate(&strm, Z_FINISH);
+    if(ret != Z_STREAM_END) {
+        SAFE_DELETE_ARRAY(pOut);
+        inflateEnd(&strm);
+        return nullptr;
+    }
+
+    ret = inflateEnd(&strm);
+    return pOut;
+}
+#endif
