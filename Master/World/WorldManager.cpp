@@ -46,7 +46,7 @@ void WorldManager::HandleWorldInit(bool success, uint32 worldID)
 
         for(auto& pending : pWorld->pendingPlayers) {
             data[2] = pending.playerNetID;
-            pServerMgr->SendPacketRaw(pending.serverID, data);
+            pServerMgr->SendPacketServerRaw(pending.serverID, data);
         }
 
         SAFE_DELETE(pWorld);
@@ -67,7 +67,7 @@ void WorldManager::HandleWorldInit(bool success, uint32 worldID)
 
     for(auto& pending : pWorld->pendingPlayers) {
         data[2] = pending.playerNetID;
-        pServerMgr->SendPacketRaw(pending.serverID, data);
+        pServerMgr->SendPacketServerRaw(pending.serverID, data);
     }
     pWorld->pendingPlayers.clear();
 }
@@ -130,7 +130,7 @@ void WorldManager::CheckWorldExists(QueryTaskResult&& result)
     packet[0] = TCP_PACKET_WORLD_INIT;
     packet[1] = result.extraData[3].GetString();
 
-    pServerMgr->SendPacketRaw(pServer->serverID, packet);
+    pServerMgr->SendPacketServerRaw(pServer->serverID, packet);
 }
 
 void WorldManager::CreateWorld(QueryTaskResult&& result)
@@ -150,7 +150,7 @@ void WorldManager::CreateWorld(QueryTaskResult&& result)
     packet[0] = TCP_PACKET_WORLD_INIT;
     packet[1] = result.extraData[3].GetString();
 
-    pServerMgr->SendPacketRaw(pServer->serverID, packet);
+    pServerMgr->SendPacketServerRaw(pServer->serverID, packet);
 }
 
 WorldSession* WorldManager::GetWorldByName(const string& worldName)

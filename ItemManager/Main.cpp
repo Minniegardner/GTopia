@@ -190,7 +190,7 @@ int main(int argc, char const* argv[])
             itemStr += ToString(pItem->restoreTime) + "|\n";
         }
 
-        string httpPath = "/api.php?action=query&prop=revisions&titles=" + pItem->name + "&rvprop=content&format=json";
+        /*string httpPath = "/api.php?action=query&prop=revisions&titles=" + pItem->name + "&rvprop=content&format=json";
         if(pItem->id != ITEM_ID_GEMS && http.Get(httpPath)) {
             if(http.GetStatus() == 200 && !http.GetBody().empty()) {
                 ItemWikiData data;
@@ -234,7 +234,7 @@ int main(int argc, char const* argv[])
         else {
             LOGGER_LOG_ERROR("HTTP GET failed for %d error %d", pItem->id, http.GetError());
             lastSeed1 = lastSeed2 = 0;
-        }
+        }*/
 
         if(pItem->flags != 0) {
             string itemFlagStr;
@@ -254,6 +254,10 @@ int main(int argc, char const* argv[])
 
         if(!pItem->extraString.empty() || pItem->animMS != 200) {
             itemStr += "set_extra|" + pItem->extraString + "|" + ToString(pItem->animMS) + "|\n";
+        }
+
+        if(pItem->rarity == 999) {
+            itemStr += "set_rarity|" + ToString(pItem->rarity) + "|\n";
         }
 
         file.Write(itemStr.data(), itemStr.size());

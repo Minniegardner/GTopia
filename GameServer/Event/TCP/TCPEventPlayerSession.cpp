@@ -6,7 +6,7 @@
 
 void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
 {
-    Player* pPlayer = GetGameServer()->GetPlayerByNetID(data[1].GetINT());
+    GamePlayer* pPlayer = GetGameServer()->GetPlayerByNetID(data[1].GetINT());
     if(!pPlayer) {
         LOGGER_LOG_WARN("Received player session packet but player not found?");
         return;

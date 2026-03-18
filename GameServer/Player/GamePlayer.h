@@ -2,6 +2,8 @@
 
 #include "Player/Player.h"
 #include "Player/Role.h"
+#include "Utils/Timer.h"
+#include "Player/PlayMod.h"
 
 enum ePlayerState
 {
@@ -10,8 +12,11 @@ enum ePlayerState
     PLAYER_STATE_LOGIN_GETTING_ACCOUNT = 1 << 2,
     PLAYER_STATE_LOADING_ACCOUNT = 1 << 3,
     PLAYER_STATE_ENTERING_GAME = 1 << 4,
-    PLAYER_STATE_IN_GAME = 1 << 5
+    PLAYER_STATE_IN_GAME = 1 << 5,
+    PLAYER_STATE_RENDERING_WORLD = 1 << 6
 };
+
+class TileInfo;
 
 class GamePlayer : public Player {
 public:
@@ -31,7 +36,10 @@ public:
     void LoadingAccount(QueryTaskResult&& result);
     void TransferingPlayerToGame();
 
+    void HandleRenderWorld(VariantVector&& result);
+
     void SaveToDatabase();
+    void Update();
 
     void SetJoinWorld(bool joining) { m_joiningWorld = joining; }
     bool IsJoiningWorld() { return m_joiningWorld; }
@@ -40,20 +48,46 @@ public:
     uint32 GetCurrentWorld() const { return m_currentWorldID; }
 
     string GetDisplayName();
+    string GetRawName();
     string GetSpawnData(bool local);
 
-    void SetWorldPos(const Vector2Int& pos) { m_worldPos = pos; }
-    Vector2Int GetWorldPos() const { return m_worldPos; }
+    void SetWorldPos(float x, float y) { m_worldPos.x = x; m_worldPos.y = y; }
+    Vector2Float GetWorldPos() const { return m_worldPos; }
+
+    void SetRespawnPos(float x, float y) { m_respawnPos.x = x; m_respawnPos.y = y; }
+    Vector2Float GetRespawnPos() const { return m_respawnPos; }
 
     Role* GetRole() const { return m_pRole; };
+    void ToggleCloth(uint16 itemID);
+
+    void ModifyInventoryItem(uint16 itemID, int16 amount);
+    void TrashItem(uint16 itemID, uint8 amount);
+
+    void AddPlayMod(ePlayModType modType);
+    void RemovePlayMod(ePlayModType modType);
+    void UpdateNeededPlayModThings();
+    void UpdatePlayMods();
+    void UpdateTorchPlayMod();
+
+    bool CanActivateItemNow() { return Time::GetSystemTime() - m_lastItemActivateTime >= 100; };
+    void ResetItemActiveTime() { m_lastItemActivateTime = Time::GetSystemTime(); }
+
+    void SendPositionToWorldPlayers();
+
+    Timer& GetLastActionTime() { return m_lastActionTime; };
 
 private:
     uint32 m_state;
     bool m_joiningWorld;
     uint32 m_currentWorldID;
 
-    Vector2Int m_worldPos;
+    uint64 m_lastItemActivateTime;
+    Timer m_lastActionTime;
+
     uint32 m_guestID;
+
+    Vector2Float m_respawnPos;
+    Vector2Float m_worldPos;
 
     Role* m_pRole;
 };

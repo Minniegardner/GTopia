@@ -5,8 +5,13 @@
 #include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
 
+#include "../Event/UDP/GamePacket/ItemActivateRequest.h"
+#include "../Event/UDP/GamePacket/TileChangeRequest.h"
+#include "../Event/UDP/GamePacket/State.h"
+
 WorldManager::WorldManager()
 {
+    RegisterEvents();
 }
 
 WorldManager::~WorldManager()
@@ -205,6 +210,13 @@ World* WorldManager::GetWorldByName(const string &worldName)
     return nullptr;
 }
 
+void WorldManager::RegisterEvents()
+{
+    RegisterPacketEvent<ItemActivateRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST);
+    RegisterPacketEvent<TileChangeRequest>(NET_GAME_PACKET_TILE_CHANGE_REQUEST);
+    RegisterPacketEvent<State>(NET_GAME_PACKET_STATE);
+}
+
 void WorldManager::OnHandleGamePacket(ENetEvent& event)
 {
     GameUpdatePacket* pGamePacket = GetGamePacketFromEnetPacket(event.packet);
@@ -217,8 +229,97 @@ void WorldManager::OnHandleGamePacket(ENetEvent& event)
         return;
     }
 
+    if(!pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+        return;
+    }
+
     World* pWorld = GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
+    }
+
+    if(pGamePacket->type != NET_GAME_PACKET_NPC) {
+        pPlayer->GetLastActionTime().Reset();
+    }
+
     m_packetEvents.Dispatch((eGamePacketType)pGamePacket->type, pPlayer, pWorld, pGamePacket);
+}
+
+void WorldManager::UpdateWorlds()
+{
+    for(auto it = m_worlds.begin(); it != m_worlds.end();) {
+        World* pWorld = it->second;
+
+        if(!pWorld || pWorld->IsWaitingForClose()) {
+            ++it;
+            continue;
+        }
+
+        /**
+         * update scheduled things maybe?
+         */
+
+        bool removeWorld = false;
+        
+        if(pWorld->GetPlayerCount() == 0 && (pWorld->GetOfflineTime().GetElapsedTime() >= 10 * 60 * 1000)) {
+            pWorld->SetWaitingForClose(true);
+            SaveWorldToDatabase(pWorld, true);
+
+            removeWorld = true;
+        }
+        else if(pWorld->GetLastSaveTime().GetElapsedTime() >= 15 * 60 * 1000) {
+            SaveWorldToDatabase(pWorld, false);
+            pWorld->GetLastSaveTime().Reset();
+        }
+
+        if(removeWorld) {
+            it = m_worlds.erase(it);
+            SAFE_DELETE(pWorld);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
+/**
+ * currently no fallback if failed to save
+ * we just dont care if its saved rn lol
+ */
+void WorldManager::SaveWorldToDatabase(World* pWorld, bool closeWorld)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    File file;
+
+    string worldSavePath = GetContext()->GetGameConfig()->worldSavePath + "/world_" + ToString(pWorld->GetID()) + ".bin";
+    if(!file.Open(worldSavePath)) {
+        return;
+    }
+
+    MemoryBuffer memSize;
+    pWorld->Serialize(memSize, true, false);
+    
+    uint32 worldMemSize = memSize.GetOffset();
+    uint8* pWorldData = new uint8[worldMemSize];
+
+    MemoryBuffer memBuffer(pWorldData, worldMemSize);
+    pWorld->Serialize(memBuffer, true, false);
+
+    if(file.Write(pWorldData, worldMemSize) != worldMemSize) {
+        return;
+    }
+
+    QueryRequest req = MakeSaveWorld(pWorld->GetWorlName(), pWorld->GetID(), NET_ID_WORLD_MANAGER);
+    DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_SAVE, req);
+
+    if(closeWorld) {
+        /**
+         * send master to delete session
+         */
+    }
 }
 
 WorldManager* GetWorldManager() { return WorldManager::GetInstance(); }

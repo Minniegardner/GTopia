@@ -6,5 +6,6 @@
 
 class TileChangeRequest {
 public:
+    static void HandleConsumable(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket);
     static void Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket);
 };

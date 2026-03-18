@@ -11,6 +11,7 @@
 #include "Player/PlayerTribute.h"
 #include "World/WorldManager.h"
 #include "Player/RoleManager.h"
+#include "Player/PlayModManager.h"
 
 const int32 TICK_RATE = 20;
 const uint64 TICK_INTERVAL = 1000/TICK_RATE;
@@ -205,6 +206,11 @@ int main(int argc, char const* argv[])
         return 0;
     }
 
+    if(pGameConfig->servers[1].serverType != CONFIG_SERVER_GAME) {
+        LOGGER_LOG_ERROR("Woops trying to run server with wrong type %d it should be game", pGameConfig->servers[1].serverType);
+        return 0;
+    }
+
     if(!pGameConfig->LoadConfig(GetProgramPath() + "/config.txt")) {
         LOGGER_LOG_ERROR("Failed to load config.txt");
         return 0;
@@ -219,48 +225,35 @@ int main(int argc, char const* argv[])
 
     LOGGER_LOG_INFO("Connecting to master server");
     auto masterServerInfo = pGameConfig->servers[0];
-    GetMasterBroadway()->Connect(masterServerInfo.lanIP, masterServerInfo.tcpPort);
 
-    uint64 connStartTime = Time::GetSystemTime();
-    uint8 retryCount = 0;
-
-    while(!GetMasterBroadway()->IsConnected() && GetContext()->IsRunning()) {
-        GetMasterBroadway()->Update(true);
-
-        if(retryCount == 5) {
+    while(GetContext()->IsRunning()) {
+        if(GetMasterBroadway()->Connect(masterServerInfo.lanIP, masterServerInfo.tcpPort, 5, GetContext()->GetStopFlag())) {
             break;
         }
-
-        uint64 now = Time::GetSystemTime();
-        if(now - connStartTime >= 5000) {
-            LOGGER_LOG_INFO("%d ms elapsed but still not connected to master... retrying (%d/5)", now - connStartTime, retryCount + 1);
-            GetMasterBroadway()->RefreshForConnect();
-            GetMasterBroadway()->Connect(masterServerInfo.lanIP, masterServerInfo.tcpPort);
-            retryCount++;
-            connStartTime = now;
+        else {
+            LOGGER_LOG_ERROR("Failed to connect to master... killing");
+            GetMasterBroadway()->Kill();
+            GetContext()->Kill();
+            GetLog()->Flush();
+            GetLog()->Kill();
+            return 0;
         }
-
-        SleepMS(10);
-    }
-    
-    if(!GetMasterBroadway()->IsConnected()) {
-        LOGGER_LOG_ERROR("Failed to connect to master... killing");
-        GetMasterBroadway()->Kill();
-        GetContext()->Kill();
-        GetLog()->Flush();
-        GetLog()->Kill();
-        return 0;
     }
 
     LOGGER_LOG_INFO("Connected to master server");
+
+    if(!GetRoleManager()->Load(GetProgramPath() + "/roles.txt")) {
+        LOGGER_LOG_ERROR("Failed to load roles.txt");
+        return 0;
+    }
 
     if(!LoadItemData()) {
         return 0;
     }
 
-    if(!GetRoleManager()->Load(GetProgramPath() + "/roles.txt")) {
-        LOGGER_LOG_ERROR("Failed to load roles.txt");
-        return 0;
+    if(!GetPlayModManager()->Load(GetProgramPath() + "/playmods.txt")) {
+        LOGGER_LOG_ERROR("Failed to load playmods.txt");
+        //return 0;
     }
 
     GetMasterBroadway()->SendHelloPacket();
@@ -279,7 +272,7 @@ int main(int argc, char const* argv[])
     LOGGER_LOG_INFO("Loaded %d workers for database", GetContext()->GetDatabasePool()->GetWorkerSize());
 
     if(!GetGameServer()->Init(gameServerInfo.wanIP, gameServerInfo.udpPort)) {
-        LOGGER_LOG_ERROR("Failed to initialize game server on %s:%d", gameServerInfo.wanIP, gameServerInfo.udpPort);
+        LOGGER_LOG_ERROR("Failed to initialize game server on %s:%d", gameServerInfo.wanIP.c_str(), gameServerInfo.udpPort);
         return 0;
     }
     LOGGER_LOG_INFO("Started game server on %s:%d", gameServerInfo.wanIP.c_str(), gameServerInfo.udpPort);

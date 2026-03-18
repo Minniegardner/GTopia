@@ -1,9 +1,9 @@
 #include "ServerBroadwayBase.h"
 #include "../Utils/Timer.h"
-
 #include "IO/Log.h"
 
 ServerBroadwayBase::ServerBroadwayBase()
+: m_connected(false), m_pNetClient(nullptr)
 {
 }
 
@@ -25,11 +25,20 @@ bool ServerBroadwayBase::Init(const string& host, uint16 port, int32 backLog)
 
 void ServerBroadwayBase::Kill()
 {
+    m_pNetClient = nullptr;
+    m_connected = false;
+    
     SAFE_DELETE(m_pNetSocket);
 }
 
 void ServerBroadwayBase::OnClientConnect(NetClient* pClient)
 {
+    if(!pClient || pClient->status == SOCKET_CLIENT_CLOSE) {
+        return;
+    }
+
+    m_pNetClient = pClient;
+    m_connected = true;
 }
 
 void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
@@ -107,9 +116,56 @@ void ServerBroadwayBase::Update(bool asClient)
     if(!m_pNetSocket) {
         return;
     }
+    
     m_pNetSocket->Update(asClient);
 }
 
 void ServerBroadwayBase::UpdateTCPLogic(uint64 maxTimeMS)
 {
+}
+
+bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCount, const volatile sig_atomic_t* stopFlag)
+{
+    if(!m_pNetSocket) {
+        return false;
+    }
+    
+    uint64 connStartTime = Time::GetSystemTime();
+    uint8 retriedSoFar = 0;
+
+    m_pNetSocket->Connect(host, port, true);
+
+    while(!m_connected && (!stopFlag || !(*stopFlag))) {
+        m_pNetSocket->Update(true);
+
+        if(retriedSoFar == retryCount) {
+            break;
+        }
+
+        uint64 timeNow = Time::GetSystemTime();
+        if(timeNow - connStartTime >= CONNECT_SOCKET_TIMEOUT_MS) {
+            LOGGER_LOG_ERROR("Failed to connect to socket %s:%d retrying... (%d/%d)", host.c_str(), port, retriedSoFar + 1, retryCount);
+            m_pNetSocket->CloseAllClients();
+            m_pNetSocket->Connect(host, port, true);
+            retriedSoFar++;
+            connStartTime = timeNow;
+        }
+
+        SleepMS(10);
+    }
+
+    return m_connected;
+}
+
+bool ServerBroadwayBase::SendPacketRaw(VariantVector& data)
+{
+    if(!m_pNetSocket) {
+        return false;
+    }
+
+    if(!m_pNetClient) {
+        return false;
+    }
+
+    return m_pNetClient->Send(data);
 }

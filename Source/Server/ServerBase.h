@@ -20,14 +20,13 @@ public:
     virtual void OnEventDisconnect(ENetEvent& event);
     virtual void RegisterEvents();
     virtual void Kill();
+    virtual void UpdateGameLogic(uint64 maxTimeMS);
 
 public:
     bool Init(const string& host, uint16 port);
     void Update();
-    void UpdateGameLogic(uint64 maxTimeMS);
 
     GamePlayer* GetPlayerByNetID(int32 netID);
-    //PlayerCache& GetPlayerCache() { return m_playerCache; }
 
 protected:
     ENetServer* m_pENetServer;

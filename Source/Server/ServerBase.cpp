@@ -61,8 +61,6 @@ void ServerBase::UpdateGameLogic(uint64 maxTimeMS)
     uint64 startTime = Time::GetSystemTime();
     ENetEvent event;
 
-    uint32 processedPacketCount = 0;
-
     while(m_pENetServer->GetEvents().try_dequeue(event)) {
         switch(event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
@@ -85,14 +83,9 @@ void ServerBase::UpdateGameLogic(uint64 maxTimeMS)
                 break;
         }
 
-        processedPacketCount++;
         if(Time::GetSystemTime() - startTime >= maxTimeMS) {
             break;
         }
-    }
-
-    if(processedPacketCount > 0) {
-        LOGGER_LOG_DEBUG("Processed %d ENet packets maxMS %d, took %d MS", processedPacketCount, maxTimeMS, Time::GetSystemTime() - startTime);
     }
 }
 

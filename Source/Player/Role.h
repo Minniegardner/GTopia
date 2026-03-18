@@ -4,10 +4,15 @@
 
 enum eRolePerm
 {
-    ROLE_PERM_NONE,
+    ROLE_PERM_NONE, // everyone has it actually for commands
 
     ROLE_PERM_MSTATE,
     ROLE_PERM_SMSTATE,
+    ROLE_PERM_USE_ITEM_TYPE_MOD,
+    ROLE_PERM_CAN_WEAR_ANY,
+    ROLE_PERM_COMMAND_GHOST,
+    ROLE_PERM_COMMAND_MAGIC,
+    ROLE_PERM_BYPASS_ILLEGAl_ITEM,
 
     ROLE_PERM_SIZE
 };

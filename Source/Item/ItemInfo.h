@@ -5,6 +5,7 @@
 #include "../Math/Vector2.h"
 #include "../Memory/MemoryBuffer.h"
 #include "ItemUtils.h"
+#include "../Player/PlayMod.h"
 
 class ItemInfo {
 public:
@@ -40,7 +41,12 @@ public:
     string extraString = "";
     uint32 extraStringHash = 0;
 
-    int32 animMS = 200;
+    union
+    {
+        int32 animMS = 200;
+        int32 weatherID;
+    };
+    
     
     string petName = "";
     string petSubName = "";
@@ -75,6 +81,7 @@ public:
 
     string description = "No info.";
     uint8 element = ITEM_ELEMENT_NONE;
+    ePlayModType playModType = PLAYMOD_TYPE_NONE;
 
 public:
     bool HasFlag(uint16 flag) { return (flags & flag) != 0; }

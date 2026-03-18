@@ -7,6 +7,7 @@ enum eTileExtraTypes
 {
     TILE_EXTRA_TYPE_NONE = 0,
     TILE_EXTRA_TYPE_DOOR = 1,
+    TILE_EXTRA_TYPE_SIGN = 2,
 
     TILE_EXTRA_TYPE_SIZE
 };
@@ -24,10 +25,12 @@ public:
     bool Setup(uint8 itemType);
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile);
 
-    string GetName() const { return m_name; }
+    const string& GetName() const { return m_name; }
     void SetName(const string& name) { m_name = name; }
 
-    string GetText() const  { return m_text; }
+    const string& GetText() const  { return m_text; }
+    void SetText(const string text) { m_text = text; }
+
     string GetID() const { return m_id; }
 
 private:

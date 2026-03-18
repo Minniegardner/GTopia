@@ -7,7 +7,8 @@
 
 enum eWorldGenerationType
 {
-    WORLD_GENERATION_DEFAULT = 0
+    WORLD_GENERATION_DEFAULT = 0,
+    WORLD_GENERATION_CLEAR = 1
 };
 
 enum eWeatherTypes 
@@ -33,7 +34,10 @@ public:
     void SetName(const string& worldName) { m_name = worldName; }
     const string& GetWorlName() const { return m_name; } 
 
+    void SetCurrentWeather(uint32 newWeather) { m_currentWeather = newWeather; }
     uint32 GetCurrentWeather() const { return m_currentWeather; }
+
+    uint32 GetDefaultWeather() const { return m_defaultWeather; }
 
     WorldTileManager* GetTileManager() { return m_pTileMgr; };
 

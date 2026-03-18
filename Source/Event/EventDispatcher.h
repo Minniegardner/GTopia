@@ -110,6 +110,11 @@ public:
         }
     }
 
+    bool HasHandler(EventType type)
+    {
+        return m_handlers.find(type) != m_handlers.end();
+    }
+
 private:
     std::unordered_map<EventType, Handler> m_handlers;
 };

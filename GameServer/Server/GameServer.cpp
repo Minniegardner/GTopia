@@ -11,17 +11,24 @@
 #include "../Event/UDP/GameMessage/JoinRequest.h"
 #include "../Event/UDP/GameMessage/RefreshTributeData.h"
 #include "../Event/UDP/GameMessage/Input.h"
+#include "../Event/UDP/GameMessage/QuitToExit.h"
+#include "../Event/UDP/GameMessage/DialogReturn.h"
+#include "../Event/UDP/GameMessage/Trash.h"
 
 #include "../Command/RenderWorld.h"
+#include "../Command/GiveItem.h"
+#include "../Command/Ghost.h"
+#include "../Command/TogglePlayMod.h"
+#include "../Command/Magic.h"
 
 GameServer::GameServer()
 {
-
 }
 
 GameServer::~GameServer()
 {
-    
+    Kill();
+    ServerBase::Kill();
 }
 
 void GameServer::OnEventConnect(ENetEvent& event)
@@ -90,7 +97,7 @@ void GameServer::OnEventReceive(ENetEvent& event)
                 return;
             }
             
-            ParsedTextPacket<8> packet;
+            ParsedTextPacket<8> packet; // increase it for dialog_return?
             ParseTextPacket(GetTextFromEnetPacket(event.packet), event.packet->dataLength - 4, packet);
         
             auto pAction = packet.Find(CompileTimeHashString("action"));
@@ -105,7 +112,9 @@ void GameServer::OnEventReceive(ENetEvent& event)
 
         case NET_MESSAGE_GAME_PACKET: {
             if(pPlayer->GetCurrentWorld() == 0) {
-                // :) resp
+                /**
+                 * response
+                 */
                 return;
             }
 
@@ -140,8 +149,21 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<RefreshTributeData>(CompileTimeHashString("refresh_player_tribute_data"));
     RegisterMessagePacket<JoinRequest>(CompileTimeHashString("join_request"));
     RegisterMessagePacket<Input>(CompileTimeHashString("input"));
+    RegisterMessagePacket<QuitToExit>(CompileTimeHashString("quit_to_exit"));
+    RegisterMessagePacket<DialogReturn>(CompileTimeHashString("dialog_return"));
+    RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
 
     RegisterCommand<RenderWorld>();
+    RegisterCommand<GiveItem>();
+    RegisterCommand<Ghost>();
+    RegisterCommand<TogglePlayMod>();
+    RegisterCommand<Magic>();
+}
+
+void GameServer::UpdateGameLogic(uint64 maxTimeMS)
+{
+    ServerBase::UpdateGameLogic(maxTimeMS);
+    UpdatePlayers();
 }
 
 void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
@@ -150,10 +172,46 @@ void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    uint32 hashCmd = HashString(args[0].substr(1));
+    if(!m_commands.HasHandler(hashCmd)) {
+        pPlayer->SendOnConsoleMessage("`4Unknown command. ``Enter `$/help`` for a list of valid commands.");
+        return;
+    }
+
     m_commands.Dispatch(
         HashString(args[0].substr(1)),
         pPlayer, args
     );
+}
+
+GamePlayer* GameServer::GetPlayerByUserID(uint32 userID)
+{
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(pPlayer && pPlayer->GetUserID() == userID) {
+            return pPlayer;
+        }
+    }
+
+    return nullptr;
+}
+
+void GameServer::UpdatePlayers() // re-do
+{
+    if(m_playersLastUpdateTime.GetElapsedTime() < 16) {
+        return;
+    }
+
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(!pPlayer) {
+            continue;
+        }
+
+        if(pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+            pPlayer->Update();
+        }
+    }
+
+    m_playersLastUpdateTime.Reset();
 }
 
 #include "Item/ItemInfoManager.h"

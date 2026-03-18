@@ -261,7 +261,9 @@ BLImage Renderer2D::TintImage(BLImage* pImage, const BLRgba32& color)
             uint8_t* pColor = row + x * 4;
 
             uint8 a = pColor[3];
-            if (a == 0) continue;
+            if (a == 0) {
+                continue;
+            }
 
             pColor[0] = uint8((pColor[0] * color.b()) / 255); // B
             pColor[1] = uint8((pColor[1] * color.g()) / 255); // G

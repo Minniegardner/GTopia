@@ -16,11 +16,13 @@ set(GAME_SERVER "${GAME_ROOT}/Server")
 set(GAME_EVENT "${GAME_ROOT}/Event")
 set(GAME_WORLD "${GAME_ROOT}/World")
 set(GAME_COMMAND "${GAME_ROOT}/Command")
+set(GAME_DIALOG "${GAME_PLAYER}/Dialog")
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
     ${SOURCE_DATABASE}/Table/WorldDBTable.cpp
     ${SOURCE_UTILS}/GameConfig.cpp
+    ${SOURCE_UTILS}/DialogBuilder.cpp
 
     ${SOURCE_PACKET}/NetPacket.cpp
 
@@ -32,14 +34,26 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventAuth.cpp
     ${GAME_EVENT}/TCP/TCPEventPlayerSession.cpp
     ${GAME_EVENT}/TCP/TCPEventWorldInit.cpp
+    ${GAME_EVENT}/TCP/TCPEventRenderWorldRes.cpp
 
     ${GAME_EVENT}/UDP/GameMessage/RefreshItemData.cpp
     ${GAME_EVENT}/UDP/GameMessage/EnterGame.cpp
     ${GAME_EVENT}/UDP/GameMessage/RefreshTributeData.cpp
     ${GAME_EVENT}/UDP/GameMessage/JoinRequest.cpp
     ${GAME_EVENT}/UDP/GameMessage/Input.cpp
+    ${GAME_EVENT}/UDP/GameMessage/QuitToExit.cpp
+    ${GAME_EVENT}/UDP/GameMessage/DialogReturn.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
+
+    ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/State.cpp
 
     ${GAME_COMMAND}/RenderWorld.cpp
+    ${GAME_COMMAND}/GiveItem.cpp
+    ${GAME_COMMAND}/Ghost.cpp
+    ${GAME_COMMAND}/TogglePlayMod.cpp
+    ${GAME_COMMAND}/Magic.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp
@@ -49,12 +63,19 @@ set(GAME_FILES PRIVATE
     ${GAME_WORLD}/WorldManager.cpp
     ${GAME_WORLD}/World.cpp
 
+    ${GAME_DIALOG}/PlayerDialog.cpp
+    ${GAME_DIALOG}/SignDialog.cpp
+    ${GAME_DIALOG}/TrashDialog.cpp
+
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp
     ${SOURCE_PLAYER}/Player.cpp
     ${SOURCE_PLAYER}/PlayerTribute.cpp
     ${SOURCE_PLAYER}/PlayerInventory.cpp
     ${SOURCE_PLAYER}/PlayerLoginDetail.cpp
+    ${SOURCE_PLAYER}/CharacterData.cpp
+    ${SOURCE_PLAYER}/PlayMod.cpp
+    ${SOURCE_PLAYER}/PlayModManager.cpp
     ${GAME_PLAYER}/GamePlayer.cpp
 
     ${SOURCE_SERVER}/ServerBase.cpp

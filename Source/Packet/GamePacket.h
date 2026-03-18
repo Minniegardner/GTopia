@@ -2,6 +2,7 @@
 
 #include "../Precompiled.h"
 #include "../Utils/Variant.h"
+#include "../IO/Log.h"
 
 enum eTCPPacketType
 {
@@ -9,7 +10,12 @@ enum eTCPPacketType
     TCP_PACKET_AUTH,
     TCP_PACKET_PLAYER_CHECK_SESSION,
     TCP_PACKET_PLAYER_END_SESSION,
-    TCP_PACKET_WORLD_INIT
+    TCP_PACKET_WORLD_INIT,
+    TCP_PACKET_RENDER_WORLD,
+    TCP_PACKET_RENDER_WORLD_RES,
+
+    TCP_RENDER_WORLD_SUCCSESS = 1001,
+    TCP_RENDER_WORLD_FAIL = 1002
 };
 
 enum eMessagePacketType 
@@ -32,8 +38,8 @@ enum eGamePacketType
     NET_GAME_PACKET_UPDATE_STATUS,
     NET_GAME_PACKET_TILE_CHANGE_REQUEST,
     NET_GAME_PACKET_SEND_MAP_DATA,
-    NET_GAME_PACKET_SENDILE_UPDATE_DATA,
-    NET_GAME_PACKET_SENDILE_UPDATE_DATA_MULTIPLE,
+    NET_GAME_PACKET_SEND_TILE_UPDATE_DATA,
+    NET_GAME_PACKET_SEND_TILE_UPDATE_DATA_MULTIPLE,
     NET_GAME_PACKET_TILE_ACTIVATE_REQUEST,
     NET_GAME_PACKET_TILE_APPLY_DAMAGE,
     NET_GAME_PACKET_SEND_INVENTORY_STATE,
@@ -79,26 +85,27 @@ enum eGamePacketFlags
     NET_GAME_PACKET_FLAGS_FACINGLEFT = 1 << 4,
     NET_GAME_PACKET_FLAGS_ONGROUND = 1 << 5,
     NET_GAME_PACKET_FLAGS_LAVA = 1 << 6,
-    NET_GAME_PACKET_FLAGS_JUMPSOUND = 1 << 7,
+    NET_GAME_PACKET_FLAGS_JUMP = 1 << 7,
     NET_GAME_PACKET_FLAGS_DEATH = 1 << 8,
     NET_GAME_PACKET_FLAGS_PUNCH = 1 << 9,
     NET_GAME_PACKET_FLAGS_PLACE = 1 << 10,
     NET_GAME_PACKET_FLAGS_TILEACTION = 1 << 11,
     NET_GAME_PACKET_FLAGS_KNOCKBACK = 1 << 12,
     NET_GAME_PACKET_FLAGS_RESPAWN = 1 << 13,
-    NET_GAME_PACKET_FLAGS_PICKUPSOUND = 1 << 14,
+    NET_GAME_PACKET_FLAGS_PICKUP = 1 << 14,
     NET_GAME_PACKET_FLAGS_TRAMPOLINE = 1 << 15,
     NET_GAME_PACKET_FLAGS_CACTUS = 1 << 16,
     NET_GAME_PACKET_FLAGS_SLIDING = 1 << 17,
     NET_GAME_PACKET_FLAGS_JUMPPEAK = 1 << 18,
     NET_GAME_PACKET_FLAGS_FALLING_SLOWLY = 1 << 19,
-    NET_GAME_PACKET_FLAGS_SWIM_SOUND = 1 << 20,
+    NET_GAME_PACKET_FLAGS_SWIM = 1 << 20,
     NET_GAME_PACKET_FLAGS_WALLHANG = 1 << 21,
     NET_GAME_PACKET_FLAGS_RAYMAN_START = 1 << 22,
     NET_GAME_PACKET_FLAGS_RAYMAN_END = 1 << 23,
     NET_GAME_PACKET_FLAGS_RAYMAN_LOAD = 1 << 24,
     NET_GAME_PACKET_FLAGS_FORCE_RING = 1 << 25,
     NET_GAME_PACKET_FLAGS_CACTUS_RAPE = 1 << 26,
+    // :)
     NET_GAME_PACKET_FLAGS_ACID = 1 << 28
 };
 
@@ -113,7 +120,7 @@ struct GameUpdatePacket
     union
     {
         uint8 field0 = 0;
-        uint8 punchType;
+        uint8 characterPunchType;
     };
 
     union
@@ -121,6 +128,7 @@ struct GameUpdatePacket
         uint8 field1 = 0;
         uint8 jumpCount;
         uint8 buildRange;
+        uint8 removedItemCount;
     };
 
     union
@@ -128,6 +136,7 @@ struct GameUpdatePacket
         uint8 field2 = 0;
         uint8 animType;
         uint8 punchRange;
+        uint8 addedItemCount;
     };
 
     union
@@ -146,39 +155,52 @@ struct GameUpdatePacket
     union
     {
         float field5 = 0;
+        float characterWaterSpeed;
     };
 
     union
     {
         int32 field6 = 0;
         int32 delay;
+        int32 itemID;
+        int32 tileDamage;
+        int32 characterFlags;
     };
 
     union
     {
         float field7 = 0;
-        float waterSpeed;
+        float characterSpeed;
+        float posX;
+        float speedX;
     };
 
     union
     {
-        uint32 field8 = 0;
-        uint32 itemID;
+        float field8 = 0;
+        float characterPunchPower;
+        float posY;
+        float speedY;
     };
 
     union
     {
         float field9 = 0;
+        float characterAccel;
+        float particleEffectSize;
     };
 
     union
     {
         float field10 = 0;
+        float characterGravity;
+        float particleEffectType;
     };
 
     union
     {
         float field11 = 0;
+        float characterFireDamage;
     };
 
     union
@@ -194,5 +216,20 @@ struct GameUpdatePacket
     };
 
     uint32 extraDataSize = 0;
+
+    bool HasFlag(eGamePacketFlags flag) { return flags & flag; }
+    void SetFlag(eGamePacketFlags flag) { flags |= flag; }
+
+    void Print() 
+    {
+        LOGGER_LOG_DEBUG(
+            "field0=%u, field1=%u, field2=%u, field3=%d, field4=%d, flags=%d, "
+            "field5=%f, field6=%d, field7=%f, field8=%f, field9=%f, field10=%f, "
+            "field11=%f, field12=%d, field13=%d, extraDataSize=%u\n",
+            field0, field1, field2, field3, field4, flags,
+            field5, field6, field7, field8, field9, field10,
+            field11, field12, field13, extraDataSize
+        );
+    }
 };
 #pragma pack(pop)

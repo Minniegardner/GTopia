@@ -4,6 +4,7 @@
 #include "../Math/Vector2.h"
 #include "../Memory/MemoryBuffer.h"
 #include "TileExtra.h"
+#include "../Utils/Timer.h"
 
 enum eTileFlags 
 {
@@ -41,7 +42,7 @@ public:
     uint16 GetFG() const { return m_fg; }
     uint16 GetBG() const { return m_bg; }
 
-    void SetPos(Vector2Int pos) { m_pos = pos; }
+    void SetPos(uint16 x, uint16 y) { m_pos.x = x; m_pos.y = y; }
     Vector2Int GetPos() const { return m_pos; }
 
     void SetFlag(uint16 flag) { m_flags |= flag; }
@@ -49,6 +50,12 @@ public:
     bool HasFlag(uint16 flag) { return m_flags & flag; };
     void ToggleFlag(uint16 flag) { m_flags ^= flag; }
 
+    void PunchTile(uint8 damage);
+    float GetHealthPercent();
+
+    uint16 GetDisplayedItem();
+    
+    uint32 GetMemEstimate();
     TileExtra* GetExtra() { return m_pExtraData; }
 
 private:
@@ -57,6 +64,9 @@ private:
     uint16 m_parent;
     uint16 m_flags;
     Vector2Int m_pos;
+
+    uint8 m_damage;
+    Timer m_lastDamageTime;
 
     TileExtra* m_pExtraData;
 };

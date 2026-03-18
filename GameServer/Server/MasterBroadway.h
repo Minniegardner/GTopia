@@ -17,19 +17,13 @@ public:
     }
 
 public:
-    void OnClientConnect(NetClient* pClient) override;
     void RegisterEvents() override;
     void UpdateTCPLogic(uint64 maxTimeMS) override;
 
 public:
-    void Connect(const string& host, uint16 port);
-    void RefreshForConnect();
-
     void SendHelloPacket();
     void SendCheckSessionPacket(int32 netID, uint32 userID, uint32 token, uint16 serverID);
-    bool SendPacketRaw(VariantVector& data);
-
-    bool IsConnected() const { return m_connected; }
+    void SendRenderWorldRequest(uint32 worldID, uint32 userID);
 
 private:
     template<class T>
@@ -42,8 +36,6 @@ private:
     }
 
 private:
-    NetClient* m_pNetClient;
-    bool m_connected;
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
 };
 

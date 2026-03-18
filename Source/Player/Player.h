@@ -4,6 +4,7 @@
 #include "../Network/NetEntity.h"
 #include "PlayerLoginDetail.h"
 #include "PlayerInventory.h"
+#include "CharacterData.h"
 #include <enet/enet.h>
 
 class Player : public NetEntity {
@@ -20,15 +21,31 @@ public:
     void SendOnRequestWorldSelectMenu(const string& worldMenu);
     void SendOnFailedToEnterWorld();
     void SendOnSpawn(const string& spawnData);
+    void SendOnChangeSkin(uint32 skinColor, Player* pPlayer = nullptr);
+    void SendOnTalkBubble(const string& message, bool stackMessages, Player* pPlayer = nullptr);
+    void SendOnSetCurrentWeather(int32 weatherID);
+    void SendOnRemove(int32 netID);
+    void SendOnDialogRequest(const string& dialogData);
+    void SendOnTextOverlay(const string& message);
+    void SendFakePingReply();
+
+    void PlaySFX(const string& fileName, int32 delay = -1);
 
     void SendCallFunctionPacket(VariantVector& data, int32 netID = -1, int32 delay = -1);
 
     const PlayerLoginDetail& GetLoginDetail() const { return m_loginDetail; }
     ENetPeer* GetPeer() { return m_pPeer; }
 
+    uint32 GetUserID() const { return m_userID; }
+
 #ifdef SERVER_GAME
-    const PlayerInventory& GetInventory() const { return m_inventory; }
+    PlayerInventory& GetInventory() { return m_inventory; }
     void SendInventoryPacket();
+
+    CharacterData& GetCharData() { return m_characterData; }
+    void SendOnSetClothing(Player* pPlayer = nullptr);
+    void SendCharacterState(Player* pPlayer = nullptr);
+    void SendOnSetPos(float x, float y, Player* pPlayer = nullptr);
 #endif
 
 protected:
@@ -40,5 +57,6 @@ protected:
 
 #ifdef SERVER_GAME
     PlayerInventory m_inventory;
+    CharacterData m_characterData;
 #endif
 };

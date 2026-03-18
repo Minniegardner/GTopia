@@ -48,6 +48,10 @@ bool GameConfig::LoadConfig(const string& filePath)
             rendererStaticPath = args[1];
         }
 
+        if(args[0] == "rendererSavePath") {
+            rendererSavePath = args[1];
+        }
+
         if(args[0] == "worldSavePath") {
             worldSavePath = args[1];
         }
@@ -160,8 +164,8 @@ uint16 GameConfig::LoadServersClient(const string& filePath, uint16 serverID)
                 if(args[0] == "add_renderer") {
                     type = CONFIG_SERVER_RENDERER;
                 }
-               AddServer(serverID, args[1], args[2], tcpStart, udpStart, type);
-               break;
+                AddServer(serverID, args[1], args[2], tcpStart, udpStart, type);
+                break;
            }
        }
     }

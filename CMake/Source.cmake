@@ -25,6 +25,8 @@ set(SOURCE_DEFAULT_FILES
 
     ${SOURCE_MATH}/Random.cpp
     ${SOURCE_MATH}/Vector2.cpp
+    ${SOURCE_MATH}/Vector3.cpp
+    ${SOURCE_MATH}/Color.cpp
 
     ${SOURCE_MEMORY}/MemoryBuffer.cpp
     ${SOURCE_MEMORY}/RingBuffer.cpp

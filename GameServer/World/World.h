@@ -2,7 +2,7 @@
 
 #include "Precompiled.h"
 #include "World/WorldInfo.h"
-#include <functional>
+#include "Packet/GamePacket.h"
 
 class GamePlayer;
 
@@ -18,9 +18,32 @@ public:
     bool PlayerJoinWorld(GamePlayer* pPlayer);
     void PlayerLeaverWorld(GamePlayer* pPlayer);
 
-    void SendToAll(const std::function<void(GamePlayer*)>& func);
+    void SendSkinColorUpdateToAll(GamePlayer* pPlayer);
+    void SendSetCharPacketToAll(GamePlayer* pPlayer);
+    void SendClothUpdateToAll(GamePlayer* pPlayer);
+    void SendParticleEffectToAll(float coordX, float coordY, uint32 particleType, float particleSize = 0, int32 delay = -1);
+    void SendTileUpdate(uint16 tileX, uint16 tileY);
+    void SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 netID, GamePlayer* pPlayer = nullptr);
+
+    void PlaySFXForEveryone(const string& fileName, int32 delay = -1);
+
+    void SendGamePacketToAll(GameUpdatePacket* pPacket, GamePlayer* pExceptMe = nullptr, uint8* pExtraData = nullptr);
+    void HandleTilePackets(GameUpdatePacket* pGamePacket);
+
+    void SendCurrentWeatherToAll();
+    uint32 GetPlayerCount() const { return m_players.size(); }
+    Timer& GetLastSaveTime() { return m_worldLastSaveTime; }
+    Timer& GetOfflineTime() { return m_worldOfflineTime; }
+
+    void SetWaitingForClose(bool waiting) { m_waitingForClose = waiting; }
+    bool IsWaitingForClose() const { return m_waitingForClose; }
 
 private:
     uint32 m_worldID;
     std::vector<GamePlayer*> m_players;
+
+    Timer m_worldOfflineTime;
+    Timer m_worldLastSaveTime;
+
+    bool m_waitingForClose;
 };

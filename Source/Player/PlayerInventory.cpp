@@ -1,6 +1,8 @@
 #include "PlayerInventory.h"
 #include "../Item/ItemInfoManager.h"
 #include "../IO/Log.h"
+#include "Player.h"
+#include "../Packet/NetPacket.h"
 
 void InventoryItemInfo::Serialize(MemoryBuffer& memBuffer, bool write)
 {
@@ -93,7 +95,7 @@ InventoryItemInfo* PlayerInventory::GetItemByID(uint16 itemID)
     return nullptr;
 }
 
-uint8 PlayerInventory::AddItem(uint16 itemID, uint8 count, eInventoryErrors& errorCode)
+uint8 PlayerInventory::AddItem(uint16 itemID, uint8 count, Player* pPlayer)
 {
     ItemInfo* pItemInfo = GetItemInfoManager()->GetItemByID(itemID);
     if(!pItemInfo) {
@@ -116,6 +118,7 @@ uint8 PlayerInventory::AddItem(uint16 itemID, uint8 count, eInventoryErrors& err
         item.flags = 0;
 
         m_items.push_back(std::move(item));
+        UpdateInventory(pPlayer, itemID, count, true);
         return count;
     }
 
@@ -124,25 +127,31 @@ uint8 PlayerInventory::AddItem(uint16 itemID, uint8 count, eInventoryErrors& err
     }
 
     pSearchItem->count += count;
+    UpdateInventory(pPlayer, itemID, count, true);
     return count;
 }
 
-uint8 PlayerInventory::RemoveItem(uint16 itemID, uint8 count)
+uint8 PlayerInventory::RemoveItem(uint16 itemID, int16 count, Player* pPlayer)
 {
     InventoryItemInfo* pItem = GetItemByID(itemID);
     if(!pItem) {
         return 0;
     }
 
-    if(pItem->count - count <= 0) {
-        return RemoveItem(itemID);
+    if(count >= pItem->count) {
+        count = pItem->count;
+    }
+
+    if(count == pItem->count) {
+        return RemoveItem(itemID, pPlayer);
     }
 
     pItem->count -= count;
+    UpdateInventory(pPlayer, itemID, count, false);
     return count;
 }
 
-uint8 PlayerInventory::RemoveItem(uint16 itemID)
+uint8 PlayerInventory::RemoveItem(uint16 itemID, Player* pPlayer)
 {
     InventoryItemInfo* pItem = GetItemByID(itemID);
     if(!pItem) {
@@ -155,8 +164,82 @@ uint8 PlayerInventory::RemoveItem(uint16 itemID)
     }
     m_items.pop_back();
 
+    UpdateInventory(pPlayer, itemID, itemCount, false);
     RemoveFromQuickSlots(itemID);
     return itemCount;
+}
+
+void PlayerInventory::SetClothByPart(uint16 itemID, uint8 bodyPart)
+{
+    if(bodyPart > BODY_PART_SIZE) {
+        return;
+    }
+
+    m_clothes[bodyPart] = itemID;
+}
+
+bool PlayerInventory::IsWearingItem(uint16 itemID)
+{
+    for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
+        if(m_clothes[i] == itemID) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool PlayerInventory::HaveRoomForItem(uint16 itemID, uint8 itemCount)
+{
+    InventoryItemInfo* pItem = GetItemByID(itemID);
+    ItemInfo* pItemInfo = GetItemInfoManager()->GetItemByID(itemID);
+    
+    if(!pItemInfo) {
+        return false;
+    }
+
+    if(pItem) {
+        return (pItem->count + itemCount <= pItemInfo->maxCanHold);
+    }
+
+    if(
+        itemCount > pItemInfo->maxCanHold ||
+        m_items.size() + 1 > m_capacity
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+uint8 PlayerInventory::GetCountOfItem(uint16 itemID)
+{
+    InventoryItemInfo* pItem = GetItemByID(itemID);
+    if(!pItem) {
+        return 0;
+    }
+
+    return pItem->count;
+}
+
+void PlayerInventory::UpdateInventory(Player *pPlayer, uint16 itemID, uint8 count, bool added)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_MODIFY_ITEM_INVENTORY;
+    packet.itemID = itemID;
+
+    if(added) {
+        packet.addedItemCount = count;
+    }
+    else {
+        packet.removedItemCount = count;
+    }
+
+    SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
 }
 
 void PlayerInventory::RemoveFromQuickSlots(uint16 itemID)

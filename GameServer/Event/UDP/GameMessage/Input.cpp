@@ -5,6 +5,10 @@
 
 void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
+    if(!pPlayer) {
+        return;
+    }
+
     World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
     if(!pWorld) {
         return;
@@ -26,6 +30,8 @@ void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     }
 
     if(text[0] == '/') {
+        pPlayer->SendOnConsoleMessage("`o" + text);
+
         auto args = Split(text, ' ');
         GetGameServer()->ExecuteCommand(pPlayer, args);
         return;
@@ -39,7 +45,5 @@ void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     }
     consoleText += text + "``";
 
-    pWorld->SendToAll([&](GamePlayer* pOther) { //umm is it really ok?
-        pOther->SendOnConsoleMessage(consoleText);
-    });
+    pPlayer->SendOnConsoleMessage(consoleText);
 }

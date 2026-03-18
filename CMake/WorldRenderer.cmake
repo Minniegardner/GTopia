@@ -11,6 +11,7 @@ add_definitions(-DUSE_ZLIB)
 
 include(${CMAKE_CURRENT_LIST_DIR}/Source.cmake)
 set(WORLD_RENDERER_ROOT "${CMAKE_CURRENT_LIST_DIR}/../WorldRenderer")
+set(WORLD_RENDERER_EVENT "${CMAKE_CURRENT_LIST_DIR}/../WorldRenderer/Event")
 
 set(BLEND2D_STATIC TRUE)
 include(${THIRD_PARTY_BLEND2D}/CMakeLists.txt)
@@ -19,6 +20,9 @@ set(WORLD_RENDERER_FILES PRIVATE
     ${SOURCE_ITEM}/ItemInfo.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
+
+    ${SOURCE_NETWORK}/NetClient.cpp
+    ${SOURCE_NETWORK}/NetSocket.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp
@@ -31,8 +35,16 @@ set(WORLD_RENDERER_FILES PRIVATE
     ${SOURCE_UTILS}/GameConfig.cpp
     ${SOURCE_PROTON}/ProtonUtils.cpp
 
+    ${WORLD_RENDERER_ROOT}/MasterBroadway.cpp
+    ${SOURCE_SERVER}/ServerBroadwayBase.cpp
+
+    ${WORLD_RENDERER_EVENT}/TCPEventAuth.cpp
+    ${WORLD_RENDERER_EVENT}/TCPEventHello.cpp
+    ${WORLD_RENDERER_EVENT}/TCPEventRenderWorld.cpp
+
     ${WORLD_RENDERER_ROOT}/Renderer2D.cpp
     ${WORLD_RENDERER_ROOT}/WeatherRenderer.cpp
+    ${WORLD_RENDERER_ROOT}/WorldRendererManager.cpp
 
     ${WORLD_RENDERER_ROOT}/Context.cpp
     ${WORLD_RENDERER_ROOT}/Main.cpp
@@ -56,5 +68,4 @@ target_include_directories(WorldRenderer PRIVATE
 
 target_link_libraries(WorldRenderer PRIVATE
     blend2d::blend2d
-    
 )

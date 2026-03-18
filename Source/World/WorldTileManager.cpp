@@ -5,7 +5,7 @@
 
 WorldTileManager::WorldTileManager()
 : m_size(WORLD_DEFAULT_WIDTH, WORLD_DEFAULT_HEIGHT),
-m_pMainDoorTile(nullptr)
+m_pMainDoorTile(nullptr), m_pGuardPineappleTile(nullptr)
 {
 }
 
@@ -28,7 +28,7 @@ bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool datab
         m_tiles[i].Serialize(memBuffer, write, database);
 
         if(!write) {
-            m_tiles[i].SetPos(Vector2Int(i % m_size.x, i / m_size.x));
+            m_tiles[i].SetPos(i % m_size.x, i / m_size.x);
         }
     }
 
@@ -41,8 +41,17 @@ void WorldTileManager::Clear(bool reInit)
 
     if(reInit) {
         m_tiles.resize(m_size.x * m_size.y);
-        for(uint32 i = 0; i < m_tiles.size(); ++i) { m_tiles[i].SetPos(Vector2Int(i % m_size.x, i / m_size.x)); }
+        for(uint32 i = 0; i < m_tiles.size(); ++i) { m_tiles[i].SetPos(i % m_size.x, i / m_size.x); }
     }
+}
+
+TileInfo* WorldTileManager::GetTile(int32 x, int32 y)
+{
+    if(x < 0 || y < 0 || x >= m_size.x || y >= m_size.y) {
+        return nullptr;
+    }
+
+    return &m_tiles[y * m_size.x + x];
 }
 
 void WorldTileManager::GenerateDefaultMap()
@@ -59,6 +68,15 @@ void WorldTileManager::GenerateDefaultMap()
             { { ITEM_ID_CAVE_BACKGROUND, 100 } }); 
     FillRectWithThickness(1, layer, ITEM_ID_DIRT, ITEM_ID_CAVE_BACKGROUND, 100); 
 
+#ifdef _DEBUG
+    for(auto& tile : m_tiles) {
+        if(tile.GetPos().y == layer.top - 1 || tile.GetPos().y == layer.top) {
+            if(tile.GetPos().x < 10) {
+                tile.SetFlag(TILE_FLAG_ON_FIRE);
+            }
+        }
+    }
+#endif
 
     int32 doorPosX = RandomRangeInt(10, layer.Width() - 10);
     TileInfo* pDoorTile = GetTile(doorPosX, layer.top - 1);
@@ -77,14 +95,18 @@ void WorldTileManager::GenerateClearMap()
     RectInt layer(0, 0, m_size.x, m_size.y);
     FillRectWithThickness(6, layer, ITEM_ID_BEDROCK, ITEM_ID_CAVE_BACKGROUND, 100);  
 
-    int32 doorPosX = RandomRangeInt(10, m_size.x - 10);
-    TileInfo* pDoorTile = GetTile( doorPosX, layer.top - 1 );
-
+    bool mainDoorAtRight = RandomRangeInt(0, 1) == 1;
+    
+    TileInfo* pDoorTile = GetTile( mainDoorAtRight ? m_size.x : 0, layer.top - 1 );
     pDoorTile->SetFG(ITEM_ID_MAIN_DOOR, this);
     pDoorTile->GetExtra()->SetName("EXIT");
+}
 
-    TileInfo* pBedrockTile = GetTile( doorPosX, layer.top );
-    pBedrockTile->SetFG(ITEM_ID_BEDROCK, this);
+void WorldTileManager::GenerateBeachMap()
+{
+    Clear(true);
+
+    bool startFromLeft = RandomRangeInt(0, 1) == 1;
 }
 
 void WorldTileManager::FillRectWith(const RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)
@@ -99,7 +121,7 @@ void WorldTileManager::FillRectWith(const RectInt& rect, uint16 fgItem, uint16 b
     int32 xStart = Max(0, Min(rect.left, rect.right));
     int32 xEnd = Min(m_size.x, Max(rect.left, rect.right));
     int32 yStart = Max(0, Min(rect.top, rect.bottom));
-    int32 yEnd = Min(m_size.x, Max(rect.top, rect.bottom));
+    int32 yEnd = Min(m_size.y, Max(rect.top, rect.bottom));
 
     ItemInfoManager* pItemManager = GetItemInfoManager();
     ItemInfo* pItemFg = pItemManager->GetItemByID(fgItem);

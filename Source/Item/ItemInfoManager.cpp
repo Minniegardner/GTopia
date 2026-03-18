@@ -70,7 +70,7 @@ bool ItemInfoManager::Load(const string& filePath)
             pItem->visualEffect = StrToItemVisualEffect(args[7]);
             pItem->storage = StrToStorageType(args[8]);
             pItem->collisionType = StrToCollisionType(args[9]);
-            pItem->hp = (uint8)ToUInt(args[10]);
+            pItem->hp = (uint8)ToUInt(args[10]) * 6;
             pItem->restoreTime = ToInt(args[11]);
 
             m_items.push_back(pItem);
@@ -93,6 +93,8 @@ bool ItemInfoManager::Load(const string& filePath)
             pItem->visualEffect = StrToItemVisualEffect(args[6]);
             pItem->storage = StrToStorageType(args[7]);
             pItem->bodyPart = StrToBodyPartType(args[8]);
+
+            pItem->type = ITEM_TYPE_CLOTHES;
         
             m_items.push_back(pItem);
             pLastItem = pItem;
@@ -112,8 +114,8 @@ bool ItemInfoManager::Load(const string& filePath)
             //pSeed->seed1 = (uint16)ToUInt(args[1]);
             //pSeed->seed2 = (uint16)ToUInt(args[2]);
 
-            //pSeed->seedBgColor;
-            //pSeed->seedFgColor;
+            pSeed->seedBgColor = ToColor(args[3], ',');
+            pSeed->seedFgColor = ToColor(args[4], ',');
         }
 
         if(args[0] == "description") {
@@ -153,7 +155,7 @@ bool ItemInfoManager::Load(const string& filePath)
             }
 
             if(!args[2].empty()) {
-                pLastItem->animMS = (uint32)ToInt(args[2]);
+                pLastItem->animMS = ToInt(args[2]);
             }
         }
 
@@ -188,7 +190,6 @@ bool ItemInfoManager::LoadByItemsDat(const string& filePath)
 
     uint32 fileSize = file.GetSize();
     uint8* data = new uint8[fileSize];
-    memset(data, 0, fileSize);
 
     if(file.Read(data, fileSize) != fileSize) {
         return false;
@@ -251,7 +252,7 @@ void ItemInfoManager::LoadFileHashes(const std::unordered_map<string, uint32>& h
             uint32 extraStringHash = FindHash(filePath);
 
             if(pItem->extraStringHash == 0) {
-                pItem->extraString = extraStringHash;
+                pItem->extraStringHash = extraStringHash;
             }
         }
     }
@@ -300,6 +301,10 @@ ItemInfo* ItemInfoManager::GetItemByID(uint32 itemID)
 
 ItemInfo* ItemInfoManager::GetItemByName(const string& name)
 {
+    if(name.empty()) {
+        return nullptr;
+    }
+
     string searchName = ToLower(name);
 
     for(auto& pItem : m_items) {

@@ -59,6 +59,9 @@ uint8 Proton::ConvertVariantType(eVariantTypes type)
         case VARIANT_TYPE_VECTOR2INT:
         case VARIANT_TYPE_VECTOR2FLOAT:
             return 3;
+		case VARIANT_TYPE_VECTOR3INT:
+		case VARIANT_TYPE_VECTOR3FLOAT:
+		    return 4;
 
 		default: 
 		    return 0;
@@ -66,8 +69,6 @@ uint8 Proton::ConvertVariantType(eVariantTypes type)
 
 	return 0;
 }
-
-#include "../IO/Log.h"
 
 uint8 *Proton::SerializeToMem(VariantVector &varVector, uint32 *pSizeOut, uint8 *pDest)
 {

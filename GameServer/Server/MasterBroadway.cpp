@@ -7,24 +7,14 @@
 #include "../Event/TCP/TCPEventAuth.h"
 #include "../Event/TCP/TCPEventPlayerSession.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
+#include "../Event/TCP/TCPEventRenderWorldRes.h"
 
 MasterBroadway::MasterBroadway()
-: m_connected(false)
 {
 }
 
 MasterBroadway::~MasterBroadway()
 {
-}
-
-void MasterBroadway::OnClientConnect(NetClient* pClient)
-{
-    if(!pClient) {
-        return;
-    }
-
-    m_pNetClient = pClient;
-    m_connected = true;
 }
 
 void MasterBroadway::RegisterEvents()
@@ -35,6 +25,7 @@ void MasterBroadway::RegisterEvents()
     RegisterEvent<TCPEventAuth>(TCP_PACKET_AUTH);
     RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
     RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
+    RegisterEvent<TCPEventRenderWorldRes>(TCP_PACKET_RENDER_WORLD_RES);
 }
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
@@ -50,7 +41,6 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
         }
 
         int8 type = event.data[0].GetINT();
-
         m_events.Dispatch(type, event.pClient, event.data);
 
         processed++;
@@ -62,20 +52,6 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
     if(processed > 0) {
         LOGGER_LOG_DEBUG("Processed %d TCP packets maxMS %d, took %d MS", processed, maxTimeMS, Time::GetSystemTime() - startTime);
     }
-}
-
-void MasterBroadway::Connect(const string& host, uint16 port)
-{
-    if(!m_pNetSocket) {
-        return;
-    }
-
-    m_pNetSocket->Connect(host, port, true);
-}
-
-void MasterBroadway::RefreshForConnect()
-{
-    m_pNetSocket->CloseAllClients();
 }
 
 void MasterBroadway::SendHelloPacket()
@@ -106,17 +82,18 @@ void MasterBroadway::SendCheckSessionPacket(int32 netID, uint32 userID, uint32 t
     m_pNetClient->Send(data);
 }
 
-bool MasterBroadway::SendPacketRaw(VariantVector& data)
+void MasterBroadway::SendRenderWorldRequest(uint32 worldID, uint32 userID)
 {
-    if(!m_pNetSocket) {
-        return false;
+    if(!m_connected || !m_pNetClient) {
+        return;
     }
 
-    if(!m_pNetClient) {
-        return false;
-    }
+    VariantVector data(3);
+    data[0] = TCP_PACKET_RENDER_WORLD;
+    data[1] = worldID;
+    data[2] = userID;
 
-    return m_pNetClient->Send(data);
+    m_pNetClient->Send(data);
 }
 
 MasterBroadway* GetMasterBroadway() { return MasterBroadway::GetInstance(); }

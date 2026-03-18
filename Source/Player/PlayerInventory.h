@@ -22,6 +22,8 @@ enum eInventoryErrors
     INVENTORY_ERROR_MAX_HOLD
 };
 
+class Player;
+
 class PlayerInventory {
 public:
     PlayerInventory();
@@ -30,10 +32,20 @@ public:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database);
     InventoryItemInfo* GetItemByID(uint16 itemID);
 
-    uint8 AddItem(uint16 itemID, uint8 count, eInventoryErrors& errorCode);
-    uint8 RemoveItem(uint16 itemID, uint8 count);
-    uint8 RemoveItem(uint16 itemID);
+    uint8 AddItem(uint16 itemID, uint8 count, Player* pPlayer = nullptr);
+    uint8 RemoveItem(uint16 itemID, int16 count, Player* pPlayer = nullptr);
+    uint8 RemoveItem(uint16 itemID, Player* pPlayer = nullptr);
 
+    const uint16* GetClothes() const { return m_clothes; }
+    uint16 GetClothByPart(eBodyPart bodyPart) const { return m_clothes[bodyPart]; }
+    void SetClothByPart(uint16 itemID, uint8 bodyPart);
+    bool IsWearingItem(uint16 itemID);
+
+    bool HaveRoomForItem(uint16 itemID, uint8 itemCount);
+
+    uint8 GetCountOfItem(uint16 itemID);
+
+    void UpdateInventory(Player* pPlayer, uint16 itemID, uint8 count, bool added);
     void RemoveFromQuickSlots(uint16 itemID);
 
     uint32 GetMemEstimate(bool database);

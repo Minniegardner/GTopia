@@ -51,6 +51,8 @@ bool RoleManager::Load(const string& filePath)
             pRole->m_prefix = args[3];
             pRole->m_suffix = args[4];
 
+            pRole->AddPerm(ROLE_PERM_NONE);
+
             pLastRole = pRole;
             m_roles.insert_or_assign(pRole->GetID(), pRole);
         }

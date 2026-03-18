@@ -8,11 +8,6 @@ struct TextPacketField
     uint32 hash;
     const char* value;
     uint16 size;
-
-    std::string_view GetString() const
-    {
-        return std::string_view(value, size);
-    }
 };
 
 template<uint8 N>
@@ -32,8 +27,6 @@ struct ParsedTextPacket
     }
 };
 
-#include "../IO/Log.h"
-
 template<uint8 N>
 inline void ParseTextPacket(const char* data, uint32 size, ParsedTextPacket<N>& out) 
 {
@@ -47,7 +40,7 @@ inline void ParseTextPacket(const char* data, uint32 size, ParsedTextPacket<N>& 
         const char* fieldEnd = nullptr;
 
         /**
-         * fixing the input packet by that start var
+         * fixing the input packet by that start w
          * |text|
          * it skips the delim '|' if index 0 is '|'
          */

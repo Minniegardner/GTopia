@@ -30,7 +30,21 @@ public:
     World* GetWorldByID(uint32 worldID);
     World* GetWorldByName(const string& worldName);
 
+    void RegisterEvents();
     void OnHandleGamePacket(ENetEvent& event);
+
+    void UpdateWorlds();
+    void SaveWorldToDatabase(World* pWorld, bool closeWorld);
+
+private:
+    template<class T>
+    void RegisterPacketEvent(eGamePacketType type)
+    {
+        m_packetEvents.Register(
+            type,
+            Delegate<GamePlayer*, World*, GameUpdatePacket*>::Create<&T::Execute>()
+        );
+    }
 
 private:
     std::unordered_map<uint32, World*> m_worlds;

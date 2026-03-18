@@ -22,9 +22,13 @@ public:
     void OnEventDisconnect(ENetEvent& event) override;
     void RegisterEvents() override;
     void Kill() override;
+    void UpdateGameLogic(uint64 maxTimeMS) override;
 
 public:
     void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
+    GamePlayer* GetPlayerByUserID(uint32 userID);
+
+    void UpdatePlayers();
 
 private:
     template<class T>
@@ -50,6 +54,8 @@ private:
 private:
     EventDispatcher<uint32, GamePlayer*, ParsedTextPacket<8>&> m_messagePacket;
     EventDispatcher<uint32, GamePlayer*, std::vector<string>&> m_commands;
+
+    Timer m_playersLastUpdateTime;
 };
 
 GameServer* GetGameServer();

@@ -55,6 +55,9 @@ public:
     {
         return Vector3<T>(x - rhs.x, y - rhs.y, z - rhs.z);
     }
+
+public:
+    static const Vector3<T> New;
 };
 
 typedef Vector3<int32> Vector3Int;

@@ -2,6 +2,7 @@
 
 #include "../Precompiled.h"
 #include "../Math/Vector2.h"
+#include "../Math/Vector3.h"
 
 enum eVariantTypes 
 {
@@ -13,6 +14,8 @@ enum eVariantTypes
     VARIANT_TYPE_STRING,
     VARIANT_TYPE_VECTOR2INT,
     VARIANT_TYPE_VECTOR2FLOAT,
+    VARIANT_TYPE_VECTOR3INT,
+    VARIANT_TYPE_VECTOR3FLOAT,
 };
 
 struct VariantValue
@@ -82,6 +85,18 @@ public:
         *reinterpret_cast<Vector2Float*>(&m_value) = rhs;
     }
 
+    void operator=(const Vector3Int& rhs)
+    {
+        m_type = VARIANT_TYPE_VECTOR3INT;
+        *reinterpret_cast<Vector3Int*>(&m_value) = rhs;
+    }
+
+    void operator=(const Vector3Float& rhs)
+    {
+        m_type = VARIANT_TYPE_VECTOR3FLOAT;
+        *reinterpret_cast<Vector3Float*>(&m_value) = rhs;
+    }
+
     int32 GetINT() const
     {
         if(m_type == VARIANT_TYPE_INT)
@@ -127,6 +142,20 @@ public:
         if(m_type == VARIANT_TYPE_VECTOR2FLOAT)
             return *reinterpret_cast<const Vector2Float*>(&m_value);
         return Vector2Float::New;
+    }
+
+    const Vector3Int& GetVector3Int() const
+    {
+        if(m_type == VARIANT_TYPE_VECTOR3INT)
+            return *reinterpret_cast<const Vector3Int*>(&m_value);
+        return Vector3Int::New;
+    }
+
+    const Vector3Float& GetVector3Float() const
+    {
+        if(m_type == VARIANT_TYPE_VECTOR3FLOAT)
+            return *reinterpret_cast<const Vector3Float*>(&m_value);
+        return Vector3Float::New;
     }
 
 public:

@@ -69,7 +69,8 @@ void NetHTTP::OnDataReceive(NetClient* pClient)
             int32 bodyLineEnd = data.find("\r\n");
 
             if(bodyLineEnd != -1) {
-                uint32 chunkSize = (uint32)stoul(data.substr(0, bodyLineEnd), nullptr, 16);
+                uint32 chunkSize = 0;
+                ToUInt(data.substr(0, bodyLineEnd), chunkSize, 16);
     
                 if(chunkSize == 0) {
                     pClient->recvQueue.Skip(2);

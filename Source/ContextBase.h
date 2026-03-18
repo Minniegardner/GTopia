@@ -19,6 +19,8 @@ public:
     int32 IsRunning() { return m_stopFlag == 0; };
     void Stop() { m_stopFlag = 1; }
 
+    volatile sig_atomic_t* GetStopFlag() { return &m_stopFlag; }
+
 protected:
     uint16 m_id;
     volatile sig_atomic_t m_stopFlag;

@@ -191,6 +191,137 @@ void RemoveExtraWhiteSpaces(char *str)
 
 }
 
+void RemoveAllSpaces(string& str)
+{
+    RemoveAllSpaces(&str[0]);
+
+    str.resize(strlen(&str[0]));
+}
+
+void RemoveAllSpaces(char* str)
+{
+    if(!str) {
+        return;
+    }
+
+    char* src = str;
+    char* out = str;
+
+    while(*src) {
+        if(*src != ' ') {
+            *out++ = *src;
+        }
+
+        src++;
+    }
+
+    *out = '\0';
+}
+
+eToIntResult ToInt(const string& str, int32& out, int32 base)
+{
+    return ToInt(str.c_str(), out, base);
+}
+
+eToIntResult ToInt(const char* str, int32& out, int32 base)
+{
+    if(!str) {
+        return TO_INT_FAIL;
+    }
+
+    char* end;
+    errno = 0;
+    long val = std::strtol(str, &end, base);
+
+    if(*str == '\0') {
+        return TO_INT_FAIL;
+    }
+
+    if(errno == ERANGE || val > INT32_MAX) {
+        return TO_INT_OVERFLOW;
+    }
+
+    if(errno == ERANGE || val < INT32_MIN) {
+        return TO_INT_UNDERFLOW;
+    }
+
+    out = (int32)val;
+    return TO_INT_SUCCESS;
+}
+
+eToIntResult ToUInt(const string& str, uint32& out, int32 base)
+{
+    return ToUInt(str.c_str(), out, base);
+}
+
+eToIntResult ToUInt(const char* str, uint32& out, int32 base)
+{
+    if(!str || *str == '\0') {
+        return TO_INT_FAIL;
+    }
+    
+    if(*str == '-') {
+        return TO_INT_UNDERFLOW;
+    }
+
+    char* end;
+    errno = 0;
+    unsigned long val = std::strtoul(str, &end, base);
+
+    if(errno == ERANGE || val > UINT32_MAX) {
+        return TO_INT_OVERFLOW;
+    }
+    
+    if(*str == '\0' || *end != '\0') {
+        return TO_INT_FAIL;
+    }
+
+    out = (uint32)val;
+    return TO_INT_SUCCESS;
+}
+
+Color ToColor(const string& str, char delim)
+{
+    string removedStr = str;
+    RemoveAllSpaces(removedStr);
+
+    auto args = Split(removedStr, delim);
+    if(args.size() < 3) {
+        return Color::New;
+    }
+
+    uint32 r = 255;
+    if(ToUInt(args[0], r) != TO_INT_SUCCESS) {
+        return Color::New;
+    }
+
+    uint32 g = 255;
+    if(ToUInt(args[1], g) != TO_INT_SUCCESS) {
+        return Color::New;
+    }
+
+    uint32 b = 255;
+    if(ToUInt(args[2], b) != TO_INT_SUCCESS) {
+        return Color::New;
+    }
+
+    Color color;
+    color.r = (uint8)r;
+    color.g = (uint8)g;
+    color.b = (uint8)b;
+
+    if(args.size() > 3) {
+        uint32 a = 255;
+        if(ToUInt(args[3], a) != TO_INT_SUCCESS) {
+            return Color::New;
+        }
+
+        color.a = (uint8)a;
+    }
+
+    return color;
+}
+
 int32 ToInt(const string& str)
 {
     return ToInt(str.c_str());
@@ -293,4 +424,26 @@ std::vector<string> Split(const char* str, uint32 size, char delim)
     }
 
     return token;
+}
+
+string JoinString(const std::vector<string>& strs, const string& delim, uint32 startIdx, uint32 endIdx)
+{
+    if(strs.empty()) {
+        return "";
+    }
+
+    if(endIdx == 0 || endIdx > strs.size()) {
+        endIdx = strs.size();
+    }
+
+    string ret;
+    for(uint32 i = startIdx; i < endIdx; ++i) {
+        if(i > startIdx) {
+            ret += delim;
+        }
+        
+        ret += strs[i];
+    }
+
+    return ret;
 }

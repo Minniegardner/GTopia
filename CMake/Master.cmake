@@ -27,6 +27,8 @@ set(MASTER_FILES PRIVATE
     ${MASTER_EVENT}/TCP/TCPEventAuth.cpp
     ${MASTER_EVENT}/TCP/TCPEventPlayerSession.cpp
     ${MASTER_EVENT}/TCP/TCPEventWorldInit.cpp
+    ${MASTER_EVENT}/TCP/TCPEventRenderWorld.cpp
+    ${MASTER_EVENT}/TCP/TCPEventRenderWorldRes.cpp
 
     ${MASTER_WORLD}/WorldManager.cpp
 

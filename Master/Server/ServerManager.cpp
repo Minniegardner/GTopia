@@ -7,6 +7,8 @@
 #include "../Event/TCP/TCPEventAuth.h"
 #include "../Event/TCP/TCPEventPlayerSession.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
+#include "../Event/TCP/TCPEventRenderWorld.h"
+#include "../Event/TCP/TCPEventRenderWorldRes.h"
 
 ServerManager::ServerManager()
 {
@@ -88,45 +90,61 @@ void ServerManager::RegisterEvents()
 {
     ServerBroadwayBase::RegisterEvents();
 
-    m_events.Register(
-        TCP_PACKET_HELLO,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventHello::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_AUTH,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventAuth::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_PLAYER_CHECK_SESSION,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventPlayerSession::Execute>()
-    );
-
-    m_events.Register(
-        TCP_PACKET_WORLD_INIT,
-        Delegate<NetClient*, VariantVector&>::Create<&TCPEventWorldInit::Execute>()
-    );
+    RegisterEvent<TCPEventHello>(TCP_PACKET_HELLO);
+    RegisterEvent<TCPEventAuth>(TCP_PACKET_AUTH);
+    RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
+    RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
+    RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
+    RegisterEvent<TCPEventRenderWorldRes>(TCP_PACKET_RENDER_WORLD_RES);
 }
 
 ServerInfo* ServerManager::GetServerByID(uint16 serverID)
 {
-    for(auto& [_, pServer] : m_servers) {
-        if(pServer->serverID == serverID) {
-            return pServer;
+    auto it = m_servers.find(serverID);
+    if(it == m_servers.end()) {
+        return nullptr;
+    }
+
+    return it->second;
+}
+
+RendererInfo* ServerManager::GetRendererByID(uint rendererID)
+{
+    for(auto& pRenderer : m_renderers) {
+        if(pRenderer->serverID == rendererID) {
+            return pRenderer;
         }
     }
 
     return nullptr;
 }
 
-bool ServerManager::SendPacketRaw(uint16 serverID, VariantVector& data)
+bool ServerManager::SendPacketServerRaw(uint16 serverID, VariantVector& data)
 {
     if(!m_pNetSocket) {
         return false;
     }
 
     ServerInfo* pServer = GetServerByID(serverID);
+    if(!pServer) {
+        return false;
+    }
+
+    NetClient* pNetClient = m_pNetSocket->GetClient(pServer->socketConnID);
+    if(!pNetClient) {
+        return false;
+    }
+
+    return pNetClient->Send(data);
+}
+
+bool ServerManager::SendPacketRendererRaw(uint16 rendererID, VariantVector &data)
+{
+    if(!m_pNetSocket) {
+        return false;
+    }
+
+    RendererInfo* pServer = GetRendererByID(rendererID);
     if(!pServer) {
         return false;
     }
@@ -180,7 +198,7 @@ void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverTy
         pServer->wanIP = serverNetInfo.wanIP;
         pServer->port = serverNetInfo.udpPort;
     
-        m_renderers.insert_or_assign(pServer->serverID, pServer);
+        m_renderers.push_back(pServer);
     }
 }
 
@@ -202,6 +220,15 @@ ServerInfo* ServerManager::GetBestServer()
     }
 
     return m_servers[1];
+}
+
+RendererInfo* ServerManager::GetBestRenderer()
+{
+    if(m_renderers.empty()) {
+        return nullptr;
+    }
+
+    return m_renderers[0];
 }
 
 ServerManager* GetServerManager() { return ServerManager::GetInstance(); }

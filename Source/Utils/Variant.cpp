@@ -22,6 +22,10 @@ uint32 Variant::GetSize() const
         case VARIANT_TYPE_VECTOR2INT:
         case VARIANT_TYPE_VECTOR2FLOAT:
             return 8;
+
+        case VARIANT_TYPE_VECTOR3INT:
+        case VARIANT_TYPE_VECTOR3FLOAT:
+            return 12;
     }
 
     return 0;

@@ -24,6 +24,8 @@ public:
     static uint64 GetTimeSinceEpoch();
     static string GetDateTimeStr();
 
+    static string ConvertTimeToStr(uint64 ms);
+
 private:
     Timer m_timer;
 };

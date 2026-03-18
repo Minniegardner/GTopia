@@ -33,10 +33,18 @@ void WorldInfo::GenerateWorld(eWorldGenerationType type)
 
     switch(type) {
         case WORLD_GENERATION_DEFAULT: {
-            m_defaultWeather = WEATHER_TYPE_DESERT;
-            m_currentWeather = WEATHER_TYPE_DESERT;
+            m_defaultWeather = WEATHER_TYPE_DEFAULT;
+            m_currentWeather = WEATHER_TYPE_DEFAULT;
 
             m_pTileMgr->GenerateDefaultMap();
+            break;
+        }
+
+        case WORLD_GENERATION_CLEAR: {
+            m_defaultWeather = WEATHER_TYPE_DEFAULT;
+            m_currentWeather = WEATHER_TYPE_DEFAULT;
+
+            m_pTileMgr->GenerateClearMap();
             break;
         }
     }
