@@ -27,6 +27,8 @@ public:
     void SendOnRemove(int32 netID);
     void SendOnDialogRequest(const string& dialogData);
     void SendOnTextOverlay(const string& message);
+    void SendOnPlayPositioned(const string& fileName, Player* pPlayer = nullptr);
+    void SendOnNameChanged(const string& name, Player* pPlayer);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);

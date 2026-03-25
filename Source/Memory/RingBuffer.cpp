@@ -32,7 +32,7 @@ uint32 RingBuffer::Write(void* pData, uint32 size)
 
     uint32 totalWritten = firstSize;
     uint32 remainSize = writeSize - firstSize;
-    if(writeSize > 0) {
+    if(remainSize > 0) {
         totalWritten +=  Write((uint8*)pData + firstSize, remainSize);
     }
 

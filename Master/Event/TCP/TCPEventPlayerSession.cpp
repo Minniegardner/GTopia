@@ -1,25 +1,34 @@
 #include "TCPEventPlayerSession.h"
 #include "../../Server/GameServer.h"
-#include "Packet/GamePacket.h"
+#include "../../Server/ServerManager.h"
+
+void TCPPlayerSessionEventData::FromVariant(VariantVector& varVec)
+{
+    if(varVec.size() < 5) {
+        return;
+    }
+
+    netID = varVec[1].GetINT();
+    userID = varVec[2].GetUINT();
+    token = varVec[3].GetUINT();
+    serverID = varVec[4].GetUINT();
+}
 
 void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
 {
-    PlayerSession* pPlayer = GetGameServer()->GetPlayerSessionByUserID(data[2].GetUINT());
+    TCPPlayerSessionEventData eventData;
+    eventData.FromVariant(data);
 
-    VariantVector packet(3);
-    packet[0] = TCP_PACKET_PLAYER_CHECK_SESSION;
-    packet[1] = data[1].GetINT();
+    PlayerSession* pPlayer = GetGameServer()->GetPlayerSessionByUserID(eventData.userID);
+    bool hasSession = true;
 
     if(
         !pPlayer ||
-        pPlayer->serverID != data[4].GetUINT() ||
-        pPlayer->loginToken != data[3].GetUINT()
+        pPlayer->serverID != eventData.serverID ||
+        pPlayer->loginToken != eventData.token
     ) {
-        packet[2] = false;
-    }
-    else {
-        packet[2] = true;
+        hasSession = false;
     }
 
-    pClient->Send(packet);
+    GetServerManager()->SendPlayerSessionCheck(hasSession, eventData.netID, pClient->connectionID);
 }

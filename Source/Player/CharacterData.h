@@ -80,6 +80,7 @@ public:
 private:
     void RemovePlayMod(PlayerPlayModInfo* pPlayerMod);
     void SetNeededUpdates(PlayMod* pPlayMod);
+    void GetNextPunchType();
 
 private:
     uint8 m_punchType;

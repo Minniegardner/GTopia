@@ -5,6 +5,9 @@
 #include "Packet/PacketUtils.h"
 #include "IO/Log.h"
 #include "../World/WorldManager.h"
+#include "Item/ItemInfoManager.h"
+#include "Player/RoleManager.h"
+#include "../Context.h"
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
 #include "../Event/UDP/GameMessage/EnterGame.h"
@@ -22,6 +25,7 @@
 #include "../Command/Magic.h"
 
 GameServer::GameServer()
+: NetEntity(NET_ID_GAME_SERVER)
 {
 }
 
@@ -58,12 +62,11 @@ void GameServer::OnEventReceive(ENetEvent& event)
     }
 
     uint32 msgType = GetMessageTypeFromEnetPacket(event.packet);
-    LOGGER_LOG_DEBUG("%s", GetTextFromEnetPacket(event.packet));
-    LOGGER_LOG_DEBUG("messageType: %d", msgType);
 
     switch(msgType) {
         case NET_MESSAGE_GENERIC_TEXT:
         case NET_MESSAGE_GAME_MESSAGE: {
+            LOGGER_LOG_DEBUG("%s", GetTextFromEnetPacket(event.packet));
 
             if(pPlayer->HasState(PLAYER_STATE_LOGIN_REQUEST)) {
                 ParsedTextPacket<25> packet;
@@ -134,6 +137,8 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
     if(event.peer != pPlayer->GetPeer()) {
         return;
     }
+
+    pPlayer->LogOff();
     
     auto it = m_playerCache.find(pPlayer->GetNetID());
     if(it != m_playerCache.end()) {
@@ -164,6 +169,7 @@ void GameServer::UpdateGameLogic(uint64 maxTimeMS)
 {
     ServerBase::UpdateGameLogic(maxTimeMS);
     UpdatePlayers();
+    GetWorldManager()->UpdateWorlds();
 }
 
 void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
@@ -195,11 +201,16 @@ GamePlayer* GameServer::GetPlayerByUserID(uint32 userID)
     return nullptr;
 }
 
-void GameServer::UpdatePlayers() // re-do
+void GameServer::UpdatePlayers()
 {
-    if(m_playersLastUpdateTime.GetElapsedTime() < 16) {
+    if(m_playersLastUpdateTime.GetElapsedTime() < TICK_INTERVAL) {
         return;
     }
+
+    /**
+     * maybe update a count of players per frame?
+     * really needed that?
+     */
 
     for(auto& [_, pPlayer] : m_playerCache) {
         if(!pPlayer) {
@@ -208,14 +219,28 @@ void GameServer::UpdatePlayers() // re-do
 
         if(pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
             pPlayer->Update();
+
+            if(pPlayer->GetLastDBSaveTime().GetElapsedTime() >= 15 * 60 * 1000) {
+                pPlayer->SaveToDatabase();
+                pPlayer->GetLastDBSaveTime().Reset();
+            }
         }
     }
 
     m_playersLastUpdateTime.Reset();
 }
 
-#include "Item/ItemInfoManager.h"
-#include "Player/RoleManager.h"
+void GameServer::ForceSaveAllPlayers()
+{
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(!pPlayer) {
+            continue;
+        }
+
+        pPlayer->SaveToDatabase();
+    }
+}
+
 void GameServer::Kill()
 {
     ServerBase::Kill();

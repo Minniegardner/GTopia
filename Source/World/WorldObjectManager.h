@@ -10,7 +10,6 @@ struct WorldObject
     uint16 itemID;
     uint8 count;
     uint8 flags;
-    uint32 indexID;
     Vector2Float pos;
 
     void Serialize(MemoryBuffer& memBuffer, bool write);

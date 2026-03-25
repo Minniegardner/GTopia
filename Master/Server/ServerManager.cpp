@@ -8,7 +8,9 @@
 #include "../Event/TCP/TCPEventPlayerSession.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
 #include "../Event/TCP/TCPEventRenderWorld.h"
-#include "../Event/TCP/TCPEventRenderWorldRes.h"
+#include "../Event/TCP/TCPEventWorldSendPlayer.h"
+#include "../Event/TCP/TCPEventPlayerEndSession.h"
+#include "../Event/TCP/TCPEventKillServer.h"
 
 ServerManager::ServerManager()
 {
@@ -45,6 +47,7 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
         }
 
         int8 type = event.data[0].GetINT();
+        LOGGER_LOG_DEBUG("GOT TCP PACKET %d", type);
 
         switch(type) {
             case TCP_PACKET_HELLO: 
@@ -54,7 +57,7 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
             }
 
             default: {
-                if(!((NetClientInfo*)(event.pClient->data))->authed) {
+                if(!((NetServerInfo*)(event.pClient->data))->authed) {
                     LOGGER_LOG_WARN("Client trying to access un-authorized packets?! CLOSING!");
                     event.pClient->status = SOCKET_CLIENT_CLOSE;
                     continue;
@@ -95,7 +98,9 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
     RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
-    RegisterEvent<TCPEventRenderWorldRes>(TCP_PACKET_RENDER_WORLD_RES);
+    RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
+    RegisterEvent<TCPEventPlayerEndSession>(TCP_PACKET_PLAYER_END_SESSION);
+    RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
 }
 
 ServerInfo* ServerManager::GetServerByID(uint16 serverID)
@@ -108,18 +113,7 @@ ServerInfo* ServerManager::GetServerByID(uint16 serverID)
     return it->second;
 }
 
-RendererInfo* ServerManager::GetRendererByID(uint rendererID)
-{
-    for(auto& pRenderer : m_renderers) {
-        if(pRenderer->serverID == rendererID) {
-            return pRenderer;
-        }
-    }
-
-    return nullptr;
-}
-
-bool ServerManager::SendPacketServerRaw(uint16 serverID, VariantVector& data)
+bool ServerManager::SendPacketRaw(uint16 serverID, VariantVector& data)
 {
     if(!m_pNetSocket) {
         return false;
@@ -138,23 +132,105 @@ bool ServerManager::SendPacketServerRaw(uint16 serverID, VariantVector& data)
     return pNetClient->Send(data);
 }
 
-bool ServerManager::SendPacketRendererRaw(uint16 rendererID, VariantVector &data)
+void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID)
 {
-    if(!m_pNetSocket) {
-        return false;
+    VariantVector data(3);
+
+    data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
+    data[1] = TCP_RESULT_FAIL;
+    data[2] = playerNetID;
+
+    SendPacketRaw(serverID, data);
+}
+
+void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, uint32 serverIDForPacket)
+{
+    VariantVector data(7);
+
+    data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
+    data[1] = TCP_RESULT_OK;   
+    data[2] = playerNetID;
+    data[3] = serverID;
+    data[4] = worldID;
+    data[5] = serverIP;
+    data[6] = serverPort;
+
+    SendPacketRaw(serverIDForPacket, data);
+}
+
+void ServerManager::SendWorldInitPacket(const string& worldName, uint32 serverID)
+{
+    VariantVector data(2);
+
+    data[0] = TCP_PACKET_WORLD_INIT;
+    data[1] = worldName;
+
+    SendPacketRaw(serverID, data);
+}
+
+void ServerManager::SendAuthPacket(bool succeed, uint32 serverID)
+{
+    VariantVector data(2);
+
+    data[0] = TCP_PACKET_AUTH;
+    data[1] = succeed;
+
+    SendPacketRaw(serverID, data);
+}
+
+void ServerManager::SendRenderResult(int32 result, uint32 playerUserID, uint32 serverID)
+{
+    VariantVector data(4);
+
+    data[0] = TCP_PACKET_RENDER_WORLD;
+    data[1] = TCP_RENDER_RESULT;
+    data[2] = result;
+    data[3] = playerUserID;
+
+    SendPacketRaw(serverID, data);
+}
+
+void ServerManager::SendRenderRequest(uint32 playerUserID, uint32 worldID, uint32 serverID)
+{
+    VariantVector data(4);
+
+    data[0] = TCP_PACKET_RENDER_WORLD;
+    data[1] = TCP_RENDER_REQUEST;
+    data[2] = playerUserID;
+    data[3] = worldID;
+
+    SendPacketRaw(serverID, data);
+}
+
+void ServerManager::SendPlayerSessionCheck(bool hasSession, int32 playerNetID, int16 connectionID)
+{
+    NetClient* pClient = m_pNetSocket->GetClient(connectionID);
+    if(!pClient) {
+        return;
     }
 
-    RendererInfo* pServer = GetRendererByID(rendererID);
-    if(!pServer) {
-        return false;
+    VariantVector data(3);
+    
+    data[0] = TCP_PACKET_PLAYER_CHECK_SESSION;
+    data[1] = playerNetID;
+    data[2] = hasSession;
+
+    pClient->Send(data);
+}
+
+void ServerManager::SendHelloPacket(const string &authKey, int16 connectionID)
+{
+    NetClient* pClient = m_pNetSocket->GetClient(connectionID);
+    if(!pClient) {
+        return;
     }
 
-    NetClient* pNetClient = m_pNetSocket->GetClient(pServer->socketConnID);
-    if(!pNetClient) {
-        return false;
-    }
+    VariantVector data(2);
+    
+    data[0] = TCP_PACKET_HELLO;
+    data[1] = authKey;
 
-    return pNetClient->Send(data);
+    pClient->Send(data);
 }
 
 void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)
@@ -182,24 +258,14 @@ void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverTy
     if(serverType == CONFIG_SERVER_RENDERER) serverTypeStr = "renderer";
 
     LOGGER_LOG_INFO("Server %d (%s) added to cache %s:%d", serverID, serverTypeStr.c_str(), serverNetInfo.wanIP.c_str(), serverNetInfo.udpPort);
-    if(serverType == CONFIG_SERVER_GAME) {
-        ServerInfo* pServer = new ServerInfo();
-        pServer->serverID = serverID;
-        pServer->socketConnID = pClient->connectionID;
-        pServer->wanIP = serverNetInfo.wanIP;
-        pServer->port = serverNetInfo.udpPort;
-    
-        m_servers.insert_or_assign(pServer->serverID, pServer);
-    }
-    else if(serverType == CONFIG_SERVER_RENDERER) {
-        RendererInfo* pServer = new RendererInfo();
-        pServer->serverID = serverID;
-        pServer->socketConnID = pClient->connectionID;
-        pServer->wanIP = serverNetInfo.wanIP;
-        pServer->port = serverNetInfo.udpPort;
-    
-        m_renderers.push_back(pServer);
-    }
+    ServerInfo* pServer = new ServerInfo();
+    pServer->serverID = serverID;
+    pServer->socketConnID = pClient->connectionID;
+    pServer->wanIP = serverNetInfo.wanIP;
+    pServer->port = serverNetInfo.udpPort;
+    pServer->serverType = (eConfigServerType)serverType;
+
+    m_servers.insert_or_assign(pServer->serverID, pServer);
 }
 
 void ServerManager::RemoveServer(uint16 serverID)
@@ -209,26 +275,58 @@ void ServerManager::RemoveServer(uint16 serverID)
         return;
     }
 
-    SAFE_DELETE(it->second);
+    ServerInfo* pServer = it->second;
+
+    NetClient* pClient = m_pNetSocket->GetClient(pServer->socketConnID);
+    pClient->status = SOCKET_CLIENT_CLOSE;
+
+    SAFE_DELETE(pServer);
     m_servers.erase(it);
 }
 
-ServerInfo* ServerManager::GetBestServer()
+ServerInfo* ServerManager::GetBestGameServer()
 {
-    if(m_servers.empty()) {
-        return nullptr;
+    ServerInfo* pBestServer = nullptr;
+    float bestScore = 999999999.0f;
+
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer || pServer->serverType != CONFIG_SERVER_GAME) {
+            continue;
+        }
+
+        float score = pServer->playerCount / (pServer->worldCount + 1);
+        if(score < bestScore) {
+            pBestServer = pServer;
+        }
     }
 
-    return m_servers[1];
+    return pBestServer;
 }
 
-RendererInfo* ServerManager::GetBestRenderer()
+ServerInfo* ServerManager::GetBestRenderServer()
 {
-    if(m_renderers.empty()) {
-        return nullptr;
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer || pServer->serverType != CONFIG_SERVER_RENDERER) {
+            continue;
+        }
+
+        return pServer;
     }
 
-    return m_renderers[0];
+    return nullptr;
+}
+
+bool ServerManager::HasAnyGameServer()
+{
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer || pServer->serverType != CONFIG_SERVER_GAME) {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 ServerManager* GetServerManager() { return ServerManager::GetInstance(); }

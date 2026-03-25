@@ -13,14 +13,30 @@
 #include "Player/RoleManager.h"
 #include "Player/PlayModManager.h"
 
-const int32 TICK_RATE = 20;
-const uint64 TICK_INTERVAL = 1000/TICK_RATE;
+bool firstCallShutdown = false;
 
 #include <signal.h>
 void SignalStop(int32 signum) 
-{ 
-    LOGGER_LOG_WARN("Received signal %d", signum);
-    GetContext()->Stop();
+{
+    GetContext()->Shutdown();
+    //GetContext()->Stop();
+}
+
+void ForceSaveEverything()
+{
+    GetMasterBroadway()->SendServerKillPacket();
+
+    GetGameServer()->ForceSaveAllPlayers();
+    GetWorldManager()->ForceSaveAllWorlds();
+
+    QueryRequest req;
+    req.ownerID = NET_ID_CONTEXT;
+
+    req.extraData.resize(1);
+    req.extraData[0] = (int32)-1;
+
+    DatabaseExec(GetContext()->GetDatabasePool(), "", req, QUERY_FLAG_NONE); //end marker 
+    firstCallShutdown = false;
 }
 
 bool ReadArgs(int argc, char const* argv[]) 
@@ -49,20 +65,19 @@ bool ReadArgs(int argc, char const* argv[])
 }
 
 void DatabaseThreadFunc() {
-    uint64 lastLogWriteTime = Time::GetSystemTime();
+    Timer lastLogWriteTime;
     uint64 nextTick = Time::GetSystemTime();
 
     while(GetContext()->IsRunning()) {
         DatabaseWorker* pWorker = GetContext()->GetDatabasePool()->GetWorker(0);
-        pWorker->Update();
+        pWorker->Update(30);
 
-        uint64 logWriteStart = Time::GetSystemTime();
-        if(logWriteStart - lastLogWriteTime >= 1000) {
+        if(lastLogWriteTime.GetElapsedTime() >= 1500) {
             GetLog()->Write();
-            lastLogWriteTime = Time::GetSystemTime();
+            lastLogWriteTime.Reset();
         }
 
-        nextTick += (TICK_INTERVAL * 0.8);
+        nextTick += TICK_INTERVAL;
         uint64 checkTime = Time::GetSystemTime();
         if(checkTime > nextTick) {
             // lag
@@ -78,7 +93,9 @@ void DatabaseThreadFunc() {
 
 void EventThreadFunc() {
     while(GetContext()->IsRunning()) {
-        GetGameServer()->Update();
+        if(!GetContext()->IsShutting()) {
+            GetGameServer()->Update();
+        }
         GetMasterBroadway()->Update(true);
 
         SleepMS(1);
@@ -108,10 +125,26 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
                 break;
             }
 
+            /*case NET_ID_GAME_SERVER: {
+                GetGameServer()->OnHandleDatabase(std::move(taskRes));
+                break;
+            }*/
+
+            case NET_ID_CONTEXT: {
+                if(GetContext()->IsShutting()) {
+                    if(!taskRes.extraData.empty() && taskRes.extraData[0].GetINT() == -1) {
+                        GetContext()->Stop();
+                    }
+                }
+
+                break;
+            }
+
             default: {       
                 Player* pPlayer = GetGameServer()->GetPlayerByNetID(taskRes.ownerID);
                 if(!pPlayer) {
-                    LOGGER_LOG_WARN("Trying to process database result but player %d not exits?", taskRes.ownerID);
+                    LOGGER_LOG_WARN("Trying to process database result but player %d not exits? might be logged off", taskRes.ownerID);
+                    break;
                 }
 
                 pPlayer->OnHandleDatabase(std::move(taskRes));
@@ -285,9 +318,16 @@ int main(int argc, char const* argv[])
     while(GetContext()->IsRunning()) {
         uint64 tickStart = Time::GetSystemTime();
         
-        GetGameServer()->UpdateGameLogic(15);
+        if(!GetContext()->IsShutting()) {
+            GetGameServer()->UpdateGameLogic(15);
+        }
+
         GetMasterBroadway()->UpdateTCPLogic(15);
         ProcessDatabaseResults(15);
+
+        if(GetContext()->IsShutting() && !firstCallShutdown) {
+            ForceSaveEverything();
+        }
 
         nextTick += TICK_INTERVAL;
 

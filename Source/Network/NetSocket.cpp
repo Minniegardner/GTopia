@@ -148,7 +148,6 @@ int16 NetSocket::Connect(const string& host, uint16 port, bool nonBlocking)
     if(sslRes <= 0) {
         return -1;
     }
-
 #endif
 
     NetClient* pClient = new NetClient();
@@ -207,7 +206,16 @@ void NetSocket::Update(bool asClient)
         maxFD = m_socket;
     }
 
-    FD_SET(m_socket, &rs);
+    if(m_socket >= 0 && m_socket < FD_SETSIZE) {
+        FD_SET(m_socket, &rs);
+        if(m_socket > maxFD) {
+            maxFD = m_socket;
+        }
+    } else {
+        if(!asClient) {
+            return;
+        }
+    }
 
     for(auto it = m_clients.begin(); it != m_clients.end();) {
         NetClient* pClient = it->second;
@@ -447,6 +455,7 @@ void NetSocket::CloseClient(uint16 connectionID)
             return;
         }
 
+        pClient->status = SOCKET_CLIENT_CLOSE;
         CloseSocket(pClient->socket);
 
 #ifdef SOCKET_USE_TLS

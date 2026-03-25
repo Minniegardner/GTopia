@@ -17,11 +17,15 @@ public:
     uint16 GetID() const { return m_id; }
 
     int32 IsRunning() { return m_stopFlag == 0; };
+    int32 IsShutting() { return m_shutdownFlag == 1; }
+
     void Stop() { m_stopFlag = 1; }
+    void Shutdown() { m_shutdownFlag = 1; }
 
     volatile sig_atomic_t* GetStopFlag() { return &m_stopFlag; }
 
 protected:
     uint16 m_id;
     volatile sig_atomic_t m_stopFlag;
+    volatile sig_atomic_t m_shutdownFlag;
 };

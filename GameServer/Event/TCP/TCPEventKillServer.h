@@ -2,7 +2,7 @@
 
 #include "Network/NetClient.h"
 
-class TCPEventRenderWorldRes {
+class TCPEventKillServer {
 public:
     static void Execute(NetClient* pClient, VariantVector& data);
 };

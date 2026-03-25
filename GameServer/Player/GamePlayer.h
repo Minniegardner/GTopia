@@ -39,6 +39,9 @@ public:
     void HandleRenderWorld(VariantVector&& result);
 
     void SaveToDatabase();
+    void LogOff();
+    
+
     void Update();
 
     void SetJoinWorld(bool joining) { m_joiningWorld = joining; }
@@ -63,8 +66,8 @@ public:
     void ModifyInventoryItem(uint16 itemID, int16 amount);
     void TrashItem(uint16 itemID, uint8 amount);
 
-    void AddPlayMod(ePlayModType modType);
-    void RemovePlayMod(ePlayModType modType);
+    void AddPlayMod(ePlayModType modType, bool silent = false);
+    void RemovePlayMod(ePlayModType modType, bool silent = false);
     void UpdateNeededPlayModThings();
     void UpdatePlayMods();
     void UpdateTorchPlayMod();
@@ -74,7 +77,10 @@ public:
 
     void SendPositionToWorldPlayers();
 
-    Timer& GetLastActionTime() { return m_lastActionTime; };
+    Timer& GetLastActionTime() { return m_lastActionTime; }
+    Timer& GetLastDBSaveTime() { return m_lastDbSaveTime; }
+
+    bool IsLoggingOff() const { return m_loggingOff; }
 
 private:
     uint32 m_state;
@@ -86,8 +92,12 @@ private:
 
     uint32 m_guestID;
 
+    bool m_loggingOff;
+
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;
+
+    Timer m_lastDbSaveTime;
 
     Role* m_pRole;
 };

@@ -89,10 +89,10 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
         m_state = PLAYER_STATE_CREATING_ACCOUNT;
     }
 
-    /*if(GetGameServer()->GetPlayerSessionByUserID(m_userID)) {
-        SendLogonFailWithLog("`3Already on");
+    if(GetGameServer()->GetPlayerSessionByUserID(m_userID)) { // add ALREADY ON THINGGGGGGG
+        SendLogonFailWithLog("``You are still online, please wait and re-login again.");
         return;
-    }*/
+    }
 
     m_state = PLAYER_STATE_SWITCHING_TO_GAME;
     SwitchingToGame();
@@ -123,19 +123,19 @@ void GamePlayer::SwitchingToGame()
         return;
     }
 
-    ServerInfo* pServer = GetServerManager()->GetBestServer();
+    ServerInfo* pServer = GetServerManager()->GetBestGameServer();
     if(!pServer) {
         SendLogonFailWithLog("");
         LOGGER_LOG_WARN("Tried to switching player to game but the server is NULL?");
         return;
     }
 
-    PlayerSession* pSession = new PlayerSession();
-    pSession->serverID = pServer->serverID;
-    pSession->userID = m_userID;
-    pSession->loginToken = RandomRangeInt(100000, 9999999);
-    pSession->ip = m_address;
+    PlayerSession session;
+    session.serverID = pServer->serverID;
+    session.userID = m_userID;
+    session.loginToken = RandomRangeInt(100000, 9999999);
+    session.ip = m_address;
 
-    SendOnSendToServer(pServer->port, pSession->loginToken, m_userID, pServer->wanIP);
-    GetGameServer()->AddPlayerSession(pSession);
+    SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP);
+    GetGameServer()->AddPlayerSession(session);
 }

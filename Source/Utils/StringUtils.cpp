@@ -34,9 +34,13 @@ string ToHex(const string& str)
 
 string ToHex(const void* str, uint32 size)
 {
+    if(!str || size == 0) {
+        return "";
+    }
+
     static const char hexChars[] = "0123456789ABCDEF";
 
-    const uint8* bytes = static_cast<const uint8_t*>(str);
+    const uint8* bytes = static_cast<const uint8*>(str);
 
     string out;
     out.resize(size * 2);
@@ -71,13 +75,17 @@ void HexToBytes(const string& str, uint8* target)
     HexToBytes(str.c_str(), target);
 }
 
-void HexToBytes(const char *str, uint8 *target)
+void HexToBytes(const char* str, uint8* target)
 {
     if(!str || !target) {
         return;
     }
 
     const char* src = str;
+    
+    if(*src == '0' && (*(src + 1) && (*(src + 1) == 'x' || *(src + 1) == 'X'))) {
+        src += 2;
+    }
 
     while(*src && *(src + 1)) {
         *(target++) = CharToInt(*src) * 16 + CharToInt(src[1]);
@@ -153,14 +161,17 @@ float ToFloat(const char* str)
 
 void RemoveExtraWhiteSpaces(string& str)
 {
-    RemoveExtraWhiteSpaces(&str[0]);
+    if(str.empty()) {
+        return;
+    }
 
+    RemoveExtraWhiteSpaces(&str[0]);
     str.resize(strlen(&str[0]));
 }
 
-void RemoveExtraWhiteSpaces(char *str)
+void RemoveExtraWhiteSpaces(char* str)
 {
-    if(!str) {
+    if(!str || *str == '\0') {
         return;
     }
 
@@ -188,7 +199,6 @@ void RemoveExtraWhiteSpaces(char *str)
     }
 
     *out = '\0';
-
 }
 
 void RemoveAllSpaces(string& str)

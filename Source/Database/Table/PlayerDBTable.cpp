@@ -63,3 +63,13 @@ QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inven
     req.data[2] = userID;
     return req;
 }
+
+QueryRequest MakeGetForInactive(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = userID;
+    return req;
+}

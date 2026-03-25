@@ -55,14 +55,12 @@ void SignDialog::Handle(GamePlayer* pPlayer, const string& text, int32 tileX, in
     TileInfo* pTile = pWorld->GetTileManager()->GetTile(tileX, tileY);
     if(!pTile) {
         pPlayer->SendOnTalkBubble("Huh? The sign is gone!", false);
-        printf("pufff");
         return;
     }
 
     TileExtra_Sign* pTileExtra = pTile->GetExtra<TileExtra_Sign>();
     if(!pTileExtra) {
         pPlayer->SendOnTalkBubble("Huh? The sign is gone!", false);
-        printf("pffpffp2");
         return;
     }
 

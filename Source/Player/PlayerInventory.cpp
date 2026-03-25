@@ -20,8 +20,8 @@ PlayerInventory::PlayerInventory()
 
     m_items.reserve(INVENTORY_DEFAULT_CAPACITY);
 
-    m_items.emplace_back(InventoryItemInfo{ ITEM_ID_FIST, 1, 0 });
-    m_items.emplace_back(InventoryItemInfo{ ITEM_ID_WRENCH, 1, 0 });
+    //m_items.emplace_back(InventoryItemInfo{ ITEM_ID_FIST, 1, 0 });
+    //m_items.emplace_back(InventoryItemInfo{ ITEM_ID_WRENCH, 1, 0 });
 
     m_quickSlots[0] = ITEM_ID_FIST;
 }
@@ -75,7 +75,7 @@ void PlayerInventory::Serialize(MemoryBuffer& memBuffer, bool write, bool databa
                 continue;
             }
 
-            if(pItem->type == ITEM_TYPE_CLOTHES && item.flags == 1) {
+            if(item.flags == 1) {
                 m_clothes[pItem->bodyPart] = item.id;
             }
     
@@ -173,6 +173,16 @@ void PlayerInventory::SetClothByPart(uint16 itemID, uint8 bodyPart)
 {
     if(bodyPart > BODY_PART_SIZE) {
         return;
+    }
+
+    InventoryItemInfo* pItem = GetItemByID(itemID);
+    if(pItem) {
+        if(itemID == ITEM_ID_BLANK) {
+            pItem->flags = 0;
+        }
+        else {
+            pItem->flags = 1;
+        }
     }
 
     m_clothes[bodyPart] = itemID;

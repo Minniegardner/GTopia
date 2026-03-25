@@ -2,6 +2,7 @@
 #include "../Item/ItemInfoManager.h"
 #include "../IO/Log.h"
 #include "WorldTileManager.h"
+#include "WorldInfo.h"
 
 TileInfo::TileInfo()
 : m_pExtraData(nullptr), m_fg(0), m_bg(0), m_parent(0), m_flags(0), m_damage(0)
@@ -13,7 +14,7 @@ TileInfo::~TileInfo()
     SAFE_DELETE(m_pExtraData)
 }
 
-void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, uint16 worldVersion)
+void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld)
 {
     memBuffer.ReadWrite(m_fg, write);
     memBuffer.ReadWrite(m_bg, write);
@@ -21,29 +22,32 @@ void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, uin
     memBuffer.ReadWrite(m_flags, write);
 
     if(HasFlag(TILE_FLAG_HAS_PARENT)) {
-        memBuffer.Seek(memBuffer.GetOffset() + 2);
+        memBuffer.ReadWrite(m_parent, write); // ye its like that
     }
 
     if(HasFlag(TILE_FLAG_HAS_EXTRA_DATA)) {
-        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(m_fg);
-        if(!pItem) {
-            return;
-        }
-
-        if(!write) {
-            m_pExtraData = TileExtra::Create(GetTileExtraType(pItem->type));
+        if(write) {
             if(!m_pExtraData) {
-                LOGGER_LOG_ERROR("Tile flagged with extra data but extra data is NULL? fg:%d itemType:%d", m_fg, pItem->type);
+                LOGGER_LOG_ERROR("Tile flagged with extra data but extra data is NULL? fg:%d", m_fg);
                 return;
             }
-            m_pExtraData->Serialize(memBuffer, write, database, this, worldVersion);
+            
+            m_pExtraData->Serialize(memBuffer, true, database, this, pWorld->GetWorldVersion());
         }
         else {
-            if(!m_pExtraData) {
-                LOGGER_LOG_ERROR("Tile flagged with extra data but extra data is NULL? fg:%d itemType:%d", m_fg, pItem->type);
+            ItemInfo* pItem = GetItemInfoManager()->GetItemByID(m_fg);
+            if(!pItem) {
                 return;
             }
-            m_pExtraData->Serialize(memBuffer, write, database, this, worldVersion);
+
+            uint8 tileExtraType = GetTileExtraType(pItem->type);
+            if(tileExtraType != TILE_EXTRA_TYPE_NONE) {                
+                m_pExtraData = TileExtra::Create(tileExtraType);
+
+                if(m_pExtraData) {
+                    m_pExtraData->Serialize(memBuffer, false, database, this, pWorld->GetWorldVersion());
+                }
+            }
         }
     }
 }

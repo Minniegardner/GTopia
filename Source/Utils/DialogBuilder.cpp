@@ -74,6 +74,14 @@ DialogBuilder* DialogBuilder::AddSpacer(bool big)
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddCheckBox(const string& boxID, const string& text, bool active)
+{
+    m_str += "add_checkbox|" + boxID + "|" + text + "|";
+    m_str += active ? "1|\n" : "0|\n";
+
+    return this;
+}
+
 DialogBuilder* DialogBuilder::EmbedData(const string& name, const string& value)
 {
     m_str += "embed_data|" + name + "|" + value + "\n";

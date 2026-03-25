@@ -27,6 +27,7 @@ enum eTileFlags
 };
 
 class WorldTileManager;
+class WorldInfo;
 
 class TileInfo {
 public:
@@ -34,13 +35,16 @@ public:
     ~TileInfo();
 
 public:
-    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, uint16 worldVersion);
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld);
 
     void SetFG(uint16 itemID, WorldTileManager* pTileMgr);
     void SetBG(uint16 itemID);
 
     uint16 GetFG() const { return m_fg; }
     uint16 GetBG() const { return m_bg; }
+
+    void SetParent(uint16 index) { m_parent = index; }
+    uint16 GetParent() const { return m_parent; }
 
     void SetPos(uint16 x, uint16 y) { m_pos.x = x; m_pos.y = y; }
     Vector2Int GetPos() const { return m_pos; }

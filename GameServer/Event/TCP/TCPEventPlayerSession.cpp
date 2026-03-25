@@ -1,12 +1,26 @@
 #include "TCPEventPlayerSession.h"
 #include "../../Server/GameServer.h"
-#include "../../Player/GamePlayer.h"
-#include "Packet/GamePacket.h"
 #include "IO/Log.h"
+
+void TCPPlayerSessionEventData::FromVariant(const VariantVector& varVec)
+{
+    if(varVec.size() < 2) {
+        return;
+    }
+
+    playerNetID = varVec[1].GetINT();
+}
 
 void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
 {
-    GamePlayer* pPlayer = GetGameServer()->GetPlayerByNetID(data[1].GetINT());
+    TCPPlayerSessionEventData eventData;
+    eventData.FromVariant(data);
+
+    if(eventData.playerNetID <= 0) {
+        return;
+    }
+
+    GamePlayer* pPlayer = GetGameServer()->GetPlayerByNetID(eventData.playerNetID);
     if(!pPlayer) {
         LOGGER_LOG_WARN("Received player session packet but player not found?");
         return;

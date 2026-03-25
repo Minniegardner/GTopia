@@ -57,3 +57,71 @@ public:
 protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
+
+enum eTileExtraLockFlag
+{
+    TILE_EXTRA_LOCK_FLAG_IGNORE_AIR = 1 << 0
+};
+
+class TileExtra_Lock : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_LOCK;
+
+    TileExtra_Lock() : TileExtra(TYPE) {}
+
+    uint8 flags = 0;
+    int32 ownerID = -1;
+    std::vector<int32> accessList; // includes tempo
+    int32 minEntryLevel = 0;
+    int32 worldTimer = 0;
+
+    void SetFlag(uint8 flag) { flags |= flag; }
+    void RemoveFlag(uint8 flag) { flags &= ~flag; }
+    bool HasFlag(uint8 flag) { return flags & flag; };
+
+    int32 GetTempo()
+    {
+        for(auto& id : accessList) {
+            if(id < 0) {
+                return -id; // positive
+            }
+        }
+
+        return -1;
+    }
+
+    void SetTempo(uint32 tempo)
+    {
+        for(auto& id : accessList) {
+            if(id < 0) {
+                id = -tempo;
+                return;
+            }
+        }
+
+        accessList.push_back(-tempo);
+    }
+
+    bool HasAccess(int32 userID)
+    {
+        if(ownerID == userID) {
+            return true;
+        }
+
+        return IsAdmin(userID);
+    }
+
+    bool IsAdmin(int32 userID)
+    {
+        for(auto& id : accessList) {
+            if(id == userID) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};

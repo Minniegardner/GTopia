@@ -109,10 +109,14 @@ PlayMod* CharacterData::AddPlayMod(ePlayModType modType)
     }
 
     SetCharFlag(pPlayMod->GetCharFlags());
-    m_punchType = pPlayMod->GetPunchType(); /**debug */
+    
+    if(pPlayMod->GetPunchType() > 0) {
+        m_punchType = pPlayMod->GetPunchType();
+    }
+
     m_punchDamage += pPlayMod->GetPunchDamage();
     m_speed += pPlayMod->GetSpeed();
-    //m_buildRange += pPlayMod->GetBuildRange();
+    m_buildRange += pPlayMod->GetBuildRange();
     m_punchPower += pPlayMod->GetPunchPower();
     
     PlayerPlayModInfo playerMod;
@@ -144,16 +148,17 @@ PlayMod* CharacterData::RemovePlayMod(ePlayModType modType)
     }
 
     RemoveCharFlag(pPlayMod->GetCharFlags());
-
-    m_punchType = 0; /**debug */
     
+    m_punchType = 0;
     m_punchDamage -= pPlayMod->GetPunchDamage();
     m_speed -= pPlayMod->GetSpeed();
-    //m_buildRange -= pPlayMod->GetBuildRange();
+    m_buildRange -= pPlayMod->GetBuildRange();
     m_punchPower -= pPlayMod->GetPunchPower();
 
     SetNeededUpdates(pPlayMod);
     RemovePlayMod(pPlayerMod);
+
+    GetNextPunchType();
     return pPlayMod;
 }
 
@@ -193,5 +198,21 @@ void CharacterData::SetNeededUpdates(PlayMod* pPlayMod)
         pPlayMod->GetCharFlags() != 0 || pPlayMod->GetPunchType() != 0
     ) {
         m_needCharStateUpdate = true;
+    }
+}
+
+void CharacterData::GetNextPunchType()
+{
+    PlayModManager* pPlayModMgr = GetPlayModManager();
+    for(auto& activeMod : m_activePlayMods) {
+        PlayMod* pPlayMod = pPlayModMgr->GetPlayMod(activeMod);
+        if(!pPlayMod) {
+            continue;
+        }
+
+        if(pPlayMod->GetPunchType() > 0) {
+            m_punchType = pPlayMod->GetPunchType();
+            m_needCharStateUpdate = true;
+        }
     }
 }

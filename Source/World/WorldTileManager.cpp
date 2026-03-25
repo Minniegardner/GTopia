@@ -2,14 +2,15 @@
 #include "../Math/Math.h"
 #include "../Item/ItemInfoManager.h"
 #include "../Math/Random.h"
+#include "WorldInfo.h"
 
 WorldTileManager::WorldTileManager()
 : m_size(WORLD_DEFAULT_WIDTH, WORLD_DEFAULT_HEIGHT)
 {
-    m_keyTiles.reserve(KEY_TILE_SIZE);
+    m_keyTiles.resize(KEY_TILE_SIZE, nullptr);
 }
 
-bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool database, uint16 worldVersion)
+bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld)
 {
     memBuffer.ReadWrite(m_size, write);
 
@@ -25,7 +26,8 @@ bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool datab
     }
 
     for(auto i = 0; i < m_tiles.size(); ++i) {
-        m_tiles[i].Serialize(memBuffer, write, database, worldVersion);
+        m_tiles[i].Serialize(memBuffer, write, database, pWorld);
+        ModifyKeyTile(&m_tiles[i], false);
 
         if(!write) {
             m_tiles[i].SetPos(i % m_size.x, i / m_size.x);
@@ -43,7 +45,7 @@ void WorldTileManager::Clear(bool reInit)
 
     if(reInit) {
         m_tiles.resize(m_size.x * m_size.y);
-        m_keyTiles.reserve(KEY_TILE_SIZE);
+        m_keyTiles.resize(KEY_TILE_SIZE, nullptr);
         for(uint32 i = 0; i < m_tiles.size(); ++i) { m_tiles[i].SetPos(i % m_size.x, i / m_size.x); }
     }
 }
@@ -57,9 +59,18 @@ TileInfo* WorldTileManager::GetTile(int32 x, int32 y)
     return &m_tiles[y * m_size.x + x];
 }
 
-TileInfo* WorldTileManager::GetTile(eKeyTile keyTile)
+TileInfo* WorldTileManager::GetKeyTile(eKeyTile keyTile)
 {
     return m_keyTiles[keyTile];
+}
+
+TileInfo* WorldTileManager::GetTile(int32 index)
+{
+    if(index < 0 || index > (m_size.x * m_size.y)) {
+        return nullptr;
+    }
+
+    return &m_tiles[index];
 }
 
 void WorldTileManager::ModifyKeyTile(TileInfo* pTile, bool remove)
@@ -88,16 +99,6 @@ void WorldTileManager::GenerateDefaultMap()
             { { ITEM_ID_DIRT, 94 }, { ITEM_ID_ROCK, 6 } },
             { { ITEM_ID_CAVE_BACKGROUND, 100 } }); 
     FillRectWithThickness(1, layer, ITEM_ID_DIRT, ITEM_ID_CAVE_BACKGROUND, 100); 
-
-#ifdef _DEBUG
-    for(auto& tile : m_tiles) {
-        if(tile.GetPos().y == layer.top - 1 || tile.GetPos().y == layer.top) {
-            if(tile.GetPos().x < 10) {
-                tile.SetFlag(TILE_FLAG_ON_FIRE);
-            }
-        }
-    }
-#endif
 
     int32 doorPosX = RandomRangeInt(10, layer.Width() - 10);
     TileInfo* pDoorTile = GetTile(doorPosX, layer.top - 1);
@@ -249,7 +250,137 @@ bool WorldTileManager::IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBac
     return pTile->GetFG() == pTarget->GetFG();
 }
 
-void WorldTileManager::FillRectWithThickness(uint16 thickness, RectInt &rect, uint16 fgItem, uint16 bgItem, float chance)
+std::vector<TileInfo*> WorldTileManager::RemoveTileParentsLockedBy(TileInfo* pLockTile)
+{
+    std::vector<TileInfo*> unlockedTiles;
+
+    if(!pLockTile) {
+        return unlockedTiles;
+    }
+
+    for(auto& tile : m_tiles) {
+        if(&tile != pLockTile && tile.GetParent() == pLockTile->GetParent()) {
+            tile.SetParent(0);
+            tile.RemoveFlag(TILE_FLAG_HAS_PARENT);
+
+            unlockedTiles.push_back(&tile);
+        }
+    }
+
+    pLockTile->SetParent(0);
+
+    return unlockedTiles;
+}
+
+bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty)
+{
+    if(!pLockTile || !pTargetTile || pLockTile == pTargetTile) {
+        return false;
+    }
+
+    if(pTargetTile->GetParent() != 0) {
+        return false;
+    }
+
+    if(ignoreEmpty && pTargetTile->GetDisplayedItem() == ITEM_ID_BLANK) {
+        return false;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTargetTile->GetDisplayedItem());
+    if(!pItem) {
+        return false;
+    }
+
+    if(pItem->type == ITEM_TYPE_LOCK || pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_BEDROCK) {
+        return false;
+    }
+
+    int32 neighbors[4][2] = 
+    {
+        {1, 0}, {0, 1}, {-1, 0}, {0, -1}
+    };
+    Vector2Int vTargetPos = pTargetTile->GetPos();
+    Vector2Int vLockPos = pLockTile->GetPos();
+
+    for(int8 i = 0; i < 4; ++i) {
+        TileInfo* pNeighbor = GetTile(vTargetPos.x + neighbors[i][0], vTargetPos.y + neighbors[i][1]);
+        if(!pNeighbor) {
+            continue;
+        }
+
+        if(
+            pNeighbor->GetParent() == pLockTile->GetParent() || pTargetTile == pLockTile ||
+            (vTargetPos.x + neighbors[i][0] == vLockPos.x + neighbors[i][0] && vTargetPos.y + neighbors[i][0] == vLockPos.y + neighbors[i][0])
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles)
+{
+    if(!pLockTile || tileSizeToLock > (m_size.x * m_size.y) || tileSizeToLock == 0) {
+        return false;
+    }
+
+    if(pLockTile->GetParent() != 0) {
+        Vector2Int vStartPos = pLockTile->GetPos();
+        pLockTile->SetParent(vStartPos.x + vStartPos.y * m_size.x);
+        return true;
+    }
+
+    RemoveTileParentsLockedBy(pLockTile);
+
+    Vector2Int vStartPos = pLockTile->GetPos();
+    pLockTile->SetParent(vStartPos.x + vStartPos.y * m_size.x);
+
+    std::vector<TileInfo*> lockedTiles;
+
+    int32 radius = 1;
+    int32 totalLocked = 0;
+    uint32 maxRadius = Max(m_size.x, m_size.y);
+
+    while(totalLocked < tileSizeToLock && radius <= maxRadius) { // :/ is it really ok? is that O(n^3)???
+        int32 minDistance = 111111111;
+        TileInfo* pClosestTile = nullptr;
+        
+        for(int32 x = vStartPos.x - radius; x <= vStartPos.x + radius; ++x) {
+            for(int32 y = vStartPos.y - radius; y <= vStartPos.y + radius; ++y) {
+                TileInfo* pCurrTile = GetTile(x, y);
+                if(!pCurrTile || pCurrTile == pLockTile) {
+                    continue;
+                }
+
+                if(!AbleToLockThisTile(pLockTile, pCurrTile, ignoreEmpty)) {
+                    continue;
+                }
+
+                int32 distance = Abs(x - vStartPos.x) + Abs(y - vStartPos.y);
+                if(!pClosestTile || distance < minDistance) {
+                    pClosestTile = pCurrTile;
+                    minDistance = distance;
+                }
+            }
+        }
+
+        if(!pClosestTile) {
+            radius++;
+            continue;
+        }
+
+        pClosestTile->SetParent(pLockTile->GetParent());
+        pClosestTile->SetFlag(TILE_FLAG_HAS_PARENT);
+        lockedTiles.push_back(pClosestTile);
+        totalLocked++;
+    }
+
+    outTiles = std::move(lockedTiles);
+    return true;
+}
+
+void WorldTileManager::FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)
 {
     rect.top = rect.bottom - thickness;
     FillRectWith(rect, fgItem, bgItem, chance);

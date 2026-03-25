@@ -2,6 +2,7 @@
 
 #include "../Precompiled.h"
 #include "NetSocket.h"
+#include "IO/File.h"
 
 #define HTTP_TIMEOUT_MS 10 * 1000
 
@@ -11,6 +12,7 @@ enum eHTTPError
     HTTP_ERROR_FAIL_CONNECT,
     HTTP_ERROR_TIME_EXCEED,
     HTTP_ERROR_CONNECT_FAIL,
+    HTTP_ERROR_WRITE_FILE,
     HTTP_ERROR_SOCKET,
     HTTP_ERROR_SERVER,
     HTTP_ERROR_CLIENT
@@ -34,7 +36,13 @@ public:
 
     void OnDataReceive(NetClient* pClient);
     void OnClientDisconnect(NetClient* pClient);
+
     bool Get(const string& path);
+
+    void AddPostData(const string& key, const string& value);
+    bool Post(const string& path);
+
+    bool SetOutputFile(const string& filePath);
 
     string GetHeader() const { return m_header; }
     string GetBody() const { return m_body; }
@@ -58,6 +66,9 @@ private:
     bool m_chunked;
     uint32 m_contentLength;
     uint16 m_status;
+
+    string m_postData;
+    File m_file;
     
     eHTTPState m_state;
     eHTTPError m_error;

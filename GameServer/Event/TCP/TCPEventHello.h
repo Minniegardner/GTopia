@@ -1,6 +1,13 @@
 #pragma once
 
-#include "Network/NetClient.h"
+#include "../../Server/MasterBroadway.h"
+
+struct TCPHelloEventData
+{
+    string authKey;
+    
+    void FromVariant(const VariantVector& varVec);
+};
 
 class TCPEventHello {
 public:

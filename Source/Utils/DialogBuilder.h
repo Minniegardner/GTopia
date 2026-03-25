@@ -19,6 +19,7 @@ public:
     DialogBuilder* EndDialog(const string& dialogID, const string& acceptText, const string& cancelText);
     DialogBuilder* SetDefaultColor(char colorID);
     DialogBuilder* AddSpacer(bool big = false);
+    DialogBuilder* AddCheckBox(const string& boxID, const string& text, bool active);
 
     DialogBuilder* EmbedData(const string& name, const string& value);
 

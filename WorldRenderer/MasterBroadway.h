@@ -22,7 +22,9 @@ public:
 
 public:
     void SendHelloPacket();
-    void SendWorldRenderResult(eTCPPacketType result, uint32 userID, uint32 worldID);
+    void SendAuthPacket(const string& authKey);
+    void SendWorldRenderResult(bool succeed, uint32 userID, uint32 worldID);
+    void SendServerKillPacket();
 
 private:
     template<class T>

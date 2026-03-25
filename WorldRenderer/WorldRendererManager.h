@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Precompiled.h"
+#include "Utils/Timer.h"
 
 // actually not sure need thread safe queue so need to decide concurrent or mutex
 #include <concurrentqueue.h>
@@ -26,11 +27,11 @@ public:
 
 public:
     void Update();
-    void AddTask(uint32 worldID, uint32 userID);
+    void AddTask(uint32 userID, uint32 worldID);
 
 private:
     moodycamel::ConcurrentQueue<WorldRenderInfo> m_renderQueue;
-    uint64 sleepUntilMS;
+    Timer m_lastRenderTime;
 };
 
 WorldRendererManager* GetWorldRendererManager();

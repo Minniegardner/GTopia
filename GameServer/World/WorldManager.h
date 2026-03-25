@@ -36,6 +36,10 @@ public:
     void UpdateWorlds();
     void SaveWorldToDatabase(World* pWorld, bool closeWorld);
 
+    void ForceSaveAllWorlds();
+
+    uint32 GetWorldCount() { return m_worlds.size(); }
+
 private:
     template<class T>
     void RegisterPacketEvent(eGamePacketType type)
@@ -47,6 +51,8 @@ private:
     }
 
 private:
+    Timer m_lastWorldUpdateTime;
+
     std::unordered_map<uint32, World*> m_worlds;
     EventDispatcher<eGamePacketType, GamePlayer*, World*, GameUpdatePacket*> m_packetEvents;
 };

@@ -4,6 +4,7 @@
 #include "../Player/GamePlayer.h"
 #include "Packet/PacketUtils.h"
 #include "IO/Log.h"
+#include "ServerManager.h"
 
 GameServer::GameServer()
 {
@@ -36,7 +37,13 @@ void GameServer::OnEventReceive(ENetEvent& event)
     }
 
     GamePlayer* pPlayer = (GamePlayer*)event.peer->data;
-    if(event.peer != pPlayer->GetPeer()) {
+    if(!pPlayer || event.peer != pPlayer->GetPeer()) {
+        return;
+    }
+
+    if(!GetServerManager()->HasAnyGameServer()) {
+        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log\nmsg|`4OOPS! ``Unable to place you to a server, servers might be initializing.", event.peer);
+        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|logon_fail\n", event.peer);
         return;
     }
 
@@ -93,15 +100,32 @@ PlayerSession* GameServer::GetPlayerSessionByUserID(uint32 userID)
 {
     auto it = m_sessionCache.find(userID);
     if(it != m_sessionCache.end()) {
-        return it->second;
+        return &it->second;
     }
 
     return nullptr;
 }
 
-void GameServer::AddPlayerSession(PlayerSession* pSession)
+void GameServer::AddPlayerSession(const PlayerSession& session)
 {
-    m_sessionCache.insert_or_assign(pSession->userID, pSession);
+    m_sessionCache.insert_or_assign(session.userID, session);
+}
+
+void GameServer::DeletePlayerSession(uint32 userID)
+{
+    m_sessionCache.erase(userID);
+}
+
+void GameServer::EndPlayerSessionsWithServerID(uint32 serverID)
+{
+    for(auto it = m_sessionCache.begin(); it != m_sessionCache.end();) {
+        if(it->second.serverID == serverID) {
+            it = m_sessionCache.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
 }
 
 GameServer* GetGameServer() { return GameServer::GetInstance(); }

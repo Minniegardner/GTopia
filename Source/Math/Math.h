@@ -23,3 +23,6 @@ inline T Clamp(T value, T min, T max)
 
     return value;
 }
+
+template<typename T>
+inline T Abs(T value) { return value >= 0.0 ? value : -value; }

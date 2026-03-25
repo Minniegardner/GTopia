@@ -3,6 +3,10 @@
 #include "../../../Server/GameServer.h"
 #include "Utils/StringUtils.h"
 
+/**
+ * fix here
+ */
+
 void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
     if(!pPlayer) {
@@ -20,12 +24,9 @@ void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     }
 
     string text(pText->value, pText->size);
-    if(text.size() > 120) {
-        return;
-    }
-
+    
     RemoveExtraWhiteSpaces(text);
-    if(text.empty() || text[0] ==  ' ') {
+    if(text.empty()) {
         return;
     }
 
@@ -45,5 +46,5 @@ void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     }
     consoleText += text + "``";
 
-    pPlayer->SendOnConsoleMessage(consoleText);
+    pWorld->SendTalkBubbleAndConsoleToAll(consoleText, false, pPlayer);
 }

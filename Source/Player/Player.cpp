@@ -175,6 +175,24 @@ void Player::SendOnTextOverlay(const string& message)
     SendCallFunctionPacket(data);
 }
 
+void Player::SendOnPlayPositioned(const string& fileName, Player* pPlayer)
+{
+    VariantVector data(2);
+    data[0] = "OnPlayPositioned";
+    data[1] = "audio/" + fileName;
+
+    SendCallFunctionPacket(data, pPlayer ? pPlayer->GetNetID() : GetNetID());
+}
+
+void Player::SendOnNameChanged(const string& name, Player* pPlayer)
+{
+    VariantVector data(2);
+    data[0] = "OnNameChanged";
+    data[1] = name;
+
+    SendCallFunctionPacket(data, pPlayer ? pPlayer->GetNetID() : GetNetID());
+}
+
 void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;
@@ -242,7 +260,7 @@ void Player::SendOnSetClothing(Player* pPlayer)
     data[2] = Vector3Float(clothes[BODY_PART_SHOE], clothes[BODY_PART_FACEITEM], clothes[BODY_PART_HAND]);
     data[3] = Vector3Float(clothes[BODY_PART_BACK], clothes[BODY_PART_HAT], clothes[BODY_PART_CHESTITEM]);
 
-    data[4] = (int32)m_characterData.GetSkinColor(true);
+    data[4] = pPlayer ? (int32)pPlayer->GetCharData().GetSkinColor(true) : (int32)m_characterData.GetSkinColor(true);
 
     bool isInvis = true;
 
@@ -280,6 +298,8 @@ void Player::SendCharacterState(Player* pPlayer)
     packet.characterAccel = charData.GetAccel();
     packet.characterGravity = charData.GetGravity();
     packet.characterFireDamage = charData.GetFireDamage();
+
+    packet.Print();
 
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, m_pPeer);
 }

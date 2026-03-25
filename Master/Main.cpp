@@ -24,15 +24,15 @@ void DatabaseThreadFunc()
 
     while(GetContext()->IsRunning()) {
         DatabaseWorker* pWorker = GetContext()->GetDatabasePool()->GetWorker(0);
-        pWorker->Update();
+        pWorker->Update(30);
 
         uint64 logWriteStart = Time::GetSystemTime();
-        if(logWriteStart - lastLogWriteTime >= 1000) {
+        if(logWriteStart - lastLogWriteTime >= 2000) {
             GetLog()->Write();
             lastLogWriteTime = Time::GetSystemTime();
         }
 
-        nextTick += (TICK_INTERVAL * 0.6);
+        nextTick += TICK_INTERVAL;
         uint64 checkTime = Time::GetSystemTime();
         if(checkTime > nextTick) {
             // lag

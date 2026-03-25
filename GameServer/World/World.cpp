@@ -25,7 +25,7 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     pPlayer->SetCurrentWorld(m_worldID);
     m_players.push_back(pPlayer);
 
-    TileInfo* pMainDoorTile = GetTileManager()->GetTile(KEY_TILE_MAIN_DOOR);
+    TileInfo* pMainDoorTile = GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
     if(!pMainDoorTile) {
         pPlayer->SetWorldPos(0, 0);
         pPlayer->SetRespawnPos(0, 0);
@@ -107,6 +107,30 @@ void World::SendSkinColorUpdateToAll(GamePlayer* pPlayer)
     }
 }
 
+void World::SendTalkBubbleAndConsoleToAll(const string& message, bool stackBubble, GamePlayer* pPlayer)
+{
+    for(auto& pWorldPlayer : m_players) {
+        if(pWorldPlayer) {
+            pWorldPlayer->SendOnConsoleMessage(message);
+            pWorldPlayer->SendOnTalkBubble(message, stackBubble, pPlayer);
+        }
+    }
+}
+
+void World::SendNameChangeToAll(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    string playerName = pPlayer->GetDisplayName();
+    for(auto& pWorldPlayer : m_players) {
+        if(pWorldPlayer) {
+            pWorldPlayer->SendOnNameChanged(playerName, pPlayer);
+        }
+    }
+}
+
 void World::SendSetCharPacketToAll(GamePlayer* pPlayer)
 {
     if(!pPlayer) {
@@ -148,6 +172,16 @@ void World::SendParticleEffectToAll(float coordX, float coordY, uint32 particleT
     }
 }
 
+void World::SendTileUpdate(TileInfo* pTile)
+{
+    if(!pTile) {
+        return;
+    }
+
+    Vector2Int vTilePos = pTile->GetPos();
+    SendTileUpdate(vTilePos.x, vTilePos.y);
+}
+
 void World::SendTileUpdate(uint16 tileX, uint16 tileY)
 {
     TileInfo* pTile = GetTileManager()->GetTile(tileX, tileY);
@@ -162,21 +196,58 @@ void World::SendTileUpdate(uint16 tileX, uint16 tileY)
     packet.flags |= NET_GAME_PACKET_FLAGS_EXTENDED;
 
     MemoryBuffer memSizeBuf;
-    pTile->Serialize(memSizeBuf, true, false, GetWorldVersion());
+    pTile->Serialize(memSizeBuf, true, false, this);
 
     uint32 memSize = memSizeBuf.GetOffset();
     packet.extraDataSize = memSize;
 
     uint8* pTileData = new uint8[memSize];
     MemoryBuffer memBuffer(pTileData, memSize);
-    pTile->Serialize(memBuffer, true, false, GetWorldVersion());
+    pTile->Serialize(memBuffer, true, false, this);
 
     SendGamePacketToAll(&packet, nullptr, pTileData);
 
     SAFE_DELETE_ARRAY(pTileData);
 }
 
-void World::SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 netID, GamePlayer* pPlayer)
+void World::SendTileUpdateMultiple(const std::vector<TileInfo*>& tiles)
+{
+    if(tiles.empty()) {
+        return;
+    }
+
+    MemoryBuffer memSizeBuf;
+    for(auto& pTile : tiles) {
+        pTile->Serialize(memSizeBuf, true, false, this);
+    }
+
+    uint32 memSize = tiles.size() * 2 * sizeof(int32) + memSizeBuf.GetOffset() + sizeof(int32);
+    uint8* pData = new uint8[memSize];
+
+    MemoryBuffer memBuffer(pData, memSize);
+    for(auto& pTile : tiles) {
+        Vector2Int vTilePos = pTile->GetPos();
+        memBuffer.Write((int32)vTilePos.x);
+        memBuffer.Write((int32)vTilePos.y);
+
+        pTile->Serialize(memBuffer, true, false, this);
+    }
+
+    int32 endMarker = -1;
+    memBuffer.Write(endMarker);
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_SEND_TILE_UPDATE_DATA_MULTIPLE;
+    packet.flags |= NET_GAME_PACKET_FLAGS_EXTENDED;
+    packet.extraDataSize = memSize;
+    packet.tileX = -1;
+    packet.tileY = -1;
+    
+    SendGamePacketToAll(&packet, nullptr, pData);
+    SAFE_DELETE_ARRAY(pData);
+}
+
+void World::SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 netID)
 {
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_TILE_APPLY_DAMAGE;
@@ -185,12 +256,50 @@ void World::SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 
     packet.tileDamage = damage;
     packet.netID = netID;
 
-    if(pPlayer) {
-        SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
+    SendGamePacketToAll(&packet);
+}
+
+void World::SendLockPacketToAll(int32 userID, int32 lockID, std::vector<TileInfo*>& tiles, TileInfo* pLockTile)
+{
+    if(!pLockTile) {
+        return;
     }
-    else {
-        SendGamePacketToAll(&packet);
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_SEND_LOCK;
+    packet.flags |= NET_GAME_PACKET_FLAGS_EXTENDED;
+    packet.tileX = pLockTile->GetPos().x;
+    packet.tileY = pLockTile->GetPos().y;
+    packet.itemID = lockID;
+    packet.userID = userID;
+
+    HandleTilePackets(&packet);
+
+    uint8* pData = nullptr;
+
+    if(!tiles.empty()) {
+        packet.tileCount = tiles.size();
+        packet.extraDataSize = tiles.size() * sizeof(uint16);
+    
+        uint32 memSize = packet.extraDataSize;
+        pData = new uint8[memSize];
+    
+        MemoryBuffer memBuffer(pData, memSize);
+        uint32 worldWidth = GetTileManager()->GetSize().x;
+    
+        for(auto& pTile : tiles) {
+            if(!pTile) {
+                continue;
+            }
+    
+            Vector2Int vTilePos = pTile->GetPos();
+            uint16 index = vTilePos.x + vTilePos.y * worldWidth;
+            memBuffer.Write(index);
+        }
     }
+
+    SendGamePacketToAll(&packet, nullptr, pData);
+    SAFE_DELETE_ARRAY(pData);
 }
 
 void World::PlaySFXForEveryone(const string& fileName, int32 delay)
@@ -231,6 +340,24 @@ void World::HandleTilePackets(GameUpdatePacket* pGamePacket)
     }
 
     switch(pGamePacket->type) {
+        case NET_GAME_PACKET_SEND_LOCK: {
+            TileInfo* pTile = GetTileManager()->GetTile(pGamePacket->tileX, pGamePacket->tileY);
+            if(!pTile) {
+                return;
+            }
+
+            pTile->SetFG(pGamePacket->itemID, GetTileManager());
+
+            TileExtra_Lock* pTileExtra = pTile->GetExtra<TileExtra_Lock>();
+            if(!pTileExtra) {
+                return;
+            }
+
+            pTileExtra->ownerID = pGamePacket->userID;
+            SendTileUpdate(pGamePacket->tileX, pGamePacket->tileY);
+            break;
+        }
+
         case NET_GAME_PACKET_TILE_CHANGE_REQUEST: {
             TileInfo* pTile = GetTileManager()->GetTile(pGamePacket->tileX, pGamePacket->tileY);
             if(!pTile) {
@@ -294,4 +421,169 @@ void World::HandleTilePackets(GameUpdatePacket* pGamePacket)
             break;
         }
     }
+}
+
+bool World::PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile)
+{
+    if(!pPlayer || !pTile) {
+        return false;
+    }
+
+    if(pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return true;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(pItem->HasFlag(ITEM_FLAG_PUBLIC)) {
+        return true;
+    }
+
+    TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(pWorldLockTile) {
+        TileExtra_Lock* pWLExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
+        if(!pWLExtra) {
+            return false;
+        }
+
+        return pWLExtra->HasAccess(pPlayer->GetUserID());
+    }
+
+    if(pTile->GetParent() == 0) {
+        return true;
+    }
+
+    TileInfo* pMainLockTile = GetTileManager()->GetTile(pTile->GetParent());
+    if(!pMainLockTile) {
+        return false;
+    }
+
+    TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
+    if(!pMainLockExtra) {
+        return false;
+    }
+
+    return pMainLockExtra->HasAccess(pPlayer->GetUserID());
+}
+
+void World::OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID)
+{
+    if(!pPlayer || !pTile) {
+        return;
+    }
+
+    if(pPlayer->GetInventory().GetCountOfItem(lockID) == 0) {
+        return;
+    }
+
+    if(pTile->GetFG() != ITEM_ID_BLANK) {
+        pPlayer->SendOnTalkBubble("Use a lock on blank tile next to the things you want to lock.", true);
+        return;
+    }
+
+    if(IsWorldLock(lockID) && GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK)) {
+        pPlayer->SendOnTalkBubble("Only one `$World Lock`` can be placed in a world, you'd have to remove the other one first.", true);
+        return;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(lockID);
+    if(!pItem) {
+        return;
+    }
+
+    std::vector<TileInfo*> lockedTiles;
+
+    if(!IsWorldLock(lockID)) {
+        bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles);
+        if(!lockSuccsess) {
+            pPlayer->SendOnTalkBubble("Something went wrong, unable to place lock in here", true);
+            return;
+        }
+    }
+
+    if(pTile->HasFlag(TILE_FLAG_PAINTED_RED | TILE_FLAG_PAINTED_GREEN | TILE_FLAG_PAINTED_BLUE)) {
+        pTile->RemoveFlag(TILE_FLAG_PAINTED_RED | TILE_FLAG_PAINTED_GREEN | TILE_FLAG_PAINTED_BLUE);
+    }
+    pTile->RemoveFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+
+    SendLockPacketToAll((int32)pPlayer->GetUserID(), (int32)lockID, lockedTiles, pTile);
+    pPlayer->ModifyInventoryItem(lockID, -1);
+
+    if(IsWorldLock(lockID)) {
+        string playerName = pPlayer->GetDisplayName();
+
+        SendTalkBubbleAndConsoleToAll("`5[`w" + GetWorlName() +  " has been `$World Locked`` by " + playerName + "`5]``", true, pPlayer);
+        LOGGER_LOG_INFO("World %s has been locked by %d", GetWorlName().c_str(), pPlayer->GetUserID());
+
+        SendNameChangeToAll(pPlayer);
+    }
+    else {
+        pPlayer->SendOnTalkBubble("Area locked.", true);
+        pPlayer->SendOnPlayPositioned("use_lock.wav");
+    }
+}
+
+void World::OnRemoveLock(GamePlayer* pPlayer, TileInfo* pTile)
+{
+    if(!pPlayer || !pTile) {
+        return;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem || pItem->type != ITEM_TYPE_LOCK) {
+        return;
+    }
+
+    if(IsWorldLock(pItem->id)) {
+
+    }
+    else {
+        std::vector<TileInfo*> unlockedTiles = GetTileManager()->RemoveTileParentsLockedBy(pTile);
+        SendTileUpdateMultiple(unlockedTiles);
+    }
+}
+
+bool World::IsPlayerWorldOwner(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return false;
+    }
+
+    TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(!pLockTile) {
+        return false;
+    }
+
+    TileExtra_Lock* pTileExtra = pLockTile->GetExtra<TileExtra_Lock>();
+    if(!pTileExtra) {
+        return false;
+    }
+
+    if(pTileExtra->ownerID == pPlayer->GetUserID()) {
+        return true;
+    }
+
+    return false;
+}
+
+bool World::IsPlayerWorldAmin(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return false;
+    }
+
+    TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(!pLockTile) {
+        return false;
+    }
+
+    TileExtra_Lock* pTileExtra = pLockTile->GetExtra<TileExtra_Lock>();
+    if(!pTileExtra) {
+        return false;
+    }
+
+    if(pTileExtra->IsAdmin(pPlayer->GetUserID())) {
+        return true;
+    }
+
+    return false;
 }

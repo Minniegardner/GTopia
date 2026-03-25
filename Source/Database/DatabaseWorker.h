@@ -19,7 +19,7 @@ public:
     bool Init(DatabasePool* pDbPool, const DatabaseConnectConfig& config);
     void Kill();
 
-    void Update();
+    void Update(uint64 maxTimeMS);
 
     void AddTask(QueryTaskRequest&& taskReq);
 

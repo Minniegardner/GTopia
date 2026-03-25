@@ -25,12 +25,14 @@ struct TileMapFillData
 
 typedef std::vector<TileMapFillData> TileMapFillVector;
 
+class WorldInfo;
+
 class WorldTileManager {
 public:
     WorldTileManager();
 
 public:
-    bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, uint16 worldVersion);
+    bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld);
 
     void Clear(bool reInit = false);
 
@@ -38,7 +40,8 @@ public:
     void SetSize(const Vector2Int& size) { m_size = size; }
 
     TileInfo* GetTile(int32 x, int32 y);
-    TileInfo* GetTile(eKeyTile keyTile);
+    TileInfo* GetKeyTile(eKeyTile keyTile);
+    TileInfo* GetTile(int32 index);
 
     void ModifyKeyTile(TileInfo* pTile, bool remove);
 
@@ -50,6 +53,10 @@ public:
     bool FillRectWith(const RectInt& rect, const TileMapFillVector& fgItems, const TileMapFillVector& bgItems);
 
     bool IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBackground);
+
+    std::vector<TileInfo*> RemoveTileParentsLockedBy(TileInfo* pLockTile);
+    bool AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty);
+    bool ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles);
 
 private:
     void FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance);

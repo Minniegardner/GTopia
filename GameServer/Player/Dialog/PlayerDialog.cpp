@@ -4,6 +4,7 @@
 #include "World/TileInfo.h"
 
 #include "SignDialog.h"
+#include "LockDialog.h"
 
 void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
 {
@@ -15,5 +16,9 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
 
     if(pItem->type == ITEM_TYPE_SIGN) {
         SignDialog::Request(pPlayer, pTile);
+    }
+
+    if(pItem->type == ITEM_TYPE_LOCK) {
+        LockDialog::Request(pPlayer, pTile);
     }
 }

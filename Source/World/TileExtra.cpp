@@ -12,6 +12,9 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_SIGN:
             return TILE_EXTRA_TYPE_SIGN;
 
+        case ITEM_TYPE_LOCK:
+            return TILE_EXTRA_TYPE_LOCK;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
@@ -26,12 +29,15 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
         case TILE_EXTRA_TYPE_SIGN:
             return new TileExtra_Sign();
 
+        case TILE_EXTRA_TYPE_LOCK:
+            return new TileExtra_Lock(); 
+
         default:
             return nullptr;
     }
 }
 
-void TileExtra::Serialize(MemoryBuffer &memBuffer, bool write)
+void TileExtra::Serialize(MemoryBuffer& memBuffer, bool write)
 {
     memBuffer.ReadWrite(type, write);
 }
@@ -39,7 +45,6 @@ void TileExtra::Serialize(MemoryBuffer &memBuffer, bool write)
 void TileExtra_Door::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
-
     memBuffer.ReadWriteString(name, write);
 
     if(database) {
@@ -47,7 +52,7 @@ void TileExtra_Door::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
         memBuffer.ReadWriteString(id, write);
     }
 
-    uint8 unk = 0;
+    int8 unk = -1;
     memBuffer.ReadWrite(unk, write);
 }
 
@@ -61,30 +66,29 @@ void TileExtra_Sign::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
     memBuffer.ReadWrite(unk, write);
 }
 
+void TileExtra_Lock::Serialize(MemoryBuffer &memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
 
-/**
- * 
- * memBuffer.ReadWrite(m_flags, write); // u8
-    memBuffer.ReadWrite(m_ownerID, write);
+    memBuffer.ReadWrite(flags, write);
+    memBuffer.ReadWrite(ownerID, write);
 
-    uint32 extraEntrySize = m_extraEntries.size();
-    memBuffer.ReadWrite(extraEntrySize, write);
+    uint32 accessSize = accessList.size();
+    memBuffer.ReadWrite(accessSize, write);
 
     if(!write) {
-        m_extraEntries.resize(extraEntrySize);
+        accessList.resize(accessSize);
     }
 
-    if(extraEntrySize > 0) {
-    
-        memBuffer.ReadWriteRaw(m_extraEntries.data(), extraEntrySize * sizeof(int32), write);
+    if(accessSize > 0) {
+        memBuffer.ReadWriteRaw(accessList.data(), accessSize * sizeof(int32), write);
     }
 
     if(worldVersion > 11) {
-        memBuffer.ReadWrite(m_minEntryLevel, write);
+        memBuffer.ReadWrite(minEntryLevel, write);
     }
 
     if(worldVersion > 12) {
-        memBuffer.ReadWrite(m_worldTimer, write);
+        memBuffer.ReadWrite(worldTimer, write);
     }
- * 
- */
+}

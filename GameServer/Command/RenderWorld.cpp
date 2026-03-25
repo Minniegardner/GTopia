@@ -33,5 +33,5 @@ void RenderWorld::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     pPlayer->SetState(PLAYER_STATE_RENDERING_WORLD);
-    GetMasterBroadway()->SendRenderWorldRequest(pPlayer->GetCurrentWorld(), pPlayer->GetUserID());
+    GetMasterBroadway()->SendRenderWorldRequest(pPlayer->GetUserID(), pPlayer->GetCurrentWorld());
 }

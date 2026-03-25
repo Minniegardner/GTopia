@@ -2,7 +2,12 @@
 #include "Item/ItemInfoManager.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 
-void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket)
+void TileChangeRequest::OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile)
+{
+
+}
+
+void TileChangeRequest::HandleConsumable(GamePlayer *pPlayer, World *pWorld, GameUpdatePacket *pPacket)
 {
 
 }
@@ -32,11 +37,17 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         LOGGER_LOG_DEBUG("Unable to get tile %d %d for tile change request", pPacket->tileX, pPacket->tileY);
         return;
     }
-    Vector2Int tilePos = pTile->GetPos();
 
     if(pItem->type == ITEM_TYPE_CONSUMABLE) {
         return;
     }
+
+    if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    Vector2Int tilePos = pTile->GetPos();
 
     if(pItem->type == ITEM_TYPE_WRENCH) {
         PlayerDialog::Handle(pPlayer, pTile);
@@ -53,6 +64,15 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
    
 
     ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+
+    if(pPacket->itemID != ITEM_ID_FIST) {
+        if(
+            (!pTileItem->IsBackground() && pTile->GetFG() != ITEM_ID_BLANK) ||
+            (pTileItem->IsBackground() && pTile->GetBG() != ITEM_ID_BLANK)
+        ) {
+            return;
+        }
+    }
 
     if(pTileItem->HasFlag(ITEM_FLAG_MOD) && !pPlayer->GetRole()->HasPerm(ROLE_PERM_USE_ITEM_TYPE_MOD)) {
         pPlayer->SendFakePingReply();
@@ -71,6 +91,21 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
         pPlayer->PlaySFX("cant_break_tile.wav");
         return;
+    }
+
+    if(pPacket->itemID != ITEM_ID_FIST) {
+        if(pPacket->itemID == ITEM_ID_GUARDIAN_PINEAPPLE && pWorld->GetTileManager()->GetKeyTile(KEY_TILE_GUARD_PINEAPPLE)) {
+            pPlayer->SendFakePingReply();
+            pPlayer->SendOnTalkBubble("This world already has a Guardian Pineapple somewhere on it, installing two would be dangerous!", true);
+            return;
+        }
+
+        if(pItem->type == ITEM_TYPE_LOCK) {
+            pWorld->OnAddLock(pPlayer, pTile, pItem->id);
+            return;
+        }
+
+        pPlayer->ModifyInventoryItem(pItem->id, -1);
     }
 
     if(pPacket->itemID == ITEM_ID_FIST) {
@@ -115,36 +150,31 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
                 return;
             }
-        }
-    }
 
-    if(pPacket->itemID != ITEM_ID_FIST) {
-        if(pPacket->itemID == ITEM_ID_GUARDIAN_PINEAPPLE && pWorld->GetTileManager()->GetTile(KEY_TILE_GUARD_PINEAPPLE)) {
-            pPlayer->SendFakePingReply();
-            pPlayer->SendOnTalkBubble("This world already has a Guardian Pineapple somewhere on it, installing two would be dangerous!", true);
-            return;
-        }
-
-        pPlayer->GetInventory().RemoveItem(pPacket->itemID, 1, pPlayer);
-    }
-
-    if(pPacket->itemID == ITEM_ID_FIST && pTileItem->HasFlag(ITEM_FLAG_AUTOPICKUP)) {
-        if(!pPlayer->GetInventory().HaveRoomForItem(pTileItem->id, 1)) {
-            pPlayer->SendFakePingReply();
-            pPlayer->SendOnTalkBubble("I better not break that, I have no room to pick it up!", true);
-            return;
+            if(pWorld->GetTileManager()->GetKeyTile(KEY_TILE_GUARD_PINEAPPLE) && !pPlayer->GetInventory().HaveRoomForItem(pTileItem->id, 1)) {
+                pPlayer->SendFakePingReply();
+                pPlayer->SendOnTalkBubble("I better not break that, I have no room to pick it up!", true);
+                return;
+            }
+    
+            if(pTileItem->HasFlag(ITEM_FLAG_AUTOPICKUP)) {
+                pPlayer->GetInventory().AddItem(pTileItem->id, 1, pPlayer);
+            }
+    
+            if(pTileItem->type == ITEM_TYPE_LOCK) {
+                pWorld->OnRemoveLock(pPlayer, pTile);
+            }
+            
+            if(pTileItem->type == ITEM_TYPE_WEATHER_MACHINE) {
+                pWorld->SetCurrentWeather(pTileItem->weatherID);
+                pTile->RemoveFlag(TILE_FLAG_IS_ON);
+                pWorld->SendCurrentWeatherToAll();
+            }
+    
+            pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
         }
     }
 
     pWorld->HandleTilePackets(pPacket);
-
-    if(pPacket->itemID == ITEM_ID_FIST && pTileItem->HasFlag(ITEM_FLAG_AUTOPICKUP)) {
-        pPlayer->GetInventory().AddItem(pTileItem->id, 1, pPlayer);
-    }
-    
-    if(pPacket->itemID == ITEM_ID_FIST) {
-        pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
-    }
-
     pWorld->SendTileUpdate(tilePos.x, tilePos.y);
 }

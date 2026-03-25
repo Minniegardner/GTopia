@@ -19,16 +19,28 @@ public:
     void PlayerLeaverWorld(GamePlayer* pPlayer);
 
     void SendSkinColorUpdateToAll(GamePlayer* pPlayer);
+    void SendTalkBubbleAndConsoleToAll(const string& message, bool stackBubble, GamePlayer* pPlayer = nullptr);
+    void SendNameChangeToAll(GamePlayer* pPlayer);
     void SendSetCharPacketToAll(GamePlayer* pPlayer);
     void SendClothUpdateToAll(GamePlayer* pPlayer);
     void SendParticleEffectToAll(float coordX, float coordY, uint32 particleType, float particleSize = 0, int32 delay = -1);
+    void SendTileUpdate(TileInfo* pTile);
     void SendTileUpdate(uint16 tileX, uint16 tileY);
-    void SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 netID, GamePlayer* pPlayer = nullptr);
-
+    void SendTileUpdateMultiple(const std::vector<TileInfo*>& tiles);
+    void SendTileApplyDamage(uint16 tileX, uint16 tileY, int32 damage, int32 netID);
+    void SendLockPacketToAll(int32 userID, int32 lockID, std::vector<TileInfo*>& tiles, TileInfo* pLockTile);
     void PlaySFXForEveryone(const string& fileName, int32 delay = -1);
 
     void SendGamePacketToAll(GameUpdatePacket* pPacket, GamePlayer* pExceptMe = nullptr, uint8* pExtraData = nullptr);
     void HandleTilePackets(GameUpdatePacket* pGamePacket);
+
+    bool PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile);
+
+    void OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID);
+    void OnRemoveLock(GamePlayer* pPlayer, TileInfo* pTile);
+
+    bool IsPlayerWorldOwner(GamePlayer* pPlayer);
+    bool IsPlayerWorldAmin(GamePlayer* pPlayer);
 
     void SendCurrentWeatherToAll();
     uint32 GetPlayerCount() const { return m_players.size(); }

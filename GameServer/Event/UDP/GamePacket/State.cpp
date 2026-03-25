@@ -17,6 +17,8 @@ void State::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacke
         pPlayer->GetCharData().RemovePlayerFlag(PLAYER_FLAG_FACING_LEFT);
     }
 
+    //pPacket->Print();
+
     pPlayer->SetWorldPos(pPacket->posX, pPacket->posY);
     pPlayer->SendPositionToWorldPlayers();
 

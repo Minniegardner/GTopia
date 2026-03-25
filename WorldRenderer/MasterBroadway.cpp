@@ -1,6 +1,7 @@
 #include "MasterBroadway.h"
 #include "IO/Log.h"
 #include "Utils/Timer.h"
+#include "Context.h"
 
 #include "Event/TCPEventHello.h"
 #include "Event/TCPEventAuth.h"
@@ -61,19 +62,54 @@ void MasterBroadway::SendHelloPacket()
     m_pNetClient->Send(data);
 }
 
+void MasterBroadway::SendAuthPacket(const string& authKey)
+{
+    if(!m_connected || !m_pNetClient) {
+        return;
+    }
+
+    VariantVector packet(4);
+    packet[0] = TCP_PACKET_AUTH;
+
+    /**
+     * for now just send back the string
+     * actually NetSocket was supporting TLS but removed it for now
+     * planned to use HMAC for here for non-TLS socket but openssl lib is so big
+     */
+    packet[1] = authKey;
+    packet[2] = (uint32)GetContext()->GetID();
+    packet[3] = CONFIG_SERVER_RENDERER;
+
+    m_pNetClient->Send(packet);
+}
+
 /**
  * set flag to world if player trying to change world name with address
  * and block it
  */
-void MasterBroadway::SendWorldRenderResult(eTCPPacketType result, uint32 userID, uint32 worldID)
+void MasterBroadway::SendWorldRenderResult(bool succeed, uint32 userID, uint32 worldID)
 {
-    VariantVector data(4);
-    data[0] = TCP_PACKET_RENDER_WORLD_RES;
-    data[1] = result;
-    data[2] = userID;
-    data[3] = worldID;
+    VariantVector data(5);
+    data[0] = TCP_PACKET_RENDER_WORLD;
+    data[1] = TCP_RENDER_RESULT;
+    data[2] = succeed ? TCP_RESULT_OK : TCP_RESULT_FAIL;
+    data[3] = userID;
+    data[4] = worldID;
 
     m_pNetClient->Send(data);
+}
+
+void MasterBroadway::SendServerKillPacket()
+{
+    if(!m_connected || !m_pNetClient) {
+        return;
+    }
+
+    VariantVector data(2);
+    data[0] = TCP_PACKET_KILL_SERVER;
+    data[1] = (uint32)GetContext()->GetID();
+
+    m_pNetClient->Send(data);   
 }
 
 MasterBroadway* GetMasterBroadway() { return MasterBroadway::GetInstance(); }

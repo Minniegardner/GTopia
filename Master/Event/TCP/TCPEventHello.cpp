@@ -6,12 +6,7 @@
 
 void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
 {
-    if(data.size() != 1) {
-        pClient->status = SOCKET_CLIENT_CLOSE;
-        return;
-    }
-
-    pClient->data = new NetClientInfo();
+    pClient->data = new NetServerInfo();
 
     uint8 bytes[16];
     if(GetRandomBytes(&bytes, sizeof(bytes)) < 0) {
@@ -19,10 +14,8 @@ void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
         return;
     }
 
-    VariantVector packet(2);
-    packet[0] = TCP_PACKET_HELLO;
-    packet[1] = ToHex(bytes, sizeof(bytes));
+    string authKey = ToHex(bytes, sizeof(bytes));
+    ((NetServerInfo*)pClient->data)->authKey = authKey;
 
-    ((NetClientInfo*)pClient->data)->authKey = packet[1].GetString();
-    pClient->Send(packet);
+    GetServerManager()->SendHelloPacket(authKey, pClient->connectionID);
 }

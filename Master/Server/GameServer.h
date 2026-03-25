@@ -15,9 +15,6 @@ struct PlayerSession
 
 class GameServer : public ServerBase {
 public:
-    typedef std::unordered_map<uint32, PlayerSession*> PlayerSessionCache;
-
-public:
     GameServer();
     ~GameServer();
 
@@ -35,10 +32,12 @@ public:
 
 public:
     PlayerSession* GetPlayerSessionByUserID(uint32 userID);
-    void AddPlayerSession(PlayerSession* pSession);
+    void AddPlayerSession(const PlayerSession& session);
+    void DeletePlayerSession(uint32 userID);
+    void EndPlayerSessionsWithServerID(uint32 serverID);
 
 private:
-    PlayerSessionCache m_sessionCache;
+    std::unordered_map<uint32, PlayerSession> m_sessionCache;
 };
 
 GameServer* GetGameServer();

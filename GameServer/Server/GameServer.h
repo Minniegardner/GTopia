@@ -5,7 +5,7 @@
 #include "../Player/GamePlayer.h"
 #include "../Command/CommandBase.h"
 
-class GameServer : public ServerBase {
+class GameServer : public ServerBase, NetEntity {
 public:
     GameServer();
     ~GameServer();
@@ -29,6 +29,9 @@ public:
     GamePlayer* GetPlayerByUserID(uint32 userID);
 
     void UpdatePlayers();
+    void ForceSaveAllPlayers();
+
+    uint32 GetOnlineCount() { return m_playerCache.size(); }
 
 private:
     template<class T>

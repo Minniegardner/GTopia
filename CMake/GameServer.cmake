@@ -38,7 +38,9 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventAuth.cpp
     ${GAME_EVENT}/TCP/TCPEventPlayerSession.cpp
     ${GAME_EVENT}/TCP/TCPEventWorldInit.cpp
-    ${GAME_EVENT}/TCP/TCPEventRenderWorldRes.cpp
+    ${GAME_EVENT}/TCP/TCPEventRenderWorld.cpp
+    ${GAME_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
+    ${GAME_EVENT}/TCP/TCPEventKillServer.cpp
 
     ${GAME_EVENT}/UDP/GameMessage/RefreshItemData.cpp
     ${GAME_EVENT}/UDP/GameMessage/EnterGame.cpp
@@ -70,6 +72,7 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/PlayerDialog.cpp
     ${GAME_DIALOG}/SignDialog.cpp
     ${GAME_DIALOG}/TrashDialog.cpp
+    ${GAME_DIALOG}/LockDialog.cpp
 
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp

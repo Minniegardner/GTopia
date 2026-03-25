@@ -92,3 +92,4 @@ public:
 bool IsIllegalItem(uint16 itemID);
 bool IsWorldLock(uint16 itemID);
 bool IsMainDoor(uint16 itemID);
+uint16 GetMaxTilesToLock(uint16 itemID);

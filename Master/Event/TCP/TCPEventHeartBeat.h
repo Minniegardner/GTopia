@@ -2,7 +2,7 @@
 
 #include "Network/NetClient.h"
 
-class TCPEventRenderWorldRes {
+class TCPEventHearthBeat {
 public:
     static void Execute(NetClient* pClient, VariantVector& data);
 };

@@ -68,17 +68,34 @@ bool ParseItemWiki(const string& data, ItemWikiData& out)
     return true;
 }
 
-bool ParseWiki(const string& data, ItemWikiData& out) 
+std::unordered_map<string, ItemWikiData> parsedWikiItems;
+
+bool ParseWiki(const string& data) 
 {
     try
     {
         nlohmann::json json = nlohmann::json::parse(data);
         if(json.contains("query") && json["query"].contains("pages")) {
+            string itemName;
+
             for(auto& [pageID, pageData] : json["query"]["pages"].items()) {
+                if(pageData.contains("title")) {
+                    itemName = pageData["title"].get<string>();
+                }
+
                 if(pageData.contains("revisions")) {
                     auto data = pageData["revisions"][0]["*"].get<string>();
-    
-                    return ParseItemWiki(data, out);
+
+                    if(itemName.empty()) {
+                        continue;
+                    }
+
+                    ItemWikiData wikiData;
+                    if(!ParseItemWiki(data, wikiData)) {
+                        continue;
+                    }
+
+                    parsedWikiItems.insert_or_assign(itemName, wikiData);
                 }
             }
         }
@@ -113,17 +130,73 @@ int main(int argc, char const* argv[])
     FileMode fMode = startFrom == 0 ? FILE_MODE_WRITE : FILE_MODE_APPEND;
     
     if(!file.Open(GetProgramPath() + "/items_generated.txt", fMode)) {
-        LOGGER_LOG_ERROR("Failed to open file to write");
+        LOGGER_LOG_ERROR("Failed to open items_generated.txt");
         return 0;
     }
 
     NetHTTP http;
     http.Init("https://growtopia.fandom.com");
 
+    uint64 startTime = Time::GetSystemTime();
+
+    LOGGER_LOG_INFO("Started getting item names for batch");
+    std::vector<std::string> batchItemNames;
+    std::string currentBatchNames;
+    int32 currItemBatchSize = 0;
+    
+    for(int32 i = startFrom; i < itemCount + startFrom; ++i) {
+        ItemInfo* pItem = pItemMgr->GetItemByID(i);
+        if (!pItem) {
+            LOGGER_LOG_ERROR("Not adding item %d for batching its NULL", i);
+            continue;
+        }
+
+        if(pItem->id % 2 != 0) {
+            continue;
+        }
+    
+        if(currItemBatchSize > 0) {
+            currentBatchNames += "|";
+        }
+        currentBatchNames += pItem->name;
+        ++currItemBatchSize;
+    
+        if (currItemBatchSize == 49) {
+            batchItemNames.push_back(currentBatchNames);
+            currentBatchNames.clear();
+            currItemBatchSize = 0;
+        }
+    }
+
+    if(!currentBatchNames.empty()) {
+        batchItemNames.push_back(currentBatchNames);
+    }
+
+    LOGGER_LOG_ERROR("Started fetching from wiki");
+    for(int32 i = 0; i < batchItemNames.size(); ++i) {
+        if(!http.Get("/api.php?action=query&prop=revisions&titles=" + batchItemNames[i] + "&rvprop=content&format=json")) {
+            LOGGER_LOG_WARN("Failed to GET on %s", batchItemNames[i].c_str());
+            continue;
+        }
+
+        if(http.GetStatus() != 200) {
+            LOGGER_LOG_WARN("Got status code %d on %s", http.GetStatus(), batchItemNames[i].c_str());
+            continue;
+        }
+
+        string body = http.GetBody();
+        if(body.empty()) {
+            LOGGER_LOG_WARN("Body is empty! %s", batchItemNames[i].c_str());
+            continue;
+        }
+
+        ParseWiki(body);
+        LOGGER_LOG_INFO("Parsed batch %d", i);
+        SleepMS(10);
+    }
+
     uint16 lastSeed1 = 0;
     uint16 lastSeed2 = 0;
-
-    uint64 startTime = Time::GetSystemTime();
 
     for(uint32 i = startFrom; i < itemCount; ++i) {
         ItemInfo* pItem = pItemMgr->GetItemByID(i);
@@ -132,7 +205,7 @@ int main(int argc, char const* argv[])
             continue;
         }
 
-        LOGGER_LOG_INFO("Processing item %d %s (%d/%d)", pItem->id, pItem->name.c_str(), i + 1, itemCount);
+        //LOGGER_LOG_INFO("Processing item %d %s (%d/%d)", pItem->id, pItem->name.c_str(), i + 1, itemCount);
 
         string itemStr;
         if(pItem->name.find("null_item") != -1) {
@@ -190,51 +263,39 @@ int main(int argc, char const* argv[])
             itemStr += ToString(pItem->restoreTime) + "|\n";
         }
 
-        /*string httpPath = "/api.php?action=query&prop=revisions&titles=" + pItem->name + "&rvprop=content&format=json";
-        if(pItem->id != ITEM_ID_GEMS && http.Get(httpPath)) {
-            if(http.GetStatus() == 200 && !http.GetBody().empty()) {
-                ItemWikiData data;
-                if(!ParseWiki(http.GetBody(), data)) {
-                    LOGGER_LOG_ERROR("Failed to parse wiki data for %d", pItem->id);
+        auto it = parsedWikiItems.find(pItem->name);
+        if(it == parsedWikiItems.end()) {
+            LOGGER_LOG_ERROR("Failed to get wiki data for %d", pItem->id);
+        }
+        else {
+            auto& wikiData = it->second;
+
+            if(!wikiData.description.empty()) {
+                itemStr += "description|" + wikiData.description + "|\n";
+            }
+
+            if(!wikiData.element.empty()) {
+                itemStr += "set_element|" + ToUpper(wikiData.element) + "|\n";
+            }
+
+            if(!wikiData.seed1.empty() && !wikiData.seed2.empty()) {
+                ItemInfo* pSeed1 = pItemMgr->GetItemByName(wikiData.seed1);
+                ItemInfo* pSeed2 = pItemMgr->GetItemByName(wikiData.seed2);
+
+                if(!pSeed1 || !pSeed2) {
+                    LOGGER_LOG_ERROR("Seed not found for %d", pItem->id);
+                    lastSeed1 = lastSeed2 = 0;
                 }
                 else {
-                    if(!data.description.empty()) {
-                        itemStr += "description|" + data.description + "|\n";
-                    }
-    
-                    if(!data.element.empty()) {
-                        itemStr += "set_element|" + ToUpper(data.element) + "|\n";
-                    }
-    
-                    if(!data.seed1.empty() && !data.seed2.empty()) {
-                        ItemInfo* pSeed1 = pItemMgr->GetItemByName(data.seed1);
-                        ItemInfo* pSeed2 = pItemMgr->GetItemByName(data.seed2);
-    
-                        if(!pSeed1 || !pSeed2) {
-                            LOGGER_LOG_ERROR("Seed not found for %d", pItem->id);
-                            lastSeed1 = lastSeed2 = 0;
-                        }
-                        else {
-                            lastSeed1 = pSeed1->id + 1;
-                            lastSeed2 = pSeed2->id + 1;
-                        }
-                    }
-                    else {
-                        lastSeed1 = lastSeed2 = 0;
-                    }
-    
-                    SleepMS(10);
+                    lastSeed1 = pSeed1->id + 1;
+                    lastSeed2 = pSeed2->id + 1;
                 }
             }
             else {
-                LOGGER_LOG_ERROR("HTTP Get failed for %d bodySize %d code %d", pItem->id, http.GetBody().size(), http.GetStatus());
                 lastSeed1 = lastSeed2 = 0;
             }
+
         }
-        else {
-            LOGGER_LOG_ERROR("HTTP GET failed for %d error %d", pItem->id, http.GetError());
-            lastSeed1 = lastSeed2 = 0;
-        }*/
 
         if(pItem->flags != 0) {
             string itemFlagStr;
@@ -265,5 +326,5 @@ int main(int argc, char const* argv[])
 
     file.Close();
 
-    LOGGER_LOG_INFO("Finished! took %dms (with HTTP sleeps)", Time::GetSystemTime() - startTime);
+    LOGGER_LOG_INFO("Finished! took %dms", Time::GetSystemTime() - startTime);
 }

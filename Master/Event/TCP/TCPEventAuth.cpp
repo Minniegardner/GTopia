@@ -4,28 +4,33 @@
 #include "Utils/Timer.h"
 #include "IO/Log.h"
 
-void TCPEventAuth::Execute(NetClient* pClient, VariantVector& data)
+void TCPAuthEventData::FromVariant(const VariantVector& varVec)
 {
-    if(data.size() != 4) {
-        pClient->status = SOCKET_CLIENT_CLOSE;
+    if(varVec.size() < 4) {
         return;
     }
 
-    NetClientInfo* pClientInfo = (NetClientInfo*)pClient->data;
+    authKey = varVec[1].GetString();
+    serverID = varVec[2].GetUINT();
+    serverType = varVec[3].GetINT();
+}
 
-    if(pClientInfo->authKey != data[1].GetString()) {
+void TCPEventAuth::Execute(NetClient* pClient, VariantVector& data)
+{
+    TCPAuthEventData eventData;
+    eventData.FromVariant(data);
+
+    NetServerInfo* pClientInfo = (NetServerInfo*)pClient->data;
+
+    if(pClientInfo->authKey != eventData.authKey) {
         LOGGER_LOG_WARN("Failed to authorize server! closing connection...");
         pClient->status = SOCKET_CLIENT_CLOSE;
         return;
     }
 
     pClientInfo->authed = true;
-    pClientInfo->lastHeartbeatTime = Time::GetSystemTime();
+    pClientInfo->lastHeartbeatTime.Reset();
 
-    VariantVector packet(2);
-    packet[0] = TCP_PACKET_AUTH;
-    packet[1] = true;
-
-    GetServerManager()->AddServer(data[2].GetUINT(), pClient, data[3].GetINT());
-    pClient->Send(packet);
+    GetServerManager()->AddServer(eventData.serverID, pClient, eventData.serverType);
+    GetServerManager()->SendAuthPacket(true, eventData.serverID);
 }

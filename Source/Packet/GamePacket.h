@@ -12,10 +12,18 @@ enum eTCPPacketType
     TCP_PACKET_PLAYER_END_SESSION,
     TCP_PACKET_WORLD_INIT,
     TCP_PACKET_RENDER_WORLD,
-    TCP_PACKET_RENDER_WORLD_RES,
+    TCP_PACKET_HEARTBEAT,
+    TCP_PACKET_WORLD_SEND_PLAYER,
+    TCP_PACKET_KILL_SERVER,
 
-    TCP_RENDER_WORLD_SUCCSESS = 1001,
-    TCP_RENDER_WORLD_FAIL = 1002
+    TCP_RENDER_REQUEST = 1000,
+    TCP_RENDER_RESULT = 10001
+};
+
+enum eTCPPacketResult
+{
+    TCP_RESULT_FAIL,
+    TCP_RESULT_OK
 };
 
 enum eMessagePacketType 
@@ -143,11 +151,13 @@ struct GameUpdatePacket
     {
         int32 field3 = 0;
         int32 netID;
+        int32 userID;
     };
 
     union
     {
         int32 field4 = 0;
+        int32 tileCount;
     };
 
     int32 flags = 0;

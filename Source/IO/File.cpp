@@ -30,6 +30,7 @@ bool File::Open(const string& filePath, FileMode mode)
         m_pos = 0;
     }
 
+    m_filePath = filePath;
     return true;
 }
 

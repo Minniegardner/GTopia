@@ -3,6 +3,7 @@
 #include "Server/ServerBroadwayBase.h"
 #include "Event/EventDispatcher.h"
 #include "Packet/GamePacket.h"
+#include "Utils/Timer.h"
 
 class MasterBroadway : public ServerBroadwayBase {
 public:
@@ -22,8 +23,14 @@ public:
 
 public:
     void SendHelloPacket();
+    void SendAuthPacket(const string& authKey);
     void SendCheckSessionPacket(int32 netID, uint32 userID, uint32 token, uint16 serverID);
-    void SendRenderWorldRequest(uint32 worldID, uint32 userID);
+    void SendRenderWorldRequest(uint32 userID, uint32 worldID);
+    void SendWorldInitResult(bool succeed, uint32 worldID);
+    void SendPlayerWorldJoin(int32 playerNetID, const string& worldName);
+    void SendHeartBeat();
+    void SendEndPlayerSession(uint32 userID);
+    void SendServerKillPacket();
 
 private:
     template<class T>
@@ -37,6 +44,8 @@ private:
 
 private:
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
+    Timer m_lastHearthBeatSentTime;
+    Timer m_lastHearthBeatRecvTime;
 };
 
 MasterBroadway* GetMasterBroadway();

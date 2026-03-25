@@ -32,4 +32,6 @@ private:
     uint32 m_size;
     uint32 m_pos;
     FileMode m_mode;
+
+    string m_filePath;
 };

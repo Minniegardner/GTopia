@@ -13,7 +13,8 @@
 #include "Dialog/PlayerDialog.h"
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
-: Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0)
+: Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
+m_loggingOff(false)
 {
 }
 
@@ -67,10 +68,12 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
 void GamePlayer::CheckingLoginSession(VariantVector&& result)
 {
     RemoveState(PLAYER_STATE_CHECKING_SESSION);
-    /*if(!result[2].GetBool()) {
+
+    bool sessionAgreed = result[2].GetBool();
+    if(!sessionAgreed) {
         SendLogonFailWithLog("`4OOPS! ``Please re-connect server says you're not belong to this server");
         return;
-    }*/
+    }
 
     SetState(PLAYER_STATE_LOGIN_GETTING_ACCOUNT);
 
@@ -102,8 +105,10 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     m_inventory.SetVersion(m_loginDetail.protocol);
     string dbInv = result.result->GetField("Inventory", 0).GetString();
     if(!dbInv.empty()) {
-        uint32 invMemEstimate = dbInv.size()/2;
+        uint32 invMemEstimate = dbInv.size() / 2;
         uint8* pInvData = new uint8[invMemEstimate];
+
+        HexToBytes(dbInv, pInvData);
 
         MemoryBuffer invMemBuffer(pInvData, invMemEstimate);
         m_inventory.Serialize(invMemBuffer, false, true);
@@ -111,7 +116,28 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         SAFE_DELETE_ARRAY(pInvData);
     }
 
+    if(m_inventory.GetCountOfItem(ITEM_ID_FIST) == 0) {
+        m_inventory.AddItem(ITEM_ID_FIST, 1);
+    }
+
+    if(m_inventory.GetCountOfItem(ITEM_ID_WRENCH) == 0) {
+        m_inventory.AddItem(ITEM_ID_WRENCH, 1);
+    }
+
     m_guestID = result.result->GetField("GuestID", 0).GetUINT();
+
+    for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
+        uint16 cloth = m_inventory.GetClothByPart((eBodyPart)i);
+
+        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(cloth);
+        if(!pItem) {
+            continue;
+        }
+
+        if(pItem->type == ITEM_TYPE_CLOTHES && pItem->playModType != PLAYMOD_TYPE_NONE) {
+            AddPlayMod(pItem->playModType, true);
+        }
+    }
 
     SetState(PLAYER_STATE_ENTERING_GAME);
     TransferingPlayerToGame();
@@ -140,11 +166,13 @@ void GamePlayer::HandleRenderWorld(VariantVector&& result)
         return;
     }
 
-    if(result[1].GetINT() != TCP_RENDER_WORLD_FAIL) {
-        SendOnConsoleMessage("`4System Message: `oYour world has been rendered");
+    int32 renderResult = result[2].GetINT();
+
+    if(renderResult == TCP_RESULT_OK) {
+        SendOnConsoleMessage("``Your world has been rendered");
     }
     else {
-        SendOnConsoleMessage("`4System Message: `oFailed to render your world");
+        SendOnConsoleMessage("``Failed to render your world");
     }
 
     RemoveState(PLAYER_STATE_RENDERING_WORLD);
@@ -164,9 +192,31 @@ void GamePlayer::SaveToDatabase()
         ToHex(pInvData, invMemSize),
         GetNetID()
     );
-
+    
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_SAVE, req);
     SAFE_DELETE_ARRAY(pInvData);
+}
+
+void GamePlayer::LogOff()
+{
+    bool isInGame = HasState(PLAYER_STATE_IN_GAME);
+
+    RemoveState(PLAYER_STATE_IN_GAME);
+    m_loggingOff = true;
+
+    if(m_currentWorldID != 0) {
+        World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
+        if(pWorld) {
+            pWorld->PlayerLeaverWorld(this);
+        }
+    }
+
+    if(isInGame) {
+        SaveToDatabase();
+    }
+
+    SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log_off\n", m_pPeer);
+    GetMasterBroadway()->SendEndPlayerSession(m_userID);
 }
 
 void GamePlayer::Update()
@@ -187,6 +237,19 @@ void GamePlayer::Update()
 string GamePlayer::GetDisplayName()
 {
     string displayName;
+
+    if(m_currentWorldID != 0) {
+        World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
+        if(pWorld) {
+            if(pWorld->IsPlayerWorldOwner(this)) {
+                displayName += "`2";
+            }
+            else if(pWorld->IsPlayerWorldAmin(this)) {
+                displayName += "`^";
+            }
+        }
+    }
+
     if(m_pRole->GetNameColor() != 0) {
         displayName += "`"; 
         displayName += m_pRole->GetNameColor();
@@ -308,11 +371,11 @@ void GamePlayer::ModifyInventoryItem(uint16 itemID, int16 amount)
         return;
     }
 
-    if(IsIllegalItem(itemID) && !m_pRole->HasPerm(ROLE_PERM_BYPASS_ILLEGAl_ITEM)) {
+    if(amount > 0 && IsIllegalItem(itemID) && !m_pRole->HasPerm(ROLE_PERM_BYPASS_ILLEGAl_ITEM)) {
         return;
     }
 
-    if(pItem->HasFlag(ITEM_FLAG_MOD) && !m_pRole->HasPerm(ROLE_PERM_USE_ITEM_TYPE_MOD)) {
+    if(amount > 0 && pItem->HasFlag(ITEM_FLAG_MOD) && !m_pRole->HasPerm(ROLE_PERM_USE_ITEM_TYPE_MOD)) {
         return;
     }
 
@@ -332,7 +395,7 @@ void GamePlayer::TrashItem(uint16 itemID, uint8 amount)
 {
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
     if(!pItem) {
-        LOGGER_LOG_WARN("Player %d tried to trash non exist item %d ?!?!", m_userID, itemID)
+        LOGGER_LOG_WARN("Player %d tried to trash non exist item %d ?!", m_userID, itemID)
         return;
     }
 
@@ -351,7 +414,7 @@ void GamePlayer::TrashItem(uint16 itemID, uint8 amount)
     SendOnConsoleMessage("Trashed " + ToString(amount) + " " + pItem->name);
 }
 
-void GamePlayer::AddPlayMod(ePlayModType modType)
+void GamePlayer::AddPlayMod(ePlayModType modType, bool silent)
 {
     if(modType == PLAYMOD_TYPE_NONE) {
         return;
@@ -362,17 +425,19 @@ void GamePlayer::AddPlayMod(ePlayModType modType)
         return;
     }
 
-    if(pPlayMod->GetTime() != 0) {
-        SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetAddMessage() + " `omod added, `$" + Time::ConvertTimeToStr(pPlayMod->GetTime() * 1000) + "`oleft)");
-    }
-    else {
-        SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetAddMessage() + " `omod added)");
+    if(!silent) {
+        if(pPlayMod->GetTime() != 0) {
+            SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetAddMessage() + " `omod added, `$" + Time::ConvertTimeToStr(pPlayMod->GetTime() * 1000) + "`oleft)");
+        }
+        else {
+            SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetAddMessage() + " `omod added)");
+        }
     }
 
     UpdateNeededPlayModThings();
 }
 
-void GamePlayer::RemovePlayMod(ePlayModType modType)
+void GamePlayer::RemovePlayMod(ePlayModType modType, bool silent)
 {
     if(modType == PLAYMOD_TYPE_NONE) {
         return;
@@ -383,7 +448,9 @@ void GamePlayer::RemovePlayMod(ePlayModType modType)
         return;
     }
 
-    SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetRemoveMessage() + " `omod removed)");
+    if(!silent) {
+        SendOnConsoleMessage("`o" + pPlayMod->GetName() + " (`$" + pPlayMod->GetRemoveMessage() + " `omod removed)");
+    }
     UpdateNeededPlayModThings();
 }
 
@@ -435,12 +502,11 @@ void GamePlayer::UpdateTorchPlayMod()
         return;
     }
 
-    GetInventory().RemoveItem(ITEM_ID_HAND_TORCH, 1, this);
+    ModifyInventoryItem(ITEM_ID_HAND_TORCH, -1);
 
     uint8 leftTorchCount = GetInventory().GetCountOfItem(ITEM_ID_HAND_TORCH);
     if(leftTorchCount == 0) {
         SendOnTalkBubble("`2My torch went out!", true);
-        ToggleCloth(ITEM_ID_HAND_TORCH);
         return;
     }
 

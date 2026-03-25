@@ -7,6 +7,8 @@
 #define NET_ID_RESERVED_UNTIL 6
 #define NET_ID_FALLBACK 0
 #define NET_ID_WORLD_MANAGER 1
+#define NET_ID_GAME_SERVER 2
+#define NET_ID_CONTEXT 3
 
 class NetEntity {
 public:

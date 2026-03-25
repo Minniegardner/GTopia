@@ -9,7 +9,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-D_NDEBUG -O2)
 endif()
 
-add_definitions(-DSOCKET_USE_TLS)
+add_definitions(-DSOCKET_USE_TLS -DCLI_MEM_ITEM_MANAGER)
 
 include(${CMAKE_CURRENT_LIST_DIR}/Source.cmake)
 set(ITEM_MANAGER_ROOT "${CMAKE_CURRENT_LIST_DIR}/../ItemManager")

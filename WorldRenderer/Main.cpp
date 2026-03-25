@@ -137,10 +137,15 @@ int main(int argc, char const* argv[])
         SleepMS(50);
     }
 
+    GetMasterBroadway()->SendServerKillPacket();
+
     LOGGER_LOG_WARN("Killing renderer server");
     if(eventThrad.joinable()) eventThrad.join();
 
+    GetMasterBroadway()->Kill();
     GetResourceManager()->Kill();
     GetContext()->Kill();
+    GetLog()->Flush();
+    GetLog()->Kill();
     return 0;
 }

@@ -4,7 +4,7 @@
 #include "../Utils/StringUtils.h"
 
 NetHTTP::NetHTTP()
-: m_error(HTTP_ERROR_NONE), m_port(80), m_state(HTTP_STATE_IDLE), m_chunked(false), m_contentLength(0)
+: m_error(HTTP_ERROR_NONE), m_port(80), m_state(HTTP_STATE_IDLE), m_chunked(false), m_contentLength(0), m_status(0)
 {
     m_netSocket.GetEvents().Register(
         SOCKET_EVENT_TYPE_RECEIVE,
@@ -133,6 +133,49 @@ bool NetHTTP::Get(const string& path)
     return true;
 }
 
+void NetHTTP::AddPostData(const string& key, const string& value)
+{
+    if(m_postData.size() > 0) {
+        m_postData += "&";
+    }
+
+    m_postData += EncodeURL(key);
+    m_postData += "=";
+    m_postData += EncodeURL(value);
+}
+
+bool NetHTTP::Post(const string& path) // broken currently
+{
+    return false;
+
+    Clear();
+
+    string header =
+    "POST " + path + " HTTP/1.1\r\n"
+    "Host: " + m_server + "\r\n"
+    "Accept: */*\r\n"
+    "Content-Type: application/x-www-form-urlencoded\r\n"
+    "Content-Length: " + ToString(m_postData.size()) + "\r\n"
+    "Connection: close\r\n"
+    "\r\n";
+    //+ m_postData;
+
+    int16 val = m_netSocket.Connect(m_server, m_port, false);
+    
+    NetClient* pClient = m_netSocket.GetClient(val);
+    if(!pClient) {
+        Error(HTTP_ERROR_CONNECT_FAIL);
+        m_postData.clear();
+        return false;
+    }
+
+    pClient->Send(header.data(), header.size());
+    m_postData.clear();
+
+    Update();
+    return true;
+}
+
 void NetHTTP::Update()
 {
     m_state = HTTP_STATE_READ_HEAD;
@@ -147,6 +190,11 @@ void NetHTTP::Update()
             Error(HTTP_ERROR_TIME_EXCEED);
             break;
         }
+    }
+
+    if(m_file.IsOpen() && m_state == HTTP_STATE_COMPLETE && m_error == HTTP_ERROR_NONE) {
+        m_file.Write(m_body.data(), m_body.size());
+        m_file.Close();
     }
 }
 
@@ -213,12 +261,23 @@ void NetHTTP::Clear()
     m_contentLength = 0;
     m_state = HTTP_STATE_IDLE;
     m_error = HTTP_ERROR_NONE;
+    m_file.Close();
 }
 
 void NetHTTP::Error(eHTTPError error)
 {
     m_error = error;
     m_netSocket.CloseAllClients();
+}
+
+bool NetHTTP::SetOutputFile(const string& filePath)
+{
+    if(!m_file.Open(filePath, FILE_MODE_WRITE)) {
+        Error(HTTP_ERROR_WRITE_FILE);
+        return false;
+    }
+
+    return true;
 }
 
 string EncodeURL(const string& str)

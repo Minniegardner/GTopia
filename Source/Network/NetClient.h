@@ -31,8 +31,13 @@ struct NetClient
     int16 connectionID;
     eSocketClientStatus status = SOCKET_CLIENT_UNKNOWN;
 
-    RingBuffer sendQueue = RingBuffer(24 * 1024);
+    RingBuffer sendQueue = RingBuffer(8 * 1024);
+    
+#ifdef CLI_MEM_ITEM_MANAGER
+    RingBuffer recvQueue = RingBuffer(50 * 16 * 1024);
+#else
     RingBuffer recvQueue = RingBuffer(8 * 1024);
+#endif
 
     NetSocket* pNetSocket = nullptr;
     void* data = nullptr;

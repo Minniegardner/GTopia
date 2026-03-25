@@ -6,6 +6,7 @@
 
 class TileChangeRequest {
 public:
+    static void OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile);
     static void HandleConsumable(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket);
     static void Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket);
 };

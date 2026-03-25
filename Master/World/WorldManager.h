@@ -12,8 +12,8 @@ enum eWorldState
 
 struct WorldPendingPlayer
 {
-    uint16 serverID;
-    int32 playerNetID;
+    uint32 serverID = 0;
+    int32 playerNetID = 0;
 };
 
 struct WorldSession
@@ -22,18 +22,24 @@ struct WorldSession
     
     string worldName = "";
     uint32 worldID = 0;
-    uint16 serverID = 0;
+    uint32 serverID = 0;
 
     std::vector<WorldPendingPlayer> pendingPlayers;
-};
 
-enum eWorldDBState
-{
-    WORLD_DB_STATE_CHECK,
-    WORLD_DB_STATE_CREATE
+    void AddPending(uint32 serverID, int32 netID)
+    {
+        pendingPlayers.emplace_back(WorldPendingPlayer{serverID, netID});
+    }
 };
 
 class WorldManager : public WorldManagerBase {
+private:
+    enum eWorldDatabaseState
+    {
+        WORLD_DB_STATE_CHECK_EXISTS,
+        WORLD_DB_STATE_CREATE
+    };
+
 public:
     WorldManager();
     ~WorldManager();
@@ -47,17 +53,24 @@ public:
 
 public:
     void OnHandleDatabase(QueryTaskResult&& result) override;
+    void OnHandleTCP(VariantVector&& result) override;
 
 public:
-    void HandleWorldInit(bool success, uint32 worldID);
-    void ManagePlayerJoin(uint16 serverID, int32 playerNetID, const string& worldName);
-    void CheckWorldExists(QueryTaskResult&& result);
-    void CreateWorld(QueryTaskResult&& result);
+    void HandleWorldInit(VariantVector&& result);
+    void HandlePlayerJoinRequest(VariantVector&& result);
+
+    void HandleDBWorldExists(QueryTaskResult&& result);
+    void HandleDBWorldCreate(QueryTaskResult&& result);
+
+    void CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID);
 
     WorldSession* GetWorldByName(const string& worldName);
+    WorldSession* GetWorldByID(uint32 worldID);
+
+    void RemoveWorldsWithServerID(uint32 serverID);
 
 private:
-    std::unordered_map<uint32, WorldSession*> m_worldSession;
+    std::unordered_map<uint32, WorldSession> m_worldSessions;
 };
 
 WorldManager* GetWorldManager();
