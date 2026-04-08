@@ -1,0 +1,19 @@
+# servers should be in order
+# set_master|lan|wan|
+# add_server|lan|wan|server_count|
+# add_renderer|lan|wan|server_count|
+
+# if you want to host it on local (wan = lan)
+# you can get lan in cmd (ifconfig or ipconfig)
+
+# MASTER SERVER ID ALWAYS 0
+
+# server gonna host on port tcp_start + server_id
+tcp_start|18500
+
+# server gonna host on port udp_start + server_id
+udp_start|18000
+
+set_master|CHANGE HERE|CHANGE HERE|
+add_server|CHANGE HERE|CHANGE HERE|1|
+#add_renderer|CHANGE HERE|CHANGE HERE|1|

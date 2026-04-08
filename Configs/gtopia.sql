@@ -1,0 +1,32 @@
+CREATE TABLE `Players` (
+  `ID` int NOT NULL AUTO_INCREMENT,
+  `GuestName` varchar(32) NOT NULL,
+  `CreationDate` date DEFAULT NULL,
+  `Mac` char(24) DEFAULT NULL,
+  `GuestID` int DEFAULT '0',
+  `IP` char(15) NOT NULL DEFAULT '0.0.0.0',
+  `Flags` int NOT NULL DEFAULT '0',
+  `Name` varchar(32) DEFAULT '',
+  `Password` binary(16) DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `LastSeenTime` datetime DEFAULT NULL,
+  `RID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `PlatformType` smallint NOT NULL DEFAULT '-1',
+  `GID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `Inventory` varbinary(512) DEFAULT NULL,
+  `RoleID` int DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `idx_gid` (`GID`),
+  KEY `idx_rid` (`RID`),
+  KEY `idx_ip` (`IP`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `Worlds` (
+  `ID` int NOT NULL AUTO_INCREMENT,
+  `Name` varchar(64) NOT NULL,
+  `Flags` int NOT NULL DEFAULT '0',
+  `LastSeenTime` datetime DEFAULT NULL,
+  `Version` int NOT NULL DEFAULT '0',
+  `CreationDate` date DEFAULT NULL,
+  PRIMARY KEY (`ID`),
+  KEY `idx_name` (`Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

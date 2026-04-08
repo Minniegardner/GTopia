@@ -1,0 +1,16 @@
+# configs to connect database
+# host user pass databaseName port
+database_info|localhost|root|my_db_password|my_database_name|3306|
+
+# static server using while sending OnSuperMain
+# cdnURL cdnPATH(SLASH REQUIRED)
+cdn_server|127.0.0.1|cache/|
+
+# world renderer assets(rttex, font) path NO SLASH AT END
+rendererStaticPath|
+
+# world renderer save path for results NO SLASH AT END
+rendererSavePath|
+
+# game worlds save path NO SLASH AT END
+worldSavePath|

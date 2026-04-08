@@ -1,0 +1,61 @@
+# add_playmod|displayItemID|name|addMessage|removeMessage|
+# set_audio|audoFile|
+# set_char_flags|flags...|
+# set_skin_color|rgba|
+# set_timer|timeSec|
+# set_punch_power|value| <- knockback
+# set_punch_damage|value| <- for breaking block
+# set_gravity|value|
+# set_punch_type|value|
+# set_items|itemIDs| <- spaces doesnt matter just style
+# set_punch_range|value|
+# set_build_range|value|
+
+add_playmod|290|Ninja Stealth|Silent, invisible, deadly.|You are less sneaky now.|
+set_skin_color|100,100,100,150|
+set_items|290|
+
+add_playmod|196|Feelin' Blue|A `!blueberry`` slides down your throat!|The effects of the `!blueberry`` have worn off.|
+set_skin_color|0,0,255,255|
+set_timer|3|
+
+add_playmod|290|Ghost in the shell|Your atoms are suddenly aware of quantum tunneling.|Your body stops shimmering and returns to normal.|
+set_skin_color|255,255,255,100|
+set_char_flags|CHAR_NO_CLIP|
+
+add_playmod|156|Double Jump|You can jump in mid-air!  It's like flying, but less.|Gravity - it's the law.|
+set_char_flags|CHAR_DOUBLE_JUMP|
+set_items|156, 350, 362, 678, 736, 1166, 3112, 1206, 1460, 1550, 1574, 1672, 1674, 1738, 1784, 1824, 1934, 1936, 1938, 2254, 2256, 2258|
+set_items|2260, 2262, 2264, 6162, 4184, 3104, 3114, 3120, 3134, 3144, 3576, 3604, 3762, 3514, 4820, 4412, 4428, 4440, 4442|
+
+add_playmod|1904|The One Ring|No one will take your precious!|I guess someone took your precious.|
+set_char_flags|CHAR_INVISIBLE|
+set_items|1904|
+
+add_playmod|1782|Legendary!|You should be very very nice to your pet.|You feel lonely.|
+set_punch_power|300|
+set_punch_damage|4|
+set_punch_type|21|
+set_items|1782|
+
+add_playmod|496|Speedy|You can move faster!|You are slow again.|
+set_speed|60|
+set_items|496, 1822, 1940|
+
+add_playmod|3578|Carrying a Torch|"I'm attacking the darkness!|My torch went out.|
+set_items|3578|
+
+add_playmod|4746|Energized Horn|You shoot lightning from your horn(s)!|Tired of tooting your own horn?|
+set_punch_type|75|
+set_build_range|1|
+set_items|4746, 4748, 4750|
+
+add_playmod|3066|Fire Hose|Where does the water come from?|Guess you finally ran out of water.|
+set_punch_type|57|
+set_punch_range|1|
+set_punch_power|300|
+set_items|3066|
+
+add_playmod|1204|Focused Eyes|Give people the evil eye.|Your vision is normal.|
+set_punch_type|10|
+set_items|1204|
