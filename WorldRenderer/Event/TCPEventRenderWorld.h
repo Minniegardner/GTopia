@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Network/NetClient.h"
+#include "../MasterBroadway.h"
 
 struct TCPRenderWorldEventData
 {

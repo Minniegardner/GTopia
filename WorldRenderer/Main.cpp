@@ -56,6 +56,9 @@ void EventThreadFunc() {
     }
 }
 
+#include "Utils/ZLibUtils.h"
+#include "IO/File.h"
+
 int main(int argc, char const* argv[])
 {
     if(!ReadArgs(argc, argv)) {

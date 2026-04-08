@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(Master)
 
+set(CMAKE_CXX_STANDARD 17)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-D_DEBUG)
 endif()
@@ -76,4 +78,7 @@ if(WIN32)
     target_link_libraries(Master PRIVATE
         winmm ws2_32
     )
+    target_compile_definitions(Master PRIVATE WIN32_LEAN_AND_MEAN)
 endif(WIN32)
+
+copy_dll(Master "${MYSQL_LIB}")

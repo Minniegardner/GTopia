@@ -33,7 +33,7 @@ if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 cd /d "%BUILD_DIR%"
 
 echo Building %PROJECT% (%MODE%)
-cmake ../../CMake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=%MODE% -DPROJECT_TO_BUILD=%PROJECT%
+cmake ../.. -DCMAKE_BUILD_TYPE=%MODE% -DPROJECT_TO_BUILD=%PROJECT%
 cmake --build .
 
 echo.

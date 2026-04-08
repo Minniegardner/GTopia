@@ -4,7 +4,8 @@
 #include "NetSocket.h"
 #include "IO/File.h"
 
-#define HTTP_TIMEOUT_MS 10 * 1000
+#define HTTP_TIMEOUT_MS 12 * 1000
+#define HTTP_CLIENT_CONNECT_MS 5 * 1000
 
 enum eHTTPError
 {
@@ -33,9 +34,11 @@ public:
 
 public:
     void Init(const string& server);
+    void Kill();
 
+    void OnConnect(NetClient* pClient);
+    void OnDisconnect(NetClient* pClient);
     void OnDataReceive(NetClient* pClient);
-    void OnClientDisconnect(NetClient* pClient);
 
     bool Get(const string& path);
 
@@ -50,13 +53,14 @@ public:
     eHTTPError GetError() const { return m_error; }
 
 private:
-    void Update();
+    void Update(const string& headerToSend);
     void ParseHeader(const string& header);
     void Clear();
     void Error(eHTTPError error);
 
 private:
     NetSocket m_netSocket;
+    NetClient* m_pNetClient;
     string m_server;
     string m_path;
     uint16 m_port;

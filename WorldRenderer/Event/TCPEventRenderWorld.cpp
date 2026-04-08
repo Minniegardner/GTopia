@@ -1,6 +1,5 @@
 #include "TCPEventRenderWorld.h"
 #include "../WorldRendererManager.h"
-#include "../MasterBroadway.h"
 
 void TCPRenderWorldEventData::FromVariant(VariantVector& varVec)
 {

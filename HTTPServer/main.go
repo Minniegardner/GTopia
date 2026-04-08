@@ -37,15 +37,14 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	form := req.ParseForm()
-	if form != nil {
+	if err := req.ParseForm(); err != nil {
 		fmt.Println("Failed to parse form")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if len(req.Form) == 0 {
-		fmt.Println("Parsed form but its empty??")
+		fmt.Println("Parsed form but it's empty")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -57,24 +56,28 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 	if len(versionStr) == 0 || len(platformStr) == 0 || len(protoStr) == 0 {
 		fmt.Printf("Unable to get datas version:%v platform:%v protocol:%v\n", versionStr, platformStr, protoStr)
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	version, versionErr := strconv.ParseFloat(versionStr, 32)
 	if versionErr != nil || version < 0 || version > 5 {
 		fmt.Printf("Failed to parse version %v\n", versionStr)
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	platform, platformErr := strconv.Atoi(platformStr)
 	if platformErr != nil || platform < 0 || platform > 10 {
 		fmt.Printf("Failed to parse platform %v\n", platformStr)
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	proto, protoErr := strconv.Atoi(platformStr)
+	proto, protoErr := strconv.Atoi(protoStr)
 	if protoErr != nil || proto < 0 || proto > 99999 {
 		fmt.Printf("Failed to parse proto %v\n", protoStr)
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	timeNow := uint64(time.Now().UnixMilli())
@@ -90,8 +93,6 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	// for now hardcoded theres only 1 login server LOL
-	// also gonna update here later
 	serverData := "server|192.168.1.37\nport|18000\ntype2|0\n#maint|maintennace\nmeta|" + meta + "\nRTENDMARKERBS1001"
 	res.Write([]byte(serverData))
 

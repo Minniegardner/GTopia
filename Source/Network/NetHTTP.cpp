@@ -4,37 +4,74 @@
 #include "../Utils/StringUtils.h"
 
 NetHTTP::NetHTTP()
-: m_error(HTTP_ERROR_NONE), m_port(80), m_state(HTTP_STATE_IDLE), m_chunked(false), m_contentLength(0), m_status(0)
+: m_error(HTTP_ERROR_NONE), m_port(80), m_state(HTTP_STATE_IDLE), m_chunked(false), m_contentLength(0), m_status(0), m_pNetClient(nullptr)
 {
     m_netSocket.GetEvents().Register(
         SOCKET_EVENT_TYPE_RECEIVE,
         Delegate<NetClient*>::Create<NetHTTP, &NetHTTP::OnDataReceive>(this)
     );
+
+    m_netSocket.GetEvents().Register(
+        SOCKET_EVENT_TYPE_CONNECT,
+        Delegate<NetClient*>::Create<NetHTTP, &NetHTTP::OnConnect>(this)
+    );
+
+    m_netSocket.GetEvents().Register(
+        SOCKET_EVENT_TYPE_DISCONNECT,
+        Delegate<NetClient*>::Create<NetHTTP, &NetHTTP::OnDisconnect>(this)
+    );
 }
 
 NetHTTP::~NetHTTP()
 {
-    m_netSocket.Kill();
+    Kill();
 }
 
 void NetHTTP::Init(const string& server)
 {
     m_server = server;
 
-    if(m_server.find("http://") != -1) {
+    if(m_server.find("http://") != string::npos) {
         m_server = m_server.substr(7);
         m_port = 80;
     }
-    else if(m_server.find("https://") != -1) {
+    else if(m_server.find("https://") != string::npos) {
         m_server = m_server.substr(8);
         m_port = 443;
         m_netSocket.CreateSSLCtx();
     }
 
-    int32 pos = m_server.find(":");
-    if(pos != -1) {
+    usize pos = m_server.find(":");
+    if(pos != string::npos) {
         m_port = (uint16)ToUInt(m_server.substr(pos + 1));
         m_server = m_server.substr(0, pos);
+    }
+}
+
+void NetHTTP::Kill()
+{
+    Clear();
+    m_netSocket.Kill();
+}
+
+void NetHTTP::OnConnect(NetClient* pClient)
+{    
+    if(!pClient) {
+        Error(HTTP_ERROR_SOCKET);
+        return;
+    }
+
+    m_pNetClient = pClient;
+}
+
+void NetHTTP::OnDisconnect(NetClient* pClient)
+{
+    if(m_pNetClient == pClient) {
+        if(m_state != HTTP_STATE_IDLE) {
+            //Error(HTTP_ERROR_SOCKET);
+        }
+
+        m_pNetClient = nullptr;
     }
 }
 
@@ -49,9 +86,9 @@ void NetHTTP::OnDataReceive(NetClient* pClient)
     pClient->recvQueue.Peek(data.data(), size);
 
     if(m_state == HTTP_STATE_READ_HEAD) {
-        int32 headerEndPos = data.find("\r\n\r\n");
+        usize headerEndPos = data.find("\r\n\r\n");
         
-        if(headerEndPos != -1) {
+        if(headerEndPos != string::npos) {
             headerEndPos += 4;
         
             if(pClient->recvQueue.GetDataSize() >= headerEndPos) {
@@ -101,13 +138,6 @@ void NetHTTP::OnDataReceive(NetClient* pClient)
     }
 }
 
-void NetHTTP::OnClientDisconnect(NetClient* pClient)
-{
-    if(m_state != HTTP_STATE_IDLE) {
-        Error(HTTP_ERROR_SOCKET);
-    }
-}
-
 bool NetHTTP::Get(const string& path)
 {
     Clear();
@@ -120,16 +150,12 @@ bool NetHTTP::Get(const string& path)
     "\r\n";
 
     int16 val = m_netSocket.Connect(m_server, m_port, false);
-    
-    NetClient* pClient = m_netSocket.GetClient(val);
-    if(!pClient) {
+    if(val < 0) {
         Error(HTTP_ERROR_CONNECT_FAIL);
         return false;
     }
 
-    pClient->Send(header.data(), header.size());
-
-    Update();
+    Update(header);
     return true;
 }
 
@@ -144,7 +170,7 @@ void NetHTTP::AddPostData(const string& key, const string& value)
     m_postData += EncodeURL(value);
 }
 
-bool NetHTTP::Post(const string& path) // broken currently
+bool NetHTTP::Post(const string& path)
 {
     Clear();
 
@@ -159,32 +185,44 @@ bool NetHTTP::Post(const string& path) // broken currently
     + m_postData;
 
     int16 val = m_netSocket.Connect(m_server, m_port, false);
-    
-    NetClient* pClient = m_netSocket.GetClient(val);
-    if(!pClient) {
+    if(val < 0) {
         Error(HTTP_ERROR_CONNECT_FAIL);
         m_postData.clear();
         return false;
     }
 
-    pClient->Send(header.data(), header.size());
-    m_postData.clear();
-
-    Update();
+    Update(header);
     return true;
 }
 
-void NetHTTP::Update()
+void NetHTTP::Update(const string& headerToSend)
 {
     m_state = HTTP_STATE_READ_HEAD;
+    bool sentPacket = false;
 
-    uint64 startTime = Time::GetSystemTime();
+    Timer startTimer;
     while(m_state != HTTP_STATE_COMPLETE && m_error == HTTP_ERROR_NONE)
     {
         m_netSocket.Update(true);
-        SleepMS(40);
+        SleepMS(10);
 
-        if(Time::GetSystemTime() - startTime >= HTTP_TIMEOUT_MS) {
+        if((!sentPacket || !m_pNetClient) && startTimer.GetElapsedTime() >= HTTP_CLIENT_CONNECT_MS) {
+            Error(HTTP_ERROR_CONNECT_FAIL);
+            break;
+        }
+    
+        if(!sentPacket && m_pNetClient) {
+            m_pNetClient->Send((void*)headerToSend.data(), headerToSend.size());
+            m_postData.clear();
+            sentPacket = true;
+        }
+    
+        /*if(sentPacket && !m_pNetClient) {
+            Error(HTTP_ERROR_SOCKET);
+            break;
+        }*/
+    
+        if(startTimer.GetElapsedTime() >= HTTP_TIMEOUT_MS) {
             Error(HTTP_ERROR_TIME_EXCEED);
             break;
         }
@@ -194,6 +232,8 @@ void NetHTTP::Update()
         m_file.Write(m_body.data(), m_body.size());
         m_file.Close();
     }
+
+    m_netSocket.CloseAllClients();
 }
 
 void NetHTTP::ParseHeader(const string& header)
@@ -201,7 +241,7 @@ void NetHTTP::ParseHeader(const string& header)
     if(header.empty()) {
         return;
     }
-
+    
     auto lines = Split(header, '\n');
     uint16 resultCode = ToUInt(Split(lines[0], ' ')[1]);
     m_status = resultCode;
@@ -264,8 +304,9 @@ void NetHTTP::Clear()
 
 void NetHTTP::Error(eHTTPError error)
 {
+    Clear();
     m_error = error;
-    m_netSocket.CloseAllClients();
+    m_pNetClient = nullptr;
 }
 
 bool NetHTTP::SetOutputFile(const string& filePath)

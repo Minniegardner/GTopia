@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(WorldRenderer)
 
+set(CMAKE_CXX_STANDARD 17)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-D_DEBUG)
 endif()
@@ -9,13 +11,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-D_NDEBUG -O2)
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
-
 include(${CMAKE_CURRENT_LIST_DIR}/../CMake/Source.cmake)
 set(WORLD_RENDERER_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 set(WORLD_RENDERER_EVENT "${WORLD_RENDERER_ROOT}/Event")
 
 set(BLEND2D_STATIC TRUE)
+set(ASMJIT_DIR ${THIRD_PARTY_ASMJIT})
 include(${THIRD_PARTY_BLEND2D}/CMakeLists.txt)
 
 set(WORLD_RENDERER_FILES PRIVATE
@@ -72,3 +73,10 @@ target_include_directories(WorldRenderer PRIVATE
 target_link_libraries(WorldRenderer PRIVATE
     blend2d::blend2d
 )
+
+if(WIN32)
+    target_link_libraries(WorldRenderer PRIVATE
+        winmm ws2_32
+    )
+    target_compile_definitions(WorldRenderer PRIVATE WIN32_LEAN_AND_MEAN)
+endif(WIN32)

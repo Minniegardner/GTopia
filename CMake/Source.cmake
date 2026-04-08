@@ -18,6 +18,7 @@ set(THIRD_PARTY_CONCURRENTQUEUE "${THIRD_PARTY_ROOT}/concurrentqueue")
 set(THIRD_PARTY_NLOHMANN "${THIRD_PARTY_ROOT}/nlohmann")
 set(THIRD_PARTY_BLEND2D "${THIRD_PARTY_ROOT}/blend2d")
 set(THIRD_PARTY_ZLIB "${THIRD_PARTY_ROOT}/zlib")
+set(THIRD_PARTY_ASMJIT "${THIRD_PARTY_ROOT}/asmjit")
 
 set(SOURCE_DEFAULT_FILES
     ${SOURCE_IO}/File.cpp
@@ -61,9 +62,13 @@ set(SOURCE_NETWORK_FILES
     ${THIRD_PARTY_ENET}/packet.c
     ${THIRD_PARTY_ENET}/protocol.c
     ${THIRD_PARTY_ENET}/peer.c
-    ${THIRD_PARTY_ENET}/unix.c
-    ${THIRD_PARTY_ENET}/win32.c
 )
+
+if(WIN32)
+    list(APPEND SOURCE_NETWORK_FILES ${THIRD_PARTY_ENET}/win32.c)
+else()
+    list(APPEND SOURCE_NETWORK_FILES ${THIRD_PARTY_ENET}/unix.c)
+endif(WIN32)
 
 set(SOURCE_ZLIB_FILES
     ${THIRD_PARTY_ZLIB}/adler32.c
@@ -105,3 +110,13 @@ function(add_zlib_sources target_name)
     target_sources(${target_name} PRIVATE ${SOURCE_ZLIB_FILES})
     target_include_directories(${target_name} PRIVATE ${THIRD_PARTY_ZLIB})
 endfunction(add_zlib_sources target_name)
+
+function(copy_dll TARGET DLL_PATH)
+    if(WIN32)
+        add_custom_command(TARGET ${TARGET} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${DLL_PATH}"
+                $<TARGET_FILE_DIR:${TARGET}>
+        )
+    endif()
+endfunction()

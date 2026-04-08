@@ -476,7 +476,7 @@ int main(int argc, char const* argv[])
                 return 0;
             }
 
-            LOGGER_LOG_INFO("Generate ıntil ItemID? (0 for all):");
+            LOGGER_LOG_INFO("Generate until ItemID? (0 for all):");
             string untilIDInput;
             std::cin >> untilIDInput;
         
