@@ -53,7 +53,7 @@ void DropGems(World* pWorld, TileInfo* pTile, uint8 amount)
     }
 
     WorldObject gemDrop;
-    gemDrop.itemID = ITEM_ID_GEM;
+    gemDrop.itemID = ITEM_ID_GEMS;
     gemDrop.count = amount;
     pWorld->DropObject(pTile, gemDrop, true);
 }
