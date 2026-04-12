@@ -40,7 +40,7 @@ void ServerManager::OnClientDisconnect(NetClient* pClient)
         RemoveServer(pClientInfo->serverID);
     }
 
-    SAFE_DELETE(pClient->data);
+    delete static_cast<NetServerInfo*>(pClient->data);
     pClient->data = nullptr;
 }
 
@@ -325,7 +325,7 @@ void ServerManager::RemoveServer(uint16 serverID)
 
     NetClient* pClient = m_pNetSocket ? m_pNetSocket->GetClient(pServer->socketConnID) : nullptr;
     if(pClient) {
-        SAFE_DELETE(pClient->data);
+        delete static_cast<NetServerInfo*>(pClient->data);
         pClient->data = nullptr;
         pClient->status = SOCKET_CLIENT_CLOSE;
     }

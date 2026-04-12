@@ -19,7 +19,7 @@ struct TCPHeartBeatEventData
 	}
 };
 
-void TCPEventHearthBeat::Execute(NetClient* pClient, VariantVector& data)
+void TCPEventHeartBeat::Execute(NetClient* pClient, VariantVector& data)
 {
 	if(!pClient) {
 		return;
