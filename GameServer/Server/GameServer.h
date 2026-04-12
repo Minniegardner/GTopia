@@ -27,6 +27,7 @@ public:
 public:
     void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
     GamePlayer* GetPlayerByUserID(uint32 userID);
+    GamePlayer* GetPlayerByRawName(const string& playerName);
 
     void UpdatePlayers();
     void ForceSaveAllPlayers();

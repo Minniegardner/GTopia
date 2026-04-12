@@ -3,8 +3,11 @@
 
 #include "../../../Player/Dialog/SignDialog.h"
 #include "../../../Player/Dialog/TrashDialog.h"
+#include "../../../Player/Dialog/DropDialog.h"
 #include "../../../Player/Dialog/LockDialog.h"
 #include "../../../Player/Dialog/RenderWorldDialog.h"
+#include "../../../Player/GamePlayer.h"
+#include "../../../Server/GameServer.h"
 
 void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
@@ -20,6 +23,30 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     uint32 hashedDialogName = HashString(pDialogName->value, pDialogName->size);
 
     switch(hashedDialogName) {
+        case CompileTimeHashString("popup"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            auto pNetID = packet.Find(CompileTimeHashString("netID"));
+
+            if(!pButtonClicked || !pNetID) {
+                return;
+            }
+
+            int32 netID = 0;
+            if(ToInt(string(pNetID->value, pNetID->size), netID) != TO_INT_SUCCESS) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "trade") {
+                GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+                if(pTarget && pTarget != pPlayer && pTarget->GetCurrentWorld() == pPlayer->GetCurrentWorld()) {
+                    pPlayer->StartTrade(pTarget);
+                }
+            }
+
+            break;
+        }
+
         case CompileTimeHashString("sign_edit"): {
             auto pTileX = packet.Find(CompileTimeHashString("tilex"));
             auto pTileY = packet.Find(CompileTimeHashString("tiley"));
@@ -72,6 +99,32 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             else {
                 TrashDialog::Handle(pPlayer, itemID, count);
             }
+            break;
+        }
+
+        case CompileTimeHashString("drop_item"): {
+            auto pItemID = packet.Find(CompileTimeHashString("itemID"));
+            auto pCount = packet.Find(CompileTimeHashString("count"));
+
+            if(!pItemID || !pCount) {
+                return;
+            }
+
+            uint32 itemID = 0;
+            if(ToUInt(string(pItemID->value, pItemID->size), itemID) != TO_INT_SUCCESS) {
+                return;
+            }
+
+            int32 count = 0;
+            if(ToInt(string(pCount->value, pCount->size), count) != TO_INT_SUCCESS) {
+                return;
+            }
+
+            if(itemID > UINT16_MAX) {
+                return;
+            }
+
+            DropDialog::Handle(pPlayer, (uint16)itemID, (int16)count);
             break;
         }
 

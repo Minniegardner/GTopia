@@ -17,15 +17,18 @@
 #include "../Event/UDP/GameMessage/QuitToExit.h"
 #include "../Event/UDP/GameMessage/DialogReturn.h"
 #include "../Event/UDP/GameMessage/Trash.h"
+#include "../Event/UDP/GameMessage/Drop.h"
 #include "../Event/UDP/GameMessage/Store.h"
 #include "../Event/UDP/GameMessage/StoreNavigate.h"
 #include "../Event/UDP/GameMessage/Buy.h"
+#include "../Event/UDP/GameMessage/Wrench.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
 #include "../Command/Ghost.h"
 #include "../Command/TogglePlayMod.h"
 #include "../Command/Magic.h"
+#include "../Command/Trade.h"
 
 GameServer::GameServer()
 : NetEntity(NET_ID_GAME_SERVER)
@@ -159,6 +162,8 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<QuitToExit>(CompileTimeHashString("quit_to_exit"));
     RegisterMessagePacket<DialogReturn>(CompileTimeHashString("dialog_return"));
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
+    RegisterMessagePacket<Drop>(CompileTimeHashString("drop"));
+    RegisterMessagePacket<Wrench>(CompileTimeHashString("wrench"));
     RegisterMessagePacket<Store>(CompileTimeHashString("store"));
     RegisterMessagePacket<StoreNavigate>(CompileTimeHashString("storenavigate"));
     RegisterMessagePacket<Buy>(CompileTimeHashString("buy"));
@@ -168,6 +173,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<Ghost>();
     RegisterCommand<TogglePlayMod>();
     RegisterCommand<Magic>();
+    RegisterCommand<Trade>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
@@ -199,6 +205,17 @@ GamePlayer* GameServer::GetPlayerByUserID(uint32 userID)
 {
     for(auto& [_, pPlayer] : m_playerCache) {
         if(pPlayer && pPlayer->GetUserID() == userID) {
+            return pPlayer;
+        }
+    }
+
+    return nullptr;
+}
+
+GamePlayer* GameServer::GetPlayerByRawName(const string& playerName)
+{
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(pPlayer && pPlayer->GetRawName() == playerName) {
             return pPlayer;
         }
     }

@@ -5,6 +5,14 @@
 #include "Utils/Timer.h"
 #include "Player/PlayMod.h"
 
+#include <unordered_set>
+
+struct TradeOffer
+{
+    uint16 ID = 0;
+    uint8 Amount = 0;
+};
+
 enum ePlayerState
 {
     PLAYER_STATE_LOGIN_REQUEST = 1 << 0,
@@ -66,6 +74,47 @@ public:
     void AddGems(int32 amount);
     void SendOnSetBux();
 
+    bool IsTrading() const { return m_isTrading; }
+    void SetTrading(bool trading) { m_isTrading = trading; }
+    uint32 GetTradingWithUserID() const { return m_tradingWithUserID; }
+    void SetTradingWithUserID(uint32 userID) { m_tradingWithUserID = userID; }
+    bool IsTradeAccepted() const { return m_isTradeAccepted; }
+    void SetTradeAccepted(bool accepted) { m_isTradeAccepted = accepted; }
+    uint64 GetTradeAcceptedAt() const { return m_tradeAcceptedAt; }
+    void SetTradeAcceptedAt(uint64 timeMS) { m_tradeAcceptedAt = timeMS; }
+    bool IsTradeConfirmed() const { return m_isTradeConfirmed; }
+    void SetTradeConfirmed(bool confirmed) { m_isTradeConfirmed = confirmed; }
+    uint64 GetTradeConfirmedAt() const { return m_tradeConfirmedAt; }
+    void SetTradeConfirmedAt(uint64 timeMS) { m_tradeConfirmedAt = timeMS; }
+    uint64 GetLastTradedAt() const { return m_lastTradedAt; }
+    void SetLastTradedAt(uint64 timeMS) { m_lastTradedAt = timeMS; }
+    uint64 GetLastChangeTradeDeal() const { return m_lastChangeTradeDeal; }
+    void SetLastChangeTradeDeal(uint64 timeMS) { m_lastChangeTradeDeal = timeMS; }
+    uint64 GetLastAcceptedTrade() const { return m_lastAcceptedTrade; }
+    void SetLastAcceptedTrade(uint64 timeMS) { m_lastAcceptedTrade = timeMS; }
+    const std::vector<TradeOffer>& GetTradeOffers() const { return m_tradeOffers; }
+    bool IsTradeOfferExists(uint16 itemID) const;
+    void RemoveTradeOffer(uint16 itemID);
+    void AddTradeOffer(TradeOffer tradeOffer);
+    void ClearTradeOffers();
+    void StartTrade(GamePlayer* player);
+    void CancelTrade(bool busy = true, std::string customMessage = "");
+    void ModifyOffer(uint16 itemID, uint16 amount = 0);
+    void RemoveOffer(uint16 itemID);
+    void AcceptOffer(bool status = true);
+    void ConfirmOffer();
+    void SendTradeStatus(GamePlayer* player);
+    void SendTradeAlert(GamePlayer* player);
+    void SendStartTrade(GamePlayer* player);
+    void SendForceTradeEnd();
+    void AddTradeHistory(std::string entry);
+    const std::vector<std::string>& GetTradeHistory() const { return m_tradeHistory; }
+
+    const std::unordered_set<std::string>& GetAchievements() const { return m_achievements; }
+    bool HasAchievement(const std::string& achievement) const;
+    void GiveAchievement(const std::string& achievement);
+    void SendAchievement(std::string achievementName);
+
     Role* GetRole() const { return m_pRole; };
     void ToggleCloth(uint16 itemID);
 
@@ -106,6 +155,19 @@ private:
     Timer m_lastDbSaveTime;
 
     int32 m_gems;
+
+    bool m_isTrading = false;
+    bool m_isTradeAccepted = false;
+    bool m_isTradeConfirmed = false;
+    uint32 m_tradingWithUserID = 0;
+    uint64 m_tradeAcceptedAt = 0;
+    uint64 m_tradeConfirmedAt = 0;
+    uint64 m_lastTradedAt = 0;
+    uint64 m_lastChangeTradeDeal = 0;
+    uint64 m_lastAcceptedTrade = 0;
+    std::vector<TradeOffer> m_tradeOffers = {};
+    std::vector<std::string> m_tradeHistory = {};
+    std::unordered_set<std::string> m_achievements = {};
 
     Role* m_pRole;
 };

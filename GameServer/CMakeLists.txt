@@ -58,6 +58,8 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/QuitToExit.cpp
     ${GAME_EVENT}/UDP/GameMessage/DialogReturn.cpp
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Drop.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Wrench.cpp
     ${GAME_EVENT}/UDP/GameMessage/Store.cpp
     ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
     ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
@@ -71,6 +73,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/Ghost.cpp
     ${GAME_COMMAND}/TogglePlayMod.cpp
     ${GAME_COMMAND}/Magic.cpp
+    ${GAME_COMMAND}/Trade.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp
@@ -83,6 +86,7 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/PlayerDialog.cpp
     ${GAME_DIALOG}/SignDialog.cpp
     ${GAME_DIALOG}/TrashDialog.cpp
+    ${GAME_DIALOG}/DropDialog.cpp
     ${GAME_DIALOG}/LockDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
 

@@ -12,6 +12,300 @@
 #include "Math/Random.h"
 #include "Dialog/PlayerDialog.h"
 #include "Dialog/RenderWorldDialog.h"
+#include "Utils/DialogBuilder.h"
+#include "../Server/GameServer.h"
+#include <algorithm>
+
+bool GamePlayer::IsTradeOfferExists(uint16 itemID) const
+{
+    return std::any_of(m_tradeOffers.begin(), m_tradeOffers.end(), [itemID](const TradeOffer& tradeOffer) {
+        return tradeOffer.ID == itemID;
+    });
+}
+
+void GamePlayer::RemoveTradeOffer(uint16 itemID)
+{
+    m_tradeOffers.erase(
+        std::remove_if(m_tradeOffers.begin(), m_tradeOffers.end(), [itemID](const TradeOffer& tradeOffer) {
+            return tradeOffer.ID == itemID;
+        }),
+        m_tradeOffers.end()
+    );
+}
+
+void GamePlayer::AddTradeOffer(TradeOffer tradeOffer)
+{
+    if(tradeOffer.Amount == 0) {
+        RemoveTradeOffer(tradeOffer.ID);
+        return;
+    }
+
+    if(IsTradeOfferExists(tradeOffer.ID)) {
+        for(auto& existingOffer : m_tradeOffers) {
+            if(existingOffer.ID == tradeOffer.ID) {
+                existingOffer.Amount = tradeOffer.Amount;
+                return;
+            }
+        }
+    }
+
+    m_tradeOffers.push_back(tradeOffer);
+}
+
+void GamePlayer::ClearTradeOffers()
+{
+    m_tradeOffers.clear();
+}
+
+void GamePlayer::StartTrade(GamePlayer* player)
+{
+    if(!player || player == this || IsTrading() || player->IsTrading()) {
+        return;
+    }
+
+    SetTrading(true);
+    SetTradingWithUserID(player->GetNetID());
+    SetTradeAccepted(false);
+    SetTradeConfirmed(false);
+    SetTradeAcceptedAt(0);
+    SetTradeConfirmedAt(0);
+    ClearTradeOffers();
+
+    player->SetTrading(true);
+    player->SetTradingWithUserID(GetNetID());
+    player->SetTradeAccepted(false);
+    player->SetTradeConfirmed(false);
+    player->SetTradeAcceptedAt(0);
+    player->SetTradeConfirmedAt(0);
+    player->ClearTradeOffers();
+
+    SendTradeAlert(player);
+    player->SendTradeAlert(this);
+    SendStartTrade(player);
+    player->SendStartTrade(this);
+}
+
+void GamePlayer::CancelTrade(bool busy, std::string customMessage)
+{
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    if(pTarget && pTarget != this) {
+        pTarget->SetTrading(false);
+        pTarget->SetTradingWithUserID(0);
+        pTarget->SetTradeAccepted(false);
+        pTarget->SetTradeConfirmed(false);
+        pTarget->SetTradeAcceptedAt(0);
+        pTarget->SetTradeConfirmedAt(0);
+        pTarget->ClearTradeOffers();
+        pTarget->SendForceTradeEnd();
+        if(!customMessage.empty()) {
+            pTarget->SendOnConsoleMessage(customMessage);
+        }
+    }
+
+    SetTrading(false);
+    SetTradingWithUserID(0);
+    SetTradeAccepted(false);
+    SetTradeConfirmed(false);
+    SetTradeAcceptedAt(0);
+    SetTradeConfirmedAt(0);
+    ClearTradeOffers();
+
+    if(busy) {
+        SendForceTradeEnd();
+    }
+}
+
+void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
+{
+    if(!IsTrading()) {
+        return;
+    }
+
+    if(amount == 0) {
+        RemoveOffer(itemID);
+        return;
+    }
+
+    uint8 ownedCount = GetInventory().GetCountOfItem(itemID);
+    if(ownedCount == 0) {
+        return;
+    }
+
+    if(amount > ownedCount) {
+        amount = ownedCount;
+    }
+
+    AddTradeOffer({ itemID, (uint8)amount });
+
+    SetTradeAccepted(false);
+    SetTradeConfirmed(false);
+    SetTradeAcceptedAt(0);
+    SetTradeConfirmedAt(0);
+    SetLastChangeTradeDeal(Time::GetSystemTime());
+
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    if(pTarget) {
+        pTarget->SetTradeAccepted(false);
+        pTarget->SetTradeConfirmed(false);
+        pTarget->SetTradeAcceptedAt(0);
+        pTarget->SetTradeConfirmedAt(0);
+    }
+}
+
+void GamePlayer::RemoveOffer(uint16 itemID)
+{
+    RemoveTradeOffer(itemID);
+    SetTradeAccepted(false);
+    SetTradeConfirmed(false);
+    SetTradeAcceptedAt(0);
+    SetTradeConfirmedAt(0);
+    SetLastChangeTradeDeal(Time::GetSystemTime());
+}
+
+void GamePlayer::AcceptOffer(bool status)
+{
+    if(!IsTrading()) {
+        return;
+    }
+
+    SetTradeAccepted(status);
+    SetTradeAcceptedAt(status ? Time::GetSystemTime() : 0);
+
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    if(pTarget) {
+        pTarget->SetTradeAccepted(false);
+        pTarget->SetTradeConfirmed(false);
+        pTarget->SetTradeConfirmedAt(0);
+    }
+}
+
+void GamePlayer::ConfirmOffer()
+{
+    if(!IsTrading() || !IsTradeAccepted()) {
+        return;
+    }
+
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    if(!pTarget || !pTarget->IsTrading()) {
+        CancelTrade();
+        return;
+    }
+
+    for(const auto& tradeOffer : m_tradeOffers) {
+        if(GetInventory().GetCountOfItem(tradeOffer.ID) < tradeOffer.Amount) {
+            CancelTrade(true, "`4Trade failed.`` You no longer have enough items.");
+            return;
+        }
+    }
+
+    for(const auto& tradeOffer : pTarget->GetTradeOffers()) {
+        if(pTarget->GetInventory().GetCountOfItem(tradeOffer.ID) < tradeOffer.Amount) {
+            pTarget->CancelTrade(true, "`4Trade failed.`` You no longer have enough items.");
+            return;
+        }
+    }
+
+    for(const auto& tradeOffer : m_tradeOffers) {
+        ModifyInventoryItem(tradeOffer.ID, -(int16)tradeOffer.Amount);
+        pTarget->ModifyInventoryItem(tradeOffer.ID, tradeOffer.Amount);
+    }
+
+    for(const auto& tradeOffer : pTarget->GetTradeOffers()) {
+        pTarget->ModifyInventoryItem(tradeOffer.ID, -(int16)tradeOffer.Amount);
+        ModifyInventoryItem(tradeOffer.ID, tradeOffer.Amount);
+    }
+
+    AddTradeHistory("Traded with " + pTarget->GetRawName());
+    pTarget->AddTradeHistory("Traded with " + GetRawName());
+    SetLastTradedAt(Time::GetSystemTime());
+    pTarget->SetLastTradedAt(Time::GetSystemTime());
+
+    CancelTrade(false);
+    pTarget->CancelTrade(false);
+}
+
+void GamePlayer::SendTradeStatus(GamePlayer* player)
+{
+    if(!player) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+    ->AddLabelWithIcon("`wTrade Status``", ITEM_ID_WRENCH, true)
+    ->AddTextBox("`oTrading with `w" + player->GetDisplayName() + "``")
+    ->AddTextBox("`oYour offers: `w" + ToString((int)m_tradeOffers.size()) + "``")
+    ->AddTextBox("`oTheir offers: `w" + ToString((int)player->GetTradeOffers().size()) + "``")
+    ->EndDialog("popup", "", "Continue");
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendTradeAlert(GamePlayer* player)
+{
+    if(!player) {
+        return;
+    }
+
+    SendOnConsoleMessage("`oTrade request sent to `w" + player->GetDisplayName() + "``.");
+}
+
+void GamePlayer::SendStartTrade(GamePlayer* player)
+{
+    if(!player) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+    ->AddLabelWithIcon("`wTrade``", ITEM_ID_WRENCH, true)
+    ->AddTextBox("`oTrading with `w" + player->GetDisplayName() + "``")
+    ->AddTextBox("`oUse the trade command to add or remove items.")
+    ->EndDialog("popup", "", "Continue");
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendForceTradeEnd()
+{
+    SendOnConsoleMessage("`oTrade ended.``");
+}
+
+void GamePlayer::AddTradeHistory(std::string entry)
+{
+    if(entry.empty()) {
+        return;
+    }
+
+    m_tradeHistory.push_back(std::move(entry));
+    if(m_tradeHistory.size() > 20) {
+        m_tradeHistory.erase(m_tradeHistory.begin());
+    }
+}
+
+bool GamePlayer::HasAchievement(const std::string& achievement) const
+{
+    return m_achievements.find(achievement) != m_achievements.end();
+}
+
+void GamePlayer::GiveAchievement(const std::string& achievement)
+{
+    if(achievement.empty() || HasAchievement(achievement)) {
+        return;
+    }
+
+    m_achievements.insert(achievement);
+    SendAchievement(achievement);
+}
+
+void GamePlayer::SendAchievement(std::string achievementName)
+{
+    if(achievementName.empty()) {
+        return;
+    }
+
+    SendOnConsoleMessage("`wAchievement unlocked:`` " + achievementName);
+}
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
