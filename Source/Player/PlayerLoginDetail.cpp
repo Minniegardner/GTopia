@@ -1,15 +1,19 @@
 #include "PlayerLoginDetail.h"
 #include "Player.h"
-
+#include "../Proton/ProtonUtils.h"
 #include "../IO/Log.h"
 
 bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer, bool asGameServer)
-{
+{   
     auto pPlatform = packet.Find(CompileTimeHashString("platformID"));
-    if(!pPlatform) {
+    if(!pPlatform || ToUInt(string(pPlatform->value, pPlatform->size), platformType) != TO_INT_SUCCESS) {
         return false;
     }
-    platformType = (int8)ToInt(string(pPlatform->value, pPlatform->size));
+
+    if(platformType > Proton::PLATFORM_ID_COUNT) {
+        LOGGER_LOG_WARN("Unknown platform type %d IP: %s", pPlayer->GetAddress().c_str())
+        return false;
+    }
 
     auto pReqName = packet.Find(CompileTimeHashString("requestedName"));
     if(!pReqName) {
@@ -18,29 +22,54 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
     requestedName = string(pReqName->value, pReqName->size);
 
     auto pProto = packet.Find(CompileTimeHashString("protocol"));
-    if(!pProto) {
+    if(!pProto || ToUInt(string(pProto->value, pProto->size), protocol) != TO_INT_SUCCESS) {
         return false;
     }
-    protocol = ToUInt(string(pProto->value, pProto->size));
 
-    /*auto pHash = packet.Find(CompileTimeHashString("hash"));
-    if(!pHash) {
+    auto pHash = packet.Find(CompileTimeHashString("hash"));
+    if(!pHash || ToInt(string(pHash->value, pHash->size), hash) != TO_INT_SUCCESS) {
         return false;
     }
-    hash = (uint32)ToInt(string(pHash->value, pHash->size));*/
 
     auto pTankIDName = packet.Find(CompileTimeHashString("tankIDName"));
     if(pTankIDName) {
         tankIDName = string(pTankIDName->value, pTankIDName->size);
     }
 
-    auto pRid = packet.Find(CompileTimeHashString("rid"));
-    if(!pRid) {
-        return false;
+    auto pTankIDPass = packet.Find(CompileTimeHashString("tankIDPass"));
+    if(pTankIDPass) {
+        tankIDPass = string(pTankIDPass->value, pTankIDPass->size);
     }
-    rid = string(pRid->value, pRid->size);
 
-#ifdef _DEBUG
+    auto pRid = packet.Find(CompileTimeHashString("rid"));
+    if(pRid) {
+        rid = string(pRid->value, pRid->size);   
+    }
+    else {
+        rid = "11111111111111111111111111111111";
+    }
+
+    auto pGid = packet.Find(CompileTimeHashString("gid"));
+    if(pGid) {
+        gid = string(pGid->value, pGid->size);
+        
+        if(gid.size() != 36 || gid.empty()) {
+            LOGGER_LOG_WARN("Got weird gid (%s) size %d IP: %s", gid.c_str(), gid.size(), pPlayer->GetAddress().c_str());
+            return false;
+        }
+    }
+
+    auto pVid = packet.Find(CompileTimeHashString("vid"));
+    if(pVid) {
+        vid = string(pVid->value, pVid->size);
+        
+        if(vid.empty()) {
+            LOGGER_LOG_WARN("Got weird vid (%s) size %d IP: %s", gid.c_str(), gid.size(), pPlayer->GetAddress().c_str());
+            return false;
+        }
+    }
+
+#if defined(_DEBUG) && defined(__linux__)
     // random generated mac also
     mac = "f4:fb:8f:a9:7a:bd"; // for linux (temp)
     // actually need to fix that for linux based players
@@ -58,6 +87,15 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
     mac = string(pMac->value, pMac->size);
 #endif
 
+    if(platformType == Proton::PLATFORM_ID_WINDOWS && (mac.empty() || mac.size() != 17)) {
+        LOGGER_LOG_WARN("Got weird mac address (%s) size %d IP: %s", mac.c_str(), mac.size(), pPlayer->GetAddress().c_str());
+        return false;
+    }
+
+    if(platformType == Proton::PLATFORM_ID_IOS && mac != "02:00:00:00:00:00" && hash == 1431658473) {
+        hash = Proton::HashString(mac.c_str(), 0);
+    }
+
     auto pGameVersion = packet.Find(CompileTimeHashString("game_version"));
     if(!pGameVersion) {
         return false;
@@ -69,18 +107,35 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
         country = string(pCountry->value, pCountry->size);
     }
 
+    if(platformType == Proton::PLATFORM_ID_WINDOWS) {
+        auto pWk = packet.Find(CompileTimeHashString("wk"));
+        if(pWk) {
+            sid = string(pWk->value, pWk->size);
+    
+            if(sid == "NONE0" || sid == "NONE1" || sid == "NONE3") {
+                return false;
+            }
+        }
+        else if(gameVersion > 2.17) {
+            auto pSid = packet.Find(CompileTimeHashString("sid"));
+            if(!pSid) {
+                return false;
+            }
+    
+            sid = string(pSid->value, pSid->size);
+        }
+    }
+
     if(asGameServer) {
         auto pToken = packet.Find(CompileTimeHashString("token"));
-        if(!pToken) {
+        if(!pToken || ToUInt(string(pToken->value, pToken->size), token) != TO_INT_SUCCESS) {
             return false;
         }
-        token = ToUInt(string(pToken->value, pToken->size));
 
         auto pUser = packet.Find(CompileTimeHashString("user"));
-        if(!pUser) {
+        if(!pUser || ToUInt(string(pUser->value, pUser->size), user) != TO_INT_SUCCESS) {
             return false;
         }
-        user = ToUInt(string(pUser->value, pUser->size));
     }
 
     return true;

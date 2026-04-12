@@ -16,19 +16,18 @@ void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryReques
     );
 }
 
-QueryRequest MakePlayerByMacReq(const string& mac, const string& rid, uint8 platformType, int32 ownerID)
+QueryRequest MakePlayerByMacReq(const string& mac, uint8 platformType, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
 
-    req.data.resize(3);
+    req.data.resize(2);
     req.data[0] = mac;
-    req.data[1] = rid;
-    req.data[2] = platformType;
+    req.data[1] = platformType;
     return req;
 }
 
-QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, uint16 guestID, const string& mac, const string& rid, int32 ownerID)
+QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, uint16 guestID, const string& mac, const string& ip, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
@@ -38,7 +37,7 @@ QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, ui
     req.data[1] = platformType;
     req.data[2] = guestID;
     req.data[3] = mac;
-    req.data[4] = rid;
+    req.data[4] = ip;
     return req;
 }
 
@@ -72,4 +71,81 @@ QueryRequest MakeGetForInactive(uint32 userID, int32 ownerID)
     req.data.resize(1);
     req.data[0] = userID;
     return req;
+}
+
+QueryRequest MakeCountCreatedAccByIP(const string& ip, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = ip;
+    return req;
+}
+
+QueryRequest MakePlayerByVIDReq(const string& vid, uint8 platformType, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = vid;
+    req.data[1] = platformType;
+    return req;
+}
+
+QueryRequest MakePlayerByGIDReq(const string& gid, uint8 platformType, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = gid;
+    req.data[1] = platformType;
+    return req;
+}
+
+QueryRequest MakePlayerByHashReq(int32 hash, uint8 platformType, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = hash;
+    req.data[1] = platformType;
+    return req;
+}
+
+void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& rid, const string& gid, int32 hash, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    string query = "UPDATE Players SET ";
+
+    if(!mac.empty() && mac != "02:00:00:00:00:00") {
+        query += "Mac = ?, ";
+        req.data.push_back(mac);
+    }
+
+    if(!vid.empty()) {
+        query += "VID = UNHEX(MD5(?)), ";
+        req.data.push_back(vid);
+    }
+
+    if(!rid.empty()) {
+        query += "RID = UNHEX(?), ";
+        req.data.push_back(rid);
+    }
+
+    if(!gid.empty()) {
+        query += "GID = UNHEX(MD5(?)), ";
+        req.data.push_back(gid);
+    }
+
+    query += "Hash = ? WHERE ID = ?;";
+    req.data.push_back(hash);
+    req.data.push_back(userID);
+
+    DatabaseExec(pPool, query, req, QUERY_FLAG_NONE);
 }

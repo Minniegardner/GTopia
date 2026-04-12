@@ -12,18 +12,21 @@ struct PlayerLoginDetail
     string tankIDPass = "";
 
     float gameVersion;
-    uint8 platformType;
+    uint32 platformType;
     string country = "00";
     uint32 protocol = 0;
     
     string meta;
-    int32 fhash;
-    int32 hash;
+    uint32 fhash;
+    int32 hash = 0;
     string mac;
     string rid;
+    string sid;
+    string gid;
+    string vid;
 
-    string wk;
-    int32 zf = -1;
+    int32 zf = 0;
+    uint32 fz = 0;
 
     uint32 token = 0;
     uint32 user = 0;

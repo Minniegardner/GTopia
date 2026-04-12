@@ -34,7 +34,6 @@ void LockDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     ->AddLabelWithIcon("`wEdit " + pItem->name, pItem->id, true)
     ->EmbedData("tilex", pTile->GetPos().x)
     ->EmbedData("tiley", pTile->GetPos().y);
-    
 
     if(!IsWorldLock(pItem->id)) {
         bool ignoreAir = pTileExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_IGNORE_AIR);

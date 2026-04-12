@@ -40,6 +40,8 @@ public:
 
     uint32 GetUserID() const { return m_userID; }
 
+    string GetAddress() const { return m_address; }
+
 #ifdef SERVER_GAME
     PlayerInventory& GetInventory() { return m_inventory; }
     void SendInventoryPacket();

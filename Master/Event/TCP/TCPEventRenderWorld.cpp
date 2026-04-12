@@ -34,6 +34,8 @@ void TCPEventRenderWorld::Execute(NetClient* pClient, VariantVector& data)
         return;
     }
 
+    eventData.FromVariant(data, subType == TCP_RENDER_RESULT);
+
     string worldName;
     WorldSession* pWorld = GetWorldManager()->GetWorldByID(eventData.worldID);
     if(pWorld) {
@@ -44,18 +46,15 @@ void TCPEventRenderWorld::Execute(NetClient* pClient, VariantVector& data)
         case TCP_RENDER_REQUEST: {
             ServerInfo* pRenderServer = GetServerManager()->GetBestRenderServer();
             if(!pRenderServer) {
-                GetServerManager()->SendRenderResult(false, eventData.userID, worldName, pNetServer->serverID);
+                GetServerManager()->SendRenderResult(TCP_RESULT_FAIL, eventData.userID, worldName, pNetServer->serverID);
                 return;
             }
-            eventData.FromVariant(data, false);
 
             GetServerManager()->SendRenderRequest(eventData.userID, eventData.worldID, pRenderServer->serverID);
             break;
         }
 
         case TCP_RENDER_RESULT: {
-            eventData.FromVariant(data, true);
-
             PlayerSession* pPlayer = GetGameServer()->GetPlayerSessionByUserID(eventData.userID);
             if(!pPlayer) {
                 return;

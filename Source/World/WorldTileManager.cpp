@@ -133,7 +133,7 @@ void WorldTileManager::GenerateBeachMap()
 {
     Clear(true);
 
-    bool startFromLeft = RandomRangeInt(0, 1) == 1;
+    bool startFromLeft = RandomRangeInt(0, 2) == 1;
 }
 
 void WorldTileManager::FillRectWith(const RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)
@@ -279,13 +279,13 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
         return false;
     }
 
-    if(pTargetTile->GetParent() != 0) {
+    if(pTargetTile->HasFlag(TILE_FLAG_HAS_PARENT) || pTargetTile->GetParent() != 0) {
         return false;
     }
 
     if(ignoreEmpty && pTargetTile->GetDisplayedItem() == ITEM_ID_BLANK) {
         return false;
-    }
+    }   
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTargetTile->GetDisplayedItem());
     if(!pItem) {
@@ -312,7 +312,7 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
         }
 
         if(
-            pNeighbor->GetParent() == parentIndex || pTargetTile == pLockTile ||
+            pNeighbor->GetParent() == parentIndex || pNeighbor == pLockTile ||
             (vTargetPos.x + neighbors[i][0] == vLockPos.x + neighbors[i][0] && vTargetPos.y + neighbors[i][0] == vLockPos.y + neighbors[i][0])
         ) {
             return true;

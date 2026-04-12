@@ -14,10 +14,14 @@ CREATE TABLE `Players` (
   `GID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Inventory` varbinary(512) DEFAULT NULL,
   `RoleID` int DEFAULT NULL,
+  `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `Hash` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`ID`),
   KEY `idx_gid` (`GID`),
   KEY `idx_rid` (`RID`),
-  KEY `idx_ip` (`IP`)
+  KEY `idx_ip` (`IP`),
+  KEY `idx_vid` (`VID`),
+  KEY `idx_hash` (`Hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `Worlds` (

@@ -5,6 +5,7 @@
 #include "Packet/PacketUtils.h"
 #include "IO/Log.h"
 #include "ServerManager.h"
+#include "../Context.h"
 
 GameServer::GameServer()
 {
@@ -47,10 +48,17 @@ void GameServer::OnEventReceive(ENetEvent& event)
         return;
     }
 
+    if(m_playerCache.size() >= GetContext()->GetGameConfig()->maxLoginsAtOnce) {
+        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log\nmsg|`4OOPS! ``Too many people logging in at once. Please press `5CANCEL`` and try again.", event.peer);
+        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|logon_fail\n", event.peer);
+        return;
+    }
+
     uint32 msgType = GetMessageTypeFromEnetPacket(event.packet);
 
     switch(msgType) {
         case NET_MESSAGE_GENERIC_TEXT: {
+            LOGGER_LOG_DEBUG("%s", GetTextFromEnetPacket(event.packet));
             
             switch(pPlayer->GetState()) {
                 case PLAYER_STATE_LOGIN_REQUEST: {

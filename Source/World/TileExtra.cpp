@@ -52,7 +52,7 @@ void TileExtra_Door::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
         memBuffer.ReadWriteString(id, write);
     }
 
-    int8 unk = -1;
+    int8 unk = 0;
     memBuffer.ReadWrite(unk, write);
 }
 
@@ -91,4 +91,69 @@ void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
     if(worldVersion > 12) {
         memBuffer.ReadWrite(worldTimer, write);
     }
+}
+
+void TileExtra_Seed::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(growTime, write);
+    memBuffer.ReadWrite(fruitCount, write);
+}
+
+void TileExtra_Component::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(randValue, write);
+}
+
+void TileExtra_Provider::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(readyTime, write);
+
+    uint16 fgItem = pTile->GetFG();
+    if(fgItem == ITEM_ID_WINTERFEST_CALENDAR_2017) {
+        memBuffer.ReadWrite(itemID, write);
+    }
+
+    if(!database && (fgItem == ITEM_ID_WINTERFEST_CALENDAR_2018 || fgItem == ITEM_ID_WINTERFEST_CALENDAR_2019)) {
+        memBuffer.ReadWrite(itemID, write);
+    }
+
+    if(!database && fgItem == ITEM_ID_BUILDING_BLOCKS_MACHINE) {
+        // long
+        // long
+    }
+
+    if(worldVersion > 9 &&
+        (
+            fgItem == ITEM_ID_KEENAN_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_VENOMSTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_LINKTRADER_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_TERYS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_EVETS_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_BENBARRAGES_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_MRSONGO_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_OLDGERTIES_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_MACPROOF_GTS_AWESOME_ITEM_O_MATIC
+        ))
+    {
+        // long
+        // long
+        // same as building blocks machine
+    }
+}
+
+void TileExtra_Lab::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(userID, write);
+    memBuffer.ReadWrite(achievementID, write);
+}
+
+void TileExtra_HeartMonitor::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(userID, write);
+    memBuffer.ReadWrite(playerDisplayName, write);
 }

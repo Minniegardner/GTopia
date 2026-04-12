@@ -9,7 +9,9 @@ enum ePlayerState
     PLAYER_STATE_LOGIN_REQUEST,
     PLAYER_STATE_LOGIN_GETTING_ACCOUNT,
     PLAYER_STATE_LOGIN_CHECKING_ACCOUNT,
+    PLAYER_STATE_COUNT_CREATED_FROM_IP,
     PLAYER_STATE_CREATING_ACCOUNT,
+    PLAYER_STATE_UPDATE_IDENTIFIERS,
     PLAYER_STATE_SWITCHING_TO_GAME
 };
 
@@ -27,7 +29,9 @@ public:
     void StartLoginRequest(ParsedTextPacket<25>& packet);
     void LoginGetAccount();
     void LoginCheckingAccount(QueryTaskResult&& result);
+    void CheckCountOfCreatedAccsFromIP(QueryTaskResult&& result);
     void CreatingAccount(QueryTaskResult&& result);
+    void UpdatedIdentifiers(QueryTaskResult&& result);
     void SwitchingToGame();
 
 private:

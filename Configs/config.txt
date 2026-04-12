@@ -14,3 +14,9 @@ rendererSavePath|
 
 # game worlds save path NO SLASH AT END
 worldSavePath|
+
+# X people can login at once others gonna kicked
+max_logins_at_once|20
+
+# only X accounts can be created per ip
+max_accounts_per_ip|4

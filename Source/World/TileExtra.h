@@ -9,6 +9,60 @@ enum eTileExtraTypes
     TILE_EXTRA_TYPE_DOOR = 1,
     TILE_EXTRA_TYPE_SIGN = 2,
     TILE_EXTRA_TYPE_LOCK = 3,
+    TILE_EXTRA_TYPE_SEED = 4,
+    TILE_EXTRA_TYPE_RACE_FLAG = 5,
+    TILE_EXTRA_TYPE_MAILBOX = 6,
+    TILE_EXTRA_TYPE_BULLETIN = 7,
+    TILE_EXTRA_TYPE_COMPONENT = 8,
+    TILE_EXTRA_TYPE_PROVIDER = 9,
+    TILE_EXTRA_TYPE_LAB = 10,
+    TILE_EXTRA_TYPE_HEART_MONITOR = 11,
+    TILE_EXTRA_TYPE_DONATION_BOX = 12,
+    TILE_EXTRA_TYPE_TOYBOX = 13,
+    TILE_EXTRA_TYPE_MANNEQUIN = 14,
+    TILE_EXTRA_TYPE_MAGIC_EGG = 15,
+    TILE_EXTRA_TYPE_TEAM = 16,
+    TILE_EXTRA_TYPE_GAME_GEN = 17,
+    TILE_EXTRA_TYPE_XENONITE = 18,
+    TILE_EXTRA_TYPE_DRESSUP = 19,
+    TILE_EXTRA_TYPE_CRYSTAL = 20,
+    TILE_EXTRA_TYPE_BURGLAR = 21,
+    TILE_EXTRA_TYPE_SPOTLIGHT = 22,
+    TILE_EXTRA_TYPE_DISPLAY_BLOCK = 23,
+    TILE_EXTRA_TYPE_VENDING = 24,
+    TILE_EXTRA_TYPE_FISH_TANK = 25,
+    TILE_EXTRA_TYPE_SOLAR = 26,
+    TILE_EXTRA_TYPE_FORGE = 27,
+    TILE_EXTRA_TYPE_GIVING_TREE = 28,
+    TILE_EXTRA_TYPE_GIVING_TREE_STUMP = 29,
+    TILE_EXTRA_TYPE_STEAM_ORGAN = 30,
+    TILE_EXTRA_TYPE_TAMAGOTCHI = 31,
+    TILE_EXTRA_TYPE_SEWING = 32,
+    TILE_EXTRA_TYPE_FLAG = 33,
+    TILE_EXTRA_TYPE_LOBSTER_TRAP = 34,
+    TILE_EXTRA_TYPE_ARTCANVAS = 35,
+    TILE_EXTRA_TYPE_BATTLE_CAGE = 36,
+    TILE_EXTRA_TYPE_PET_TRAINER = 37,
+    TILE_EXTRA_TYPE_STEAM_ENGINE = 38,
+    TILE_EXTRA_TYPE_LOCK_BOT = 39,
+    TILE_EXTRA_TYPE_WEATHER_SPECIAL = 40,
+    TILE_EXTRA_TYPE_SPIRIT_STORAGE = 41,
+    TILE_EXTRA_TYPE_BEDROCK = 42,
+    TILE_EXTRA_TYPE_DISPLAY_SHELF = 43,
+    TILE_EXTRA_TYPE_VIP_DOOR = 44,
+    TILE_EXTRA_TYPE_CHAL_TIMER = 45,
+    TILE_EXTRA_TYPE_CHAL_FLAG = 46,
+    TILE_EXTRA_TYPE_FISH_MOUNT = 47,
+    TILE_EXTRA_TYPE_PORTRAIT = 48,
+    TILE_EXTRA_TYPE_WEATHER_SPECIAL2 = 49,
+    TILE_EXTRA_TYPE_FOSSIL_PREP = 50,
+    TILE_EXTRA_TYPE_DNA_MACHINE = 51,
+    TILE_EXTRA_TYPE_BLASTER = 52,
+    TILE_EXTRA_TYPE_CHEMTANK = 53,
+    TILE_EXTRA_TYPE_STORAGE = 54,
+    TILE_EXTRA_TYPE_OVEN = 55,
+    TILE_EXTRA_TYPE_SUPER_MUSIC = 56,
+    TILE_EXTRA_TYPE_GEIGER_CHARGER = 57,
 
     TILE_EXTRA_TYPE_SIZE
 };
@@ -127,6 +181,77 @@ public:
 
         return false;
     }
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Seed : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_SEED;
+
+    TileExtra_Seed() : TileExtra(TYPE) {}
+
+    uint32 growTime = 0;
+    uint8 fruitCount = 3;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+/**
+ * 
+ * 
+ * 
+ * 
+ */
+
+class TileExtra_Component : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_COMPONENT;
+
+    TileExtra_Component() : TileExtra(TYPE) {}
+
+    uint8 randValue = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Provider : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_PROVIDER;
+
+    TileExtra_Provider() : TileExtra(TYPE) {}
+
+    uint32 readyTime = 0;
+    int32 itemID = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Lab : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_LAB;
+
+    TileExtra_Lab() : TileExtra(TYPE) {}
+
+    int32 userID = -1;
+    uint8 achievementID = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_HeartMonitor : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_HEART_MONITOR;
+
+    TileExtra_HeartMonitor() : TileExtra(TYPE) {}
+
+    int32 userID = -1;
+    string playerDisplayName;
 
 protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;

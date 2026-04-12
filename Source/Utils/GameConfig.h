@@ -50,4 +50,6 @@ public:
     string worldSavePath = "";
     string rendererSavePath = "";
     string rendererStaticPath = "";
+    uint16 maxLoginsAtOnce = 20;
+    uint16 maxAccountsPerIP = 3;
 };

@@ -524,10 +524,10 @@ void ItemInfoManager::CreateDefaultSeedForItem(ItemInfo* pItem)
     pSeed->id = pItem->id + 1;
 
     switch(pItem->id) {
-        case 610: pSeed->name = "Magic Egg"; break;
-        case 2034: pSeed->name = "Starseed"; break;
-        case 2036: pSeed->name = "Galactic Starseed"; break;
-        case 4454: pSeed->name = "Mutated Seed"; break;
+        case ITEM_ID_MAGIC_EGG: pSeed->name = "Magic Egg"; break;
+        case ITEM_ID_COMET_DUST: pSeed->name = "Starseed"; break;
+        case ITEM_ID_ANTIMATTER_DUST: pSeed->name = "Galactic Starseed"; break;
+        case ITEM_ID_MUTATED_SEED_CORE: pSeed->name = "Mutated Seed"; break;
         default: pSeed->name = pItem->name + " Seed";
     }
 

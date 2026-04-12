@@ -60,7 +60,7 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	version, versionErr := strconv.ParseFloat(versionStr, 32)
-	if versionErr != nil || version < 0 || version > 5 {
+	if versionErr != nil || version < 0 || version > 6 {
 		fmt.Printf("Failed to parse version %v\n", versionStr)
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -93,7 +93,12 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	serverData := "server|192.168.1.37\nport|18000\ntype2|0\n#maint|maintennace\nmeta|" + meta + "\nRTENDMARKERBS1001"
+	serverData := fmt.Sprintf(`server|192.168.1.37
+port|18000
+type2|0
+#maint|maintenance
+meta|%s
+RTENDMARKERBS1001`, meta)
 	res.Write([]byte(serverData))
 
 	fmt.Println(serverData + "\n")
@@ -150,9 +155,12 @@ func serverHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	fmt.Println("Started HTTP Server")
+	fmt.Println("Started HTTP/S Server")
 
-	http.HandleFunc("/cache/", cacheHandler)
-	http.HandleFunc("/", serverHandler)
-	log.Fatal(http.ListenAndServe(":80", nil))
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/cache/", cacheHandler)
+	mux.HandleFunc("/", serverHandler)
+
+	log.Fatal(http.ListenAndServe(":80", mux))
 }

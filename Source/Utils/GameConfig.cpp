@@ -55,6 +55,14 @@ bool GameConfig::LoadConfig(const string& filePath)
         if(args[0] == "worldSavePath") {
             worldSavePath = args[1];
         }
+
+        if(args[0] == "max_logins_at_once") {
+            maxLoginsAtOnce = (uint16)ToUInt(args[1]);
+        }
+
+        if(args[0] == "max_accounts_per_ip") {
+            maxAccountsPerIP = (uint16)ToUInt(args[1]);
+        }
     }
 
     return true;

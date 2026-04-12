@@ -33,7 +33,7 @@ void RenderWorldDialog::OnRendered(GamePlayer* pPlayer, const string& worldName)
     DialogBuilder db;
     db.SetDefaultColor('o')
     ->AddLabelWithIcon("World Render Share", ITEM_ID_MAILBOX, true)
-    ->AddTextBox("Your world `#" + worldName + " `ohas been rendered!<CR>You can wiev it on our discord server.")
+    ->AddTextBox("Your world `#" + worldName + " `ohas been rendered!<CR>You can view it on our discord server.")
     ->EndDialog("render_share", "", "Thanks!");
 
     pPlayer->SendOnDialogRequest(db.Get());

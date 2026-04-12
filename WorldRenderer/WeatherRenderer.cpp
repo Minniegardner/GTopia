@@ -57,7 +57,7 @@ void WeatherRenderer::DrawDefault()
         m_renderer.DrawImage(pHills1, hills1Rect);
     }
 
-    DrawClouds();
+    //DrawClouds();
 }
 
 void WeatherRenderer::DrawClouds()
