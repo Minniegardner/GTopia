@@ -11,6 +11,7 @@
 #include "../Event/TCP/TCPEventPlayerSession.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
 #include "../Event/TCP/TCPEventRenderWorld.h"
+#include "../Event/TCP/TCPEventHeartBeat.h"
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
 #include "../Event/TCP/TCPEventKillServer.h"
 
@@ -31,12 +32,17 @@ void MasterBroadway::RegisterEvents()
     RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
     RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
+    RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
 }
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
 {
+    if(m_connected && m_lastHearthBeatSentTime.GetElapsedTime() >= 5000) {
+        SendHeartBeat();
+    }
+
     uint64 startTime = Time::GetSystemTime();
     TCPPacketEvent event;
 

@@ -50,6 +50,7 @@ public:
     ServerInfo* GetBestGameServer();
     ServerInfo* GetBestRenderServer();
     bool HasAnyGameServer();
+    uint32 GetTotalOnlineCount() const;
 
     ServerInfo* GetServerByID(uint16 serverID);
     bool SendPacketRaw(uint16 serverID, VariantVector& data);

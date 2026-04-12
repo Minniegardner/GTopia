@@ -32,6 +32,13 @@ public:
     void SendEndPlayerSession(uint32 userID);
     void SendServerKillPacket();
 
+    uint32 GetGlobalOnlineCount() const { return m_globalOnlineCount; }
+    void SetGlobalOnlineCount(uint32 onlineCount)
+    {
+        m_globalOnlineCount = onlineCount;
+        m_lastHearthBeatRecvTime.Reset();
+    }
+
 private:
     template<class T>
     void RegisterEvent(eTCPPacketType packet)
@@ -46,6 +53,7 @@ private:
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
     Timer m_lastHearthBeatSentTime;
     Timer m_lastHearthBeatRecvTime;
+    uint32 m_globalOnlineCount = 0;
 };
 
 MasterBroadway* GetMasterBroadway();

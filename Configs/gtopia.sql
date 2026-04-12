@@ -13,6 +13,7 @@ CREATE TABLE `Players` (
   `PlatformType` smallint NOT NULL DEFAULT '-1',
   `GID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Inventory` varbinary(512) DEFAULT NULL,
+  `Gems` int NOT NULL DEFAULT '0',
   `RoleID` int DEFAULT NULL,
   `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Hash` int NOT NULL DEFAULT '0',

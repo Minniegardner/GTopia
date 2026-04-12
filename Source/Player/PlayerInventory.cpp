@@ -235,6 +235,15 @@ uint8 PlayerInventory::GetCountOfItem(uint16 itemID)
     return pItem->count;
 }
 
+void PlayerInventory::IncreaseCapacity(uint32 amount)
+{
+    if(amount == 0) {
+        return;
+    }
+
+    m_capacity += amount;
+}
+
 void PlayerInventory::UpdateInventory(Player *pPlayer, uint16 itemID, uint8 count, bool added)
 {
     if(!pPlayer) {

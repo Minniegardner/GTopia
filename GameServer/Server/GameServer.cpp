@@ -17,6 +17,9 @@
 #include "../Event/UDP/GameMessage/QuitToExit.h"
 #include "../Event/UDP/GameMessage/DialogReturn.h"
 #include "../Event/UDP/GameMessage/Trash.h"
+#include "../Event/UDP/GameMessage/Store.h"
+#include "../Event/UDP/GameMessage/StoreNavigate.h"
+#include "../Event/UDP/GameMessage/Buy.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
@@ -156,6 +159,9 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<QuitToExit>(CompileTimeHashString("quit_to_exit"));
     RegisterMessagePacket<DialogReturn>(CompileTimeHashString("dialog_return"));
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
+    RegisterMessagePacket<Store>(CompileTimeHashString("store"));
+    RegisterMessagePacket<StoreNavigate>(CompileTimeHashString("storenavigate"));
+    RegisterMessagePacket<Buy>(CompileTimeHashString("buy"));
 
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();

@@ -44,6 +44,9 @@ public:
     bool HaveRoomForItem(uint16 itemID, uint8 itemCount);
 
     uint8 GetCountOfItem(uint16 itemID);
+    uint32 GetCapacity() const { return m_capacity; }
+    uint32 GetItemTypesCount() const { return (uint32)m_items.size(); }
+    void IncreaseCapacity(uint32 amount);
 
     void UpdateInventory(Player* pPlayer, uint16 itemID, uint8 count, bool added);
     void RemoveFromQuickSlots(uint16 itemID);

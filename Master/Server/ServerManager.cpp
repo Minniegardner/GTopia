@@ -8,6 +8,7 @@
 #include "../Event/TCP/TCPEventPlayerSession.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
 #include "../Event/TCP/TCPEventRenderWorld.h"
+#include "../Event/TCP/TCPEventHeartBeat.h"
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
 #include "../Event/TCP/TCPEventPlayerEndSession.h"
 #include "../Event/TCP/TCPEventKillServer.h"
@@ -30,7 +31,17 @@ void ServerManager::OnClientConnect(NetClient* pClient)
 
 void ServerManager::OnClientDisconnect(NetClient* pClient)
 {
+    if(!pClient) {
+        return;
+    }
 
+    NetServerInfo* pClientInfo = (NetServerInfo*)pClient->data;
+    if(pClientInfo && pClientInfo->serverID != 0) {
+        RemoveServer(pClientInfo->serverID);
+    }
+
+    SAFE_DELETE(pClient->data);
+    pClient->data = nullptr;
 }
 
 void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
@@ -72,6 +83,25 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
         }
     }
 
+    std::vector<uint16> staleServers;
+    for(auto& [serverID, pServer] : m_servers) {
+        if(!pServer) {
+            staleServers.push_back(serverID);
+            continue;
+        }
+
+        NetClient* pClient = m_pNetSocket->GetClient(pServer->socketConnID);
+        NetServerInfo* pClientInfo = pClient ? (NetServerInfo*)pClient->data : nullptr;
+        if(!pClient || !pClientInfo || pClientInfo->lastHeartbeatTime.GetElapsedTime() >= 15000) {
+            staleServers.push_back(serverID);
+        }
+    }
+
+    for(auto serverID : staleServers) {
+        LOGGER_LOG_WARN("Server %d timed out, removing it from master cache", serverID);
+        RemoveServer(serverID);
+    }
+
     if(processed > 0) {
         LOGGER_LOG_DEBUG("Processed %d TCP packets maxMS %d, took %d MS", processed, maxTimeMS, Time::GetSystemTime() - startTime);
     }
@@ -97,6 +127,7 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
     RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
+    RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
     RegisterEvent<TCPEventPlayerEndSession>(TCP_PACKET_PLAYER_END_SESSION);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
@@ -129,6 +160,21 @@ bool ServerManager::SendPacketRaw(uint16 serverID, VariantVector& data)
     }
 
     return pNetClient->Send(data);
+}
+
+uint32 ServerManager::GetTotalOnlineCount() const
+{
+    uint32 totalOnlineCount = 0;
+
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer) {
+            continue;
+        }
+
+        totalOnlineCount += pServer->playerCount;
+    }
+
+    return totalOnlineCount;
 }
 
 void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID)
@@ -277,8 +323,12 @@ void ServerManager::RemoveServer(uint16 serverID)
 
     ServerInfo* pServer = it->second;
 
-    NetClient* pClient = m_pNetSocket->GetClient(pServer->socketConnID);
-    pClient->status = SOCKET_CLIENT_CLOSE;
+    NetClient* pClient = m_pNetSocket ? m_pNetSocket->GetClient(pServer->socketConnID) : nullptr;
+    if(pClient) {
+        SAFE_DELETE(pClient->data);
+        pClient->data = nullptr;
+        pClient->status = SOCKET_CLIENT_CLOSE;
+    }
 
     SAFE_DELETE(pServer);
     m_servers.erase(it);

@@ -15,7 +15,7 @@
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
-m_loggingOff(false)
+m_loggingOff(false), m_gems(0)
 {
 }
 
@@ -93,6 +93,11 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     uint32 roleID = result.result->GetField("RoleID", 0).GetUINT();
     if(roleID == 0) {
         roleID = 3; // default role
+    }
+
+    m_gems = result.result->GetField("Gems", 0).GetINT();
+    if(m_gems < 0) {
+        m_gems = 0;
     }
 
     m_pRole = GetRoleManager()->GetRole(roleID);
@@ -194,6 +199,7 @@ void GamePlayer::SaveToDatabase()
         m_userID,
         m_pRole->GetID(),
         ToHex(pInvData, invMemSize),
+        m_gems,
         GetNetID()
     );
     
@@ -539,4 +545,42 @@ void GamePlayer::SendPositionToWorldPlayers()
     }
 
     pWorld->SendGamePacketToAll(&packet, this);
+}
+
+bool GamePlayer::TrySpendGems(int32 amount)
+{
+    if(amount <= 0) {
+        return true;
+    }
+
+    if(m_gems < amount) {
+        return false;
+    }
+
+    m_gems -= amount;
+    return true;
+}
+
+void GamePlayer::AddGems(int32 amount)
+{
+    if(amount <= 0) {
+        return;
+    }
+
+    int64 next = (int64)m_gems + amount;
+    if(next > INT32_MAX) {
+        next = INT32_MAX;
+    }
+    m_gems = (int32)next;
+}
+
+void GamePlayer::SendOnSetBux()
+{
+    VariantVector data(4);
+    data[0] = "OnSetBux";
+    data[1] = m_gems;
+    data[2] = (uint32)1;
+    data[3] = (uint32)1;
+
+    SendCallFunctionPacket(data);
 }

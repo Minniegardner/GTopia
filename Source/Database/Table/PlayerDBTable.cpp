@@ -51,15 +51,16 @@ QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID)
     return req;
 }
 
-QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 ownerID)
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
 
-    req.data.resize(3);
+    req.data.resize(4);
     req.data[0] = roleID,
     req.data[1] = inventoryData,
-    req.data[2] = userID;
+    req.data[2] = gems,
+    req.data[3] = userID;
     return req;
 }
 

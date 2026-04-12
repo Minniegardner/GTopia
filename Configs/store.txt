@@ -1,0 +1,21 @@
+# format: tab|btn|name|rttx|description|texture1|texture2|cost|id:amount
+# for multiple rewards: id:amount,id:amount
+
+1|world_lock|`oWorld Lock``|interface/large/store_buttons/store_buttons.rttex|`2You Get:`` 1 World Lock.<CR><CR>`5Description:`` Become the undisputed ruler of your domain with one of these babies.|0|7|2000|242:1
+1|upgrade_backpack|`0Upgrade Backpack`` (`w10 Slots``)|interface/large/store_buttons/store_buttons.rttex|`2You Get:`` 10 Additional Backpack Slots.<CR><CR>`5Description:`` Sewing an extra pocket onto your backpack will allow you to store `$10`` additional item types.|0|1|0|9412:10
+1|vending_machine|`oVending Machine``|interface/large/store_buttons/store_buttons13.rttex|`2You Get:`` 1 Vending Machine.<CR><CR>`5Description:`` Put a stack of items inside and set a price.|0|6|8000|2978:1
+
+2|small_seed_pack|`oSmall Seed Pack``|interface/large/store_buttons/store_buttons.rttex|`2You Get:`` 1 Small Seed Pack.<CR><CR>`5Description:`` Open for random seeds.|1|4|100|5706:1
+2|basic_splice|`oBasic Splicing Kit``|interface/large/store_buttons/store_buttons6.rttex|`2You Get:`` Random useful starter items and seeds.|0|2|500|242:1
+2|rare_seed|`oRare Seed Pack``|interface/large/store_buttons/store_buttons2.rttex|`2You Get:`` 5 random rare seeds.|0|3|1000|242:1
+2|clothes_pack|`oClothes Pack``|interface/large/store_buttons/store_buttons4.rttex|`2You Get:`` 3 random clothing items.|0|4|1500|242:1
+2|rare_clothes_pack|`oRare Clothes Pack``|interface/large/store_buttons/store_buttons5.rttex|`2You Get:`` 3 random rare clothing items.|0|5|3000|242:1
+
+3|digivend_machine|`oDigiVend Machine``|interface/large/store_buttons/store_buttons29.rttex|`2You Get:`` 1 DigiVend Machine.|0|2|12000|9268:1
+3|vending_hub|`oVending Hub - Checkout Counter``|interface/large/store_buttons/store_buttons29.rttex|`2You Get:`` 1 Vending Hub.|0|3|50000|9270:1
+
+4|sunny_weather_machine|`oWeather Machine - Sunny``|interface/large/store_buttons/store_buttons9.rttex|`2You Get:`` 1 Weather Machine - Sunny.|0|1|2500|466:1
+4|rainy_weather_machine|`oWeather Machine - Rainy``|interface/large/store_buttons/store_buttons9.rttex|`2You Get:`` 1 Weather Machine - Rainy.|0|2|3000|467:1
+
+5|anime_action_hair|`oAnime Action Hair``|interface/large/store_buttons/store_buttons37.rttex|`2You Get:`` 1 Anime Action Hair.|4|1|-200|11154:1
+5|puppy_leash|`oPuppy Leash``|interface/large/store_buttons/store_buttons11.rttex|`2You Get:`` 1 Puppy Leash.|0|4|-200|1742:1

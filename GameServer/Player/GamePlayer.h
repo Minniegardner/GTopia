@@ -60,6 +60,12 @@ public:
     void SetRespawnPos(float x, float y) { m_respawnPos.x = x; m_respawnPos.y = y; }
     Vector2Float GetRespawnPos() const { return m_respawnPos; }
 
+    int32 GetGems() const { return m_gems; }
+    void SetGems(int32 gems) { m_gems = std::max(0, gems); }
+    bool TrySpendGems(int32 amount);
+    void AddGems(int32 amount);
+    void SendOnSetBux();
+
     Role* GetRole() const { return m_pRole; };
     void ToggleCloth(uint16 itemID);
 
@@ -98,6 +104,8 @@ private:
     Vector2Float m_worldPos;
 
     Timer m_lastDbSaveTime;
+
+    int32 m_gems;
 
     Role* m_pRole;
 };

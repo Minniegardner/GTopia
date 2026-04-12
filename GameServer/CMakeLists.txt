@@ -27,6 +27,7 @@ set(GAME_EVENT "${GAME_ROOT}/Event")
 set(GAME_WORLD "${GAME_ROOT}/World")
 set(GAME_COMMAND "${GAME_ROOT}/Command")
 set(GAME_DIALOG "${GAME_PLAYER}/Dialog")
+set(GAME_STORE "${GAME_ROOT}/Store")
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
@@ -46,6 +47,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventWorldInit.cpp
     ${GAME_EVENT}/TCP/TCPEventRenderWorld.cpp
     ${GAME_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
+    ${GAME_EVENT}/TCP/TCPEventHeartBeat.cpp
     ${GAME_EVENT}/TCP/TCPEventKillServer.cpp
 
     ${GAME_EVENT}/UDP/GameMessage/RefreshItemData.cpp
@@ -56,6 +58,9 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/QuitToExit.cpp
     ${GAME_EVENT}/UDP/GameMessage/DialogReturn.cpp
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Store.cpp
+    ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
@@ -80,6 +85,8 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/TrashDialog.cpp
     ${GAME_DIALOG}/LockDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
+
+    ${GAME_STORE}/StoreCatalog.cpp
 
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp
