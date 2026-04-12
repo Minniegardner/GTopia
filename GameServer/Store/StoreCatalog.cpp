@@ -2,7 +2,6 @@
 
 #include "Utils/StringUtils.h"
 #include "IO/Log.h"
-#include "OS/OSUtils.h"
 #include <fstream>
 
 bool StoreCatalog::s_loaded = false;
