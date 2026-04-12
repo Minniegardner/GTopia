@@ -393,7 +393,14 @@ void World::HandleTilePackets(GameUpdatePacket* pGamePacket)
                 pTile->SetBG(pItem->id);
             }
             else if(pItem->type == ITEM_TYPE_SEED) {
+                pTile->SetFG(pItem->id, GetTileManager());
+                pTile->SetFlag(TILE_FLAG_IS_SEEDLING);
 
+                TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
+                if(pSeedExtra) {
+                    pSeedExtra->growTime = (uint32)Time::GetSystemTime();
+                    pSeedExtra->fruitCount = (uint8)(2 + (rand() % 11));
+                }
             }
             else if(pItem->type == ITEM_TYPE_FIST) {
                 if(pTile->GetFG() != ITEM_ID_BLANK) {

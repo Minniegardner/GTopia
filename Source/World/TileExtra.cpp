@@ -15,6 +15,15 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_LOCK:
             return TILE_EXTRA_TYPE_LOCK;
 
+        case ITEM_TYPE_SEED:
+            return TILE_EXTRA_TYPE_SEED;
+
+        case ITEM_TYPE_PROVIDER:
+            return TILE_EXTRA_TYPE_PROVIDER;
+
+        case ITEM_TYPE_COMPONENT:
+            return TILE_EXTRA_TYPE_COMPONENT;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
@@ -31,6 +40,15 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_LOCK:
             return new TileExtra_Lock(); 
+
+        case TILE_EXTRA_TYPE_SEED:
+            return new TileExtra_Seed();
+
+        case TILE_EXTRA_TYPE_COMPONENT:
+            return new TileExtra_Component();
+
+        case TILE_EXTRA_TYPE_PROVIDER:
+            return new TileExtra_Provider();
 
         default:
             return nullptr;

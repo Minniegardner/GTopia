@@ -2,6 +2,64 @@
 #include "Item/ItemInfoManager.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 
+namespace {
+
+uint8 GetRarityToGem(int16 rarity)
+{
+    if(rarity >= 87) return 22;
+    if(rarity >= 68) return 18;
+    if(rarity >= 53) return 14;
+    if(rarity >= 41) return 11;
+    if(rarity >= 36) return 10;
+    if(rarity >= 32) return 9;
+    if(rarity >= 24) return 5;
+    return 1;
+}
+
+string GetTreeNameFromSeedName(const string& seedName)
+{
+    static const string suffix = " Seed";
+    if(seedName.length() > suffix.length()) {
+        size_t start = seedName.length() - suffix.length();
+        if(seedName.compare(start, suffix.length(), suffix) == 0) {
+            return seedName.substr(0, start);
+        }
+    }
+    return seedName;
+}
+
+ItemInfo* FindSplicedSeedResult(uint16 firstSeedID, uint16 secondSeedID)
+{
+    const auto& items = GetItemInfoManager()->GetItems();
+    for(ItemInfo* pCandidate : items) {
+        if(!pCandidate || pCandidate->type != ITEM_TYPE_SEED) {
+            continue;
+        }
+
+        if((pCandidate->seed1 == firstSeedID && pCandidate->seed2 == secondSeedID) ||
+            (pCandidate->seed1 == secondSeedID && pCandidate->seed2 == firstSeedID))
+        {
+            return pCandidate;
+        }
+    }
+
+    return nullptr;
+}
+
+void DropGems(World* pWorld, TileInfo* pTile, uint8 amount)
+{
+    if(!pWorld || !pTile || amount == 0) {
+        return;
+    }
+
+    WorldObject gemDrop;
+    gemDrop.itemID = ITEM_ID_GEM;
+    gemDrop.count = amount;
+    pWorld->DropObject(pTile, gemDrop, true);
+}
+
+}
+
 void TileChangeRequest::OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile)
 {
 
@@ -42,6 +100,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         return;
     }
 
+    if(pPacket->itemID != ITEM_ID_FIST && pPlayer->GetInventory().GetCountOfItem(pItem->id) == 0) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
     if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
         pPlayer->SendFakePingReply();
         return;
@@ -66,8 +129,14 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
     ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
 
     if(pPacket->itemID != ITEM_ID_FIST) {
+        bool allowSeedSplice = false;
+        if(pItem->type == ITEM_TYPE_SEED && pTile->GetFG() != ITEM_ID_BLANK) {
+            ItemInfo* pSeedOnTile = GetItemInfoManager()->GetItemByID(pTile->GetFG());
+            allowSeedSplice = pSeedOnTile && pSeedOnTile->type == ITEM_TYPE_SEED;
+        }
+
         if(
-            (!pTileItem->IsBackground() && pTile->GetFG() != ITEM_ID_BLANK) ||
+            ((!pTileItem->IsBackground() && pTile->GetFG() != ITEM_ID_BLANK) && !allowSeedSplice) ||
             (pTileItem->IsBackground() && pTile->GetBG() != ITEM_ID_BLANK)
         ) {
             return;
@@ -105,6 +174,45 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             return;
         }
 
+        if(pItem->type == ITEM_TYPE_SEED && pTile->GetFG() != ITEM_ID_BLANK) {
+            ItemInfo* pSeedOnTile = GetItemInfoManager()->GetItemByID(pTile->GetFG());
+            if(!pSeedOnTile || pSeedOnTile->type != ITEM_TYPE_SEED) {
+                pPlayer->SendFakePingReply();
+                return;
+            }
+
+            ItemInfo* pSplicedSeed = FindSplicedSeedResult(pItem->id, pSeedOnTile->id);
+            if(!pSplicedSeed) {
+                pPlayer->SendFakePingReply();
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+
+            pTile->SetFG(pSplicedSeed->id, pWorld->GetTileManager());
+            pTile->SetFlag(TILE_FLAG_IS_SEEDLING);
+            pTile->SetFlag(TILE_FLAG_WAS_SPLICED);
+            if((rand() % 5) == 0) {
+                pTile->SetFlag(TILE_FLAG_WILL_SPAWN_SEEDS_TOO);
+            }
+            else {
+                pTile->RemoveFlag(TILE_FLAG_WILL_SPAWN_SEEDS_TOO);
+            }
+
+            TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
+            if(pSeedExtra) {
+                pSeedExtra->growTime = (uint32)Time::GetSystemTime();
+                pSeedExtra->fruitCount = (uint8)(2 + (rand() % 11));
+            }
+
+            string treeName = GetTreeNameFromSeedName(pSplicedSeed->name);
+            string msg = "`w" + pItem->name + "`` and `w" + pSeedOnTile->name + "`` have been spliced to make a `$" + treeName + " Tree``!";
+            pPlayer->SendOnTalkBubble(msg, true);
+
+            pWorld->SendTileUpdate(tilePos.x, tilePos.y);
+            return;
+        }
+
         pPlayer->ModifyInventoryItem(pItem->id, -1);
     }
 
@@ -121,7 +229,24 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             return;
         }
         else {
-            pTile->PunchTile((uint8)pPlayer->GetCharData().GetPunchDamage());
+            uint8 punchDamage = (uint8)pPlayer->GetCharData().GetPunchDamage();
+            if(pTileItem->type == ITEM_TYPE_SEED) {
+                TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
+                if(pSeedExtra && pTileItem->growTime > 0) {
+                    uint64 elapsedMS = Time::GetSystemTime() - pSeedExtra->growTime;
+                    uint64 elapsedSec = elapsedMS / 1000;
+                    if(elapsedSec >= pTileItem->growTime) {
+                        WorldObject fruitDrop;
+                        fruitDrop.itemID = pTileItem->id > 0 ? (pTileItem->id - 1) : pTileItem->id;
+                        fruitDrop.count = pSeedExtra->fruitCount >= 2 ? pSeedExtra->fruitCount : (uint8)(2 + (rand() % 11));
+                        pWorld->DropObject(pTile, fruitDrop, true);
+
+                        punchDamage = 255;
+                    }
+                }
+            }
+
+            pTile->PunchTile(punchDamage);
 
             float tileHealth = pTile->GetHealthPercent();
             if(tileHealth > 0) {
@@ -169,6 +294,41 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 pWorld->SetCurrentWeather(pTileItem->weatherID);
                 pTile->RemoveFlag(TILE_FLAG_IS_ON);
                 pWorld->SendCurrentWeatherToAll();
+            }
+
+            if(!pTileItem->HasFlag(ITEM_FLAG_DROPLESS)) {
+                if(pTileItem->type == ITEM_TYPE_SEED) {
+                    uint8 seedCount = (uint8)(1 + (rand() % 2));
+                    if(pTile->HasFlag(TILE_FLAG_WILL_SPAWN_SEEDS_TOO)) {
+                        seedCount = std::max<uint8>(seedCount, 2);
+                    }
+
+                    WorldObject seedDrop;
+                    seedDrop.itemID = pTileItem->id;
+                    seedDrop.count = seedCount;
+                    pWorld->DropObject(pTile, seedDrop, true);
+                }
+                else if(!pTileItem->HasFlag(ITEM_FLAG_SEEDLESS)) {
+                    uint8 rarityToGem = GetRarityToGem(pTileItem->rarity);
+                    bool farmable = rarityToGem > 1;
+
+                    if((rand() % (farmable ? 2 : 5)) == 0) {
+                        DropGems(pWorld, pTile, (uint8)(1 + (rand() % rarityToGem)));
+                    }
+
+                    if((rand() % (farmable ? 3 : 5)) == 0) {
+                        WorldObject seedDrop;
+                        seedDrop.itemID = pTileItem->id + 1;
+                        seedDrop.count = 1;
+                        pWorld->DropObject(pTile, seedDrop, true);
+                    }
+                    else if((rand() % (farmable ? 5 : 9)) == 0) {
+                        WorldObject blockDrop;
+                        blockDrop.itemID = pTileItem->id;
+                        blockDrop.count = 1;
+                        pWorld->DropObject(pTile, blockDrop, true);
+                    }
+                }
             }
     
             pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
