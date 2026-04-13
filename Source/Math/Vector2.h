@@ -10,31 +10,31 @@ public:
     Vector2() : x(0), y(0) {}
     Vector2(T x_, T y_) : x(x_), y(y_) {}
 
-    bool operator==(const Vector2& rhs) 
+    bool operator==(const Vector2& rhs) const
     {
         return x == rhs.x && y == rhs.y;
     }
 
-    bool operator!=(const Vector2<T>& rhs)
+    bool operator!=(const Vector2<T>& rhs) const
     {
         return !(*this == rhs);
     }
 
-    bool operator<(const Vector2<T>& rhs)
+    bool operator<(const Vector2<T>& rhs) const
     {
         if(x < rhs.x) return true;
         else if(y < rhs.y) return true;
         return false;
     }
 
-    bool operator>(const Vector2<T>& rhs)
+    bool operator>(const Vector2<T>& rhs) const
     {
         if(x > rhs.x) return true;
         else if(y > rhs.y) return true;
         return false;
     }
 
-    Vector2<T> operator*(int32 rhs)
+    Vector2<T> operator*(int32 rhs) const
     {
         return Vector2<T>(x * rhs, y * rhs);
     }
@@ -57,12 +57,12 @@ public:
         return *this;
     }
 
-    Vector2<T> operator+(const Vector2<T>& rhs) 
+    Vector2<T> operator+(const Vector2<T>& rhs) const
     {
         return Vector2<T>(x + rhs.x, y + rhs.y);
     }
 
-    Vector2<T> operator-(const Vector2<T>& rhs) 
+    Vector2<T> operator-(const Vector2<T>& rhs) const
     {
         return Vector2<T>(x - rhs.x, y - rhs.y);
     }
