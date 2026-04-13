@@ -29,6 +29,9 @@ public:
     void SendOnTextOverlay(const string& message);
     void SendOnPlayPositioned(const string& fileName, Player* pPlayer = nullptr);
     void SendOnNameChanged(const string& name, Player* pPlayer);
+    void SendOnTradeStatus(int32 netID, const string& headerText, const string& statusData);
+    void SendOnStartTrade(const string& playerName, int32 netID);
+    void SendOnForceTradeEnd();
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);

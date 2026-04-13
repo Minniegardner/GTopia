@@ -13,6 +13,7 @@ public:
     const string& Get() const { return m_str; }
     
     DialogBuilder* AddTextBox(const string& str, bool center = false);
+    DialogBuilder* AddLabel(const string& str, bool center = false);
     DialogBuilder* AddCustomLine(const string& line);
     DialogBuilder* AddLabelWithIcon(const string& str, uint16 itemID, bool big = false, bool center = false);
     DialogBuilder* AddButton(const string& buttonID, const string& text, const string& flags = "NOFLAGS");

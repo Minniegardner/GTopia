@@ -202,6 +202,36 @@ void Player::SendOnNameChanged(const string& name, Player* pPlayer)
     SendCallFunctionPacket(data, pPlayer ? pPlayer->GetNetID() : GetNetID());
 }
 
+void Player::SendOnTradeStatus(int32 netID, const string& headerText, const string& statusData)
+{
+    VariantVector data(5);
+    data[0] = "OnTradeStatus";
+    data[1] = netID;
+    data[2] = "";
+    data[3] = headerText;
+    data[4] = statusData;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendOnStartTrade(const string& playerName, int32 netID)
+{
+    VariantVector data(3);
+    data[0] = "OnStartTrade";
+    data[1] = playerName;
+    data[2] = netID;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendOnForceTradeEnd()
+{
+    VariantVector data(1);
+    data[0] = "OnForceTradeEnd";
+
+    SendCallFunctionPacket(data);
+}
+
 void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;

@@ -22,6 +22,11 @@ DialogBuilder* DialogBuilder::AddTextBox(const string& str, bool center)
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddLabel(const string& str, bool center)
+{
+    return AddTextBox(str, center);
+}
+
 DialogBuilder* DialogBuilder::AddCustomLine(const string& line)
 {
     m_str += line;
