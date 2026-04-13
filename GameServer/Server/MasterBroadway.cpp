@@ -180,7 +180,7 @@ void MasterBroadway::SendCrossServerActionRequest(
     data[6] = targetQuery;
     data[7] = exactMatch;
     data[8] = payloadText;
-    data[9] = payloadNumber;
+    data[9] = (uint32)payloadNumber;
 
     m_pNetClient->Send(data);
 }

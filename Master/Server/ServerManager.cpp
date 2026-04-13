@@ -312,7 +312,7 @@ bool ServerManager::SendCrossServerActionExecute(
     data[4] = sourceUserID;
     data[5] = sourceRawName;
     data[6] = payloadText;
-    data[7] = payloadNumber;
+    data[7] = (uint32)payloadNumber;
     data[8] = (uint32)targetServerID;
     data[9] = targetRawName;
 
