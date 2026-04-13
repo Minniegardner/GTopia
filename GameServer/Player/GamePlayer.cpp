@@ -395,6 +395,13 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         m_gems = 0;
     }
 
+    m_level = result.result->GetField("Level", 0).GetUINT();
+    if(m_level == 0) {
+        m_level = 1;
+    }
+
+    m_xp = result.result->GetField("XP", 0).GetUINT();
+
     m_pRole = GetRoleManager()->GetRole(roleID);
 
     if(!m_pRole) {
@@ -495,6 +502,8 @@ void GamePlayer::SaveToDatabase()
         m_pRole->GetID(),
         ToHex(pInvData, invMemSize),
         m_gems,
+        m_level,
+        m_xp,
         GetNetID()
     );
     
@@ -933,6 +942,20 @@ bool GamePlayer::CanProcessMovePacket(float nextX, float nextY, uint64 nowMS)
     return true;
 }
 
+bool GamePlayer::CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS)
+{
+    const bool sameTile = (tilePos == m_lastSteamStepTilePos);
+    const uint64 elapsed = nowMS > m_lastSteamStepTriggerTime ? (nowMS - m_lastSteamStepTriggerTime) : 0;
+
+    if(sameTile && elapsed < 450) {
+        return false;
+    }
+
+    m_lastSteamStepTilePos = tilePos;
+    m_lastSteamStepTriggerTime = nowMS;
+    return true;
+}
+
 bool GamePlayer::TrySpendGems(int32 amount)
 {
     if(amount <= 0) {
@@ -969,4 +992,41 @@ void GamePlayer::SendOnSetBux()
     data[3] = (uint32)1;
 
     SendCallFunctionPacket(data);
+}
+
+void GamePlayer::AddXP(uint32 amount)
+{
+    if(amount == 0) {
+        return;
+    }
+
+    m_xp += amount;
+
+    bool leveledUp = false;
+    while(true) {
+        const uint32 requiredXP = m_level * (1500 * 5);
+        if(m_xp < requiredXP) {
+            break;
+        }
+
+        m_xp -= requiredXP;
+        m_level += 1;
+        leveledUp = true;
+    }
+
+    if(!leveledUp) {
+        return;
+    }
+
+    if(m_currentWorldID == 0) {
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
+    if(!pWorld) {
+        return;
+    }
+
+    pWorld->SendTalkBubbleAndConsoleToAll("`o" + GetDisplayName() + " `wis now level " + ToString(m_level) + "!", false);
+    pWorld->SendParticleEffectToAll(m_worldPos.x + 12.0f, m_worldPos.y + 15.0f, 46);
 }

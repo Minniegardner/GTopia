@@ -92,6 +92,23 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
         return false;
     }
 
+    // Check if player is banned from this world
+    if(IsPlayerBanned(pPlayer->GetUserID())) {
+        pPlayer->SendOnConsoleMessage("`4Oh no! ``You've been banned from that world! Try again later after ban wears off.");
+        return false;
+    }
+
+    TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(pWorldLockTile) {
+        TileExtra_Lock* pLockExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
+        if(pLockExtra && pLockExtra->minEntryLevel > 1) {
+            if((int32)pPlayer->GetLevel() < pLockExtra->minEntryLevel) {
+                pPlayer->SendOnConsoleMessage("`4You must be level " + ToString(pLockExtra->minEntryLevel) + " to enter this world!``");
+                return false;
+            }
+        }
+    }
+
     pPlayer->SetJoinWorld(false);
     pPlayer->SetCurrentWorld(m_worldID);
     m_players.push_back(pPlayer);
@@ -685,6 +702,152 @@ bool World::IsPlayerWorldAdmin(GamePlayer* pPlayer)
     return false;
 }
 
+bool World::CanPlace(GamePlayer* pPlayer, TileInfo* pTile)
+{
+    if(!pPlayer || !pTile) {
+        return false;
+    }
+
+    if(IsPlayerWorldOwner(pPlayer)) {
+        return true;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem) {
+        return false;
+    }
+
+    if(pItem->type == ITEM_TYPE_LOCK) {
+        return false;
+    }
+
+    if(pItem->HasFlag(ITEM_FLAG_PUBLIC) || pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return true;
+    }
+
+    if(pTile->GetParent() == 0) {
+        TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+        if(!pWorldLockTile) {
+            return true;
+        }
+
+        TileExtra_Lock* pWLExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
+        if(!pWLExtra) {
+            return false;
+        }
+
+        if(pWLExtra->HasAccess(pPlayer->GetUserID())) {
+            return true;
+        }
+
+        return pWorldLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+    }
+
+    TileInfo* pMainLockTile = GetTileManager()->GetTile(pTile->GetParent());
+    if(!pMainLockTile) {
+        return false;
+    }
+
+    TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
+    if(!pMainLockExtra) {
+        return false;
+    }
+
+    ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());
+    const bool isBuilderLock = pMainLockItem && pMainLockItem->id == ITEM_ID_BUILDERS_LOCK;
+
+    if(pMainLockExtra->HasAccess(pPlayer->GetUserID())) {
+        if(isBuilderLock && pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS)) {
+            return pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
+        }
+
+        return true;
+    }
+
+    if(isBuilderLock && pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
+    }
+
+    if(pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool World::CanBreak(GamePlayer* pPlayer, TileInfo* pTile)
+{
+    if(!pPlayer || !pTile) {
+        return false;
+    }
+
+    if(IsPlayerWorldOwner(pPlayer)) {
+        return true;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem) {
+        return false;
+    }
+
+    if(pItem->type == ITEM_TYPE_LOCK) {
+        return false;
+    }
+
+    if(pItem->HasFlag(ITEM_FLAG_PUBLIC) || pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return true;
+    }
+
+    if(pTile->GetParent() == 0) {
+        TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+        if(!pWorldLockTile) {
+            return true;
+        }
+
+        TileExtra_Lock* pWLExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
+        if(!pWLExtra) {
+            return false;
+        }
+
+        if(pWLExtra->HasAccess(pPlayer->GetUserID())) {
+            return true;
+        }
+
+        return pWorldLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+    }
+
+    TileInfo* pMainLockTile = GetTileManager()->GetTile(pTile->GetParent());
+    if(!pMainLockTile) {
+        return false;
+    }
+
+    TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
+    if(!pMainLockExtra) {
+        return false;
+    }
+
+    ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());
+    const bool isBuilderLock = pMainLockItem && pMainLockItem->id == ITEM_ID_BUILDERS_LOCK;
+
+    if(pMainLockExtra->HasAccess(pPlayer->GetUserID())) {
+        if(isBuilderLock && pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS)) {
+            return !pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
+        }
+
+        return true;
+    }
+
+    if(isBuilderLock && pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return !pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
+    }
+
+    if(pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        return true;
+    }
+
+    return false;
+}
+
 void World::DropObject(TileInfo* pTile, WorldObject& obj, bool merge)
 {
     if(!pTile) {
@@ -812,8 +975,7 @@ void World::ModifyObject(const WorldObject& obj)
     packet.worldObjectCount = obj.count;
     packet.worldObjectFlags = obj.flags;
     packet.worldObjectType = -3;
-
-    packet.field4 = obj.objectID; // ?
+    packet.worldObjectID = obj.objectID;
 
     GetObjectManager()->HandleObjectPackets(&packet);
     SendGamePacketToAll(&packet);
@@ -1168,4 +1330,77 @@ found:
 
         ++lookupIterations;
     }
+}
+
+bool World::IsPlayerBanned(uint32 userID)
+{
+    auto it = m_bannedPlayers.find(userID);
+    if(it != m_bannedPlayers.end()) {
+        auto now = std::chrono::steady_clock::now();
+        auto bannedTime = it->second.BannedAt;
+        auto duration = it->second.Duration;
+
+        // Check if ban has expired
+        if(now > (bannedTime + duration)) {
+            m_bannedPlayers.erase(it);
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+void World::AddBannedPlayer(const WorldBanContext& banCtx)
+{
+    if(banCtx.UserID == 0) {
+        return;
+    }
+    m_bannedPlayers[banCtx.UserID] = banCtx;
+}
+
+void World::RemoveBannedPlayer(uint32 userID)
+{
+    if(userID == 0) {
+        return;
+    }
+    m_bannedPlayers.erase(userID);
+}
+
+void World::ClearBannedPlayers()
+{
+    m_bannedPlayers.clear();
+}
+
+void World::BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurationHours)
+{
+    if(!pTarget || !pInvoker) {
+        return;
+    }
+
+    uint32 targetUserID = pTarget->GetUserID();
+    if(targetUserID == 0) {
+        return;
+    }
+
+    // Create ban context
+    WorldBanContext banCtx;
+    banCtx.UserID = targetUserID;
+    banCtx.AdminUserID = pInvoker->GetUserID();
+    banCtx.Duration = std::chrono::hours(banDurationHours);
+    banCtx.BannedAt = std::chrono::steady_clock::now();
+
+    // Add to banned players list
+    AddBannedPlayer(banCtx);
+
+    // Broadcast ban message to all players in world
+    string banMessage = fmt::format("`4[World Ban] `w{} `4was banned from `w{} `4by `w{}`4!",
+        pTarget->GetDisplayName(),
+        GetWorlName(),
+        pInvoker->GetDisplayName());
+    
+    SendConsoleMessageToAll(banMessage);
+    PlaySFXForEveryone("audio/forceequip.wav", 0);
+
+    // Kick the banned player from the world
+    pTarget->LogOff();
 }

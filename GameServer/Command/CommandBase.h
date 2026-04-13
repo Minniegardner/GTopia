@@ -38,7 +38,7 @@ public:
 
         Role* pRole = pPlayer->GetRole();
         if(!pRole || !pRole->HasPerm(GetInfo().perm) || GetInfo().disabled) {
-            pPlayer->SendOnConsoleMessage("`4Unknown command. ``Enter `$/help`` for a list of valid commands.");
+            pPlayer->SendOnConsoleMessage("`4Unknown command.``  Enter `$/?`` for a list of valid commands.");
             return false;
         }
 

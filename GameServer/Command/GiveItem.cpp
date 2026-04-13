@@ -9,7 +9,7 @@ const CommandInfo& GiveItem::GetInfo()
     {
         "/giveitem <userID> <amount> <item name>",
         "Give item to player",
-        ROLE_PERM_MSTATE, // change this
+        ROLE_PERM_COMMAND_GIVEITEM,
         {
             CompileTimeHashString("giveitem")
         }

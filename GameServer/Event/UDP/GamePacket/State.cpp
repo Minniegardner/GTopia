@@ -35,6 +35,19 @@ void State::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacke
     pPlayer->SetWorldPos(pPacket->posX, pPacket->posY);
     pPlayer->SendPositionToWorldPlayers();
 
+    const uint64 nowMS = Time::GetSystemTime();
+    Vector2Int currentTilePos((int32)(pPacket->posX / 32.0f), (int32)(pPacket->posY / 32.0f));
+    TileInfo* pSteppedTile = pWorld->GetTileManager()->GetTile(currentTilePos.x, currentTilePos.y);
+    if(pSteppedTile) {
+        uint16 steppedFG = pSteppedTile->GetFG();
+        if(
+            (steppedFG == ITEM_ID_STEAM_STOMPER || steppedFG == ITEM_ID_STEAM_REVOLVER)
+            && pPlayer->CanTriggerSteamByStep(currentTilePos, nowMS)
+        ) {
+            pWorld->TriggerSteamPulse(pSteppedTile);
+        }
+    }
+
     pPacket->netID = pPlayer->GetNetID();
     pWorld->SendGamePacketToAll(pPacket);
 }

@@ -6,8 +6,8 @@ static TableQuery sQueryTable[] =
 {
     {"SELECT ID FROM Players WHERE Name = '' AND Mac = ? AND PlatformType = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
     {"INSERT INTO Players (GuestName, PlatformType, GuestID, Mac, IP, CreationDate, LastSeenTime) VALUES (?, ?, ?, ?, ?, SYSDATE(), NOW());", QUERY_FLAG_RETURN_INCREMENT},
-    {"SELECT GuestID, RoleID, Inventory, Gems FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
-    {"UPDATE Players SET LastSeenTime = NOW(), RoleID = ?, Inventory = ?, Gems = ? WHERE ID = ?;", QUERY_FLAG_NONE},
+    {"SELECT GuestID, RoleID, Inventory, Gems, Level, XP FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET LastSeenTime = NOW(), RoleID = ?, Inventory = ?, Gems = ?, Level = ?, XP = ? WHERE ID = ?;", QUERY_FLAG_NONE},
     {"SELECT ID FROM Players WHERE IP = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND VID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND GID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
@@ -31,7 +31,7 @@ void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryReques
 QueryRequest MakePlayerByMacReq(const string& mac, uint8 platformType, int32 ownerID);
 QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, uint16 guestID, const string& mac, const string& ip, int32 ownerID);
 QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID);
-QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, int32 ownerID);
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, int32 ownerID);
 QueryRequest MakeGetForInactive(uint32 userID, int32 ownerID);
 QueryRequest MakeCountCreatedAccByIP(const string& ip, int32 ownerID);
 QueryRequest MakePlayerByVIDReq(const string& vid, uint8 platformType, int32 ownerID);

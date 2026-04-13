@@ -8,6 +8,7 @@
 #include "Item/ItemInfoManager.h"
 #include "Player/RoleManager.h"
 #include "../Context.h"
+#include "Utils/StringUtils.h"
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
 #include "../Event/UDP/GameMessage/EnterGame.h"
@@ -29,6 +30,24 @@
 #include "../Command/TogglePlayMod.h"
 #include "../Command/Magic.h"
 #include "../Command/Trade.h"
+#include "../Command/Help.h"
+#include "../Command/Kick.h"
+#include "../Command/Pull.h"
+#include "../Command/Mod.h"
+#include "../Command/Find.h"
+#include "../Command/Warp.h"
+#include "../Command/Who.h"
+#include "../Command/Online.h"
+#include "../Command/Time.h"
+#include "../Command/News.h"
+#include "../Command/Stats.h"
+#include "../Command/Ping.h"
+#include "../Command/Msg.h"
+#include "../Command/Reply.h"
+#include "../Command/Ban.h"
+#include "../Command/RandomPull.h"
+#include "../Command/Warn.h"
+#include "../Command/WarpTo.h"
 
 GameServer::GameServer()
 : NetEntity(NET_ID_GAME_SERVER)
@@ -179,6 +198,24 @@ void GameServer::RegisterEvents()
     RegisterCommand<TogglePlayMod>();
     RegisterCommand<Magic>();
     RegisterCommand<Trade>();
+    RegisterCommand<Help>();
+    RegisterCommand<Kick>();
+    RegisterCommand<Pull>();
+    RegisterCommand<Mod>();
+    RegisterCommand<Find>();
+    RegisterCommand<Warp>();
+    RegisterCommand<Who>();
+    RegisterCommand<Online>();
+    RegisterCommand<Time>();
+    RegisterCommand<News>();
+    RegisterCommand<Stats>();
+    RegisterCommand<Ping>();
+    RegisterCommand<Msg>();
+    RegisterCommand<Reply>();
+    RegisterCommand<Ban>();
+    RegisterCommand<RandomPull>();
+    RegisterCommand<Warn>();
+    RegisterCommand<WarpTo>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
@@ -196,7 +233,7 @@ void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
 
     uint32 hashCmd = HashString(args[0].substr(1));
     if(!m_commands.HasHandler(hashCmd)) {
-        pPlayer->SendOnConsoleMessage("`4Unknown command. ``Enter `$/help`` for a list of valid commands.");
+        pPlayer->SendOnConsoleMessage("`4Unknown command.``  Enter `$/?`` for a list of valid commands.");
         return;
     }
 
@@ -204,6 +241,20 @@ void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
         HashString(args[0].substr(1)),
         pPlayer, args
     );
+}
+
+bool GameServer::CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const
+{
+    if(!pPlayer || info.disabled) {
+        return false;
+    }
+
+    Role* pRole = pPlayer->GetRole();
+    if(!pRole) {
+        return false;
+    }
+
+    return pRole->HasPerm(info.perm);
 }
 
 GamePlayer* GameServer::GetPlayerByUserID(uint32 userID)
@@ -226,6 +277,44 @@ GamePlayer* GameServer::GetPlayerByRawName(const string& playerName)
     }
 
     return nullptr;
+}
+
+std::vector<GamePlayer*> GameServer::FindPlayersByNamePrefix(const string& query, bool sameWorldOnly, uint32 worldID) const
+{
+    std::vector<GamePlayer*> matches;
+    const bool searchAll = query.empty();
+    const string queryLower = searchAll ? string() : ToLower(query);
+
+    for(const auto& [_, pPlayer] : m_playerCache) {
+        if(!pPlayer || !pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+            continue;
+        }
+
+        if(sameWorldOnly && pPlayer->GetCurrentWorld() != worldID) {
+            continue;
+        }
+
+        const string rawNameLower = ToLower(pPlayer->GetRawName());
+
+        if(searchAll) {
+            matches.push_back(pPlayer);
+            continue;
+        }
+
+        if(rawNameLower == queryLower) {
+            return { pPlayer };
+        }
+
+        if(rawNameLower.size() < queryLower.size()) {
+            continue;
+        }
+
+        if(rawNameLower.compare(0, queryLower.size(), queryLower) == 0) {
+            matches.push_back(pPlayer);
+        }
+    }
+
+    return matches;
 }
 
 void GameServer::UpdatePlayers()

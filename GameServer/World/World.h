@@ -6,8 +6,16 @@
 
 #include <deque>
 #include <unordered_set>
+#include <chrono>
 
 class GamePlayer;
+
+struct WorldBanContext {
+    uint32 UserID = 0;
+    uint32 AdminUserID = 0;
+    std::chrono::hours Duration = std::chrono::hours(1);  // Default 1 hour
+    std::chrono::steady_clock::time_point BannedAt = std::chrono::steady_clock::now();
+};
 
 class World : public WorldInfo {
 public:
@@ -46,6 +54,9 @@ public:
     bool IsPlayerWorldOwner(GamePlayer* pPlayer);
     bool IsPlayerWorldAdmin(GamePlayer* pPlayer);
 
+    bool CanPlace(GamePlayer* pPlayer, TileInfo* pTile);
+    bool CanBreak(GamePlayer* pPlayer, TileInfo* pTile);
+
     void DropObject(TileInfo* pTile, WorldObject& obj, bool merge);
 
     void DropObject(const WorldObject& obj);
@@ -65,9 +76,17 @@ public:
     void SetWaitingForClose(bool waiting) { m_waitingForClose = waiting; }
     bool IsWaitingForClose() const { return m_waitingForClose; }
 
+    // Ban system methods (1:1 from GrowtopiaV1)
+    void AddBannedPlayer(const WorldBanContext& banCtx);
+    bool IsPlayerBanned(uint32 userID);
+    void RemoveBannedPlayer(uint32 userID);
+    void ClearBannedPlayers();
+    void BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurationHours = 1);
+
 private:
     uint32 m_worldID;
     std::vector<GamePlayer*> m_players;
+    std::unordered_map<uint32, WorldBanContext> m_bannedPlayers;  // Per-world ban list
 
     Timer m_worldOfflineTime;
     Timer m_worldLastSaveTime;

@@ -75,6 +75,12 @@ public:
     void AddGems(int32 amount);
     void SendOnSetBux();
 
+    uint32 GetLevel() const { return m_level; }
+    void SetLevel(uint32 level) { m_level = std::max<uint32>(1, level); }
+    uint32 GetXP() const { return m_xp; }
+    void SetXP(uint32 xp) { m_xp = xp; }
+    void AddXP(uint32 amount);
+
     bool IsTrading() const { return m_isTrading; }
     void SetTrading(bool trading) { m_isTrading = trading; }
     uint32 GetTradingWithUserID() const { return m_tradingWithUserID; }
@@ -136,6 +142,7 @@ public:
     bool CanProcessMovePacket(float nextX, float nextY, uint64 nowMS);
     bool CanCollectObjectNow() { return Time::GetSystemTime() - m_lastObjectCollectTime >= 60; }
     void ResetCollectObjectTime() { m_lastObjectCollectTime = Time::GetSystemTime(); }
+    bool CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS);
 
     void SendPositionToWorldPlayers();
 
@@ -143,6 +150,10 @@ public:
     Timer& GetLastDBSaveTime() { return m_lastDbSaveTime; }
 
     bool IsLoggingOff() const { return m_loggingOff; }
+    uint32 GetLastWhisperUserID() const { return m_lastWhisperUserID; }
+    void SetLastWhisperUserID(uint32 userID) { m_lastWhisperUserID = userID; }
+    uint64 GetLastWhisperAtMS() const { return m_lastWhisperAtMS; }
+    void SetLastWhisperAtMS(uint64 timeMS) { m_lastWhisperAtMS = timeMS; }
 
 private:
     uint32 m_state;
@@ -165,6 +176,9 @@ private:
     Vector2Float m_lastMovePacketPos;
     bool m_hasLastMovePacketPos = false;
 
+    uint64 m_lastSteamStepTriggerTime = 0;
+    Vector2Int m_lastSteamStepTilePos = { -1, -1 };
+
     uint32 m_guestID;
 
     bool m_loggingOff;
@@ -175,6 +189,8 @@ private:
     Timer m_lastDbSaveTime;
 
     int32 m_gems;
+    uint32 m_level = 1;
+    uint32 m_xp = 0;
 
     bool m_isTrading = false;
     bool m_isTradeAccepted = false;
@@ -188,6 +204,8 @@ private:
     std::vector<TradeOffer> m_tradeOffers = {};
     std::vector<std::string> m_tradeHistory = {};
     std::unordered_set<std::string> m_achievements = {};
+    uint32 m_lastWhisperUserID = 0;
+    uint64 m_lastWhisperAtMS = 0;
 
     Role* m_pRole;
 };

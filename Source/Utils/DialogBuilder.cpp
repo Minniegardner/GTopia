@@ -82,6 +82,12 @@ DialogBuilder* DialogBuilder::AddCheckBox(const string& boxID, const string& tex
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddPlayerPicker(const string& pickerID, const string& buttonText)
+{
+    m_str += "add_player_picker|" + pickerID + "|" + buttonText + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::EmbedData(const string& name, const string& value)
 {
     m_str += "embed_data|" + name + "|" + value + "\n";

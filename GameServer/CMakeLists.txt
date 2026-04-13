@@ -75,6 +75,24 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/TogglePlayMod.cpp
     ${GAME_COMMAND}/Magic.cpp
     ${GAME_COMMAND}/Trade.cpp
+    ${GAME_COMMAND}/Help.cpp
+    ${GAME_COMMAND}/Kick.cpp
+    ${GAME_COMMAND}/Pull.cpp
+    ${GAME_COMMAND}/Mod.cpp
+    ${GAME_COMMAND}/Find.cpp
+    ${GAME_COMMAND}/Warp.cpp
+    ${GAME_COMMAND}/Who.cpp
+    ${GAME_COMMAND}/Online.cpp
+    ${GAME_COMMAND}/Time.cpp
+    ${GAME_COMMAND}/News.cpp
+    ${GAME_COMMAND}/Stats.cpp
+    ${GAME_COMMAND}/Ping.cpp
+    ${GAME_COMMAND}/Msg.cpp
+    ${GAME_COMMAND}/Reply.cpp
+    ${GAME_COMMAND}/Ban.cpp
+    ${GAME_COMMAND}/RandomPull.cpp
+    ${GAME_COMMAND}/Warn.cpp
+    ${GAME_COMMAND}/WarpTo.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp

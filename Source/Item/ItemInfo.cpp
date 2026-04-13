@@ -222,6 +222,9 @@ uint16 GetMaxTilesToLock(uint16 itemID)
         case ITEM_ID_HUGE_LOCK:
             return 200;
 
+        case ITEM_ID_BUILDERS_LOCK:
+            return 200;
+
         default:
             return 0;
     }

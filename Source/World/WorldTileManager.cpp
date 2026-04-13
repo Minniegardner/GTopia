@@ -313,7 +313,7 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
 
         if(
             pNeighbor->GetParent() == parentIndex || pNeighbor == pLockTile ||
-            (vTargetPos.x + neighbors[i][0] == vLockPos.x + neighbors[i][0] && vTargetPos.y + neighbors[i][0] == vLockPos.y + neighbors[i][0])
+            (vTargetPos.x + neighbors[i][0] == vLockPos.x && vTargetPos.y + neighbors[i][1] == vLockPos.y)
         ) {
             return true;
         }

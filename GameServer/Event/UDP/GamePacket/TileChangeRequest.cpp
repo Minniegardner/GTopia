@@ -1,6 +1,7 @@
 #include "TileChangeRequest.h"
 #include "Item/ItemInfoManager.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
+#include "../../../Server/GameServer.h"
 
 namespace {
 
@@ -58,6 +59,38 @@ void DropGems(World* pWorld, TileInfo* pTile, uint8 amount)
     pWorld->DropObject(pTile, gemDrop, true);
 }
 
+string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
+{
+    if(!pWorld || !pTile) {
+        return "DeletedUser";
+    }
+
+    TileInfo* pLockTile = nullptr;
+
+    if(pTile->GetParent() != 0) {
+        pLockTile = pWorld->GetTileManager()->GetTile(pTile->GetParent());
+    }
+    else {
+        pLockTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    }
+
+    if(!pLockTile) {
+        return "DeletedUser";
+    }
+
+    TileExtra_Lock* pLockExtra = pLockTile->GetExtra<TileExtra_Lock>();
+    if(!pLockExtra) {
+        return "DeletedUser";
+    }
+
+    GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
+    if(!pOwner) {
+        return "DeletedUser";
+    }
+
+    return pOwner->GetDisplayName();
+}
+
 }
 
 void TileChangeRequest::OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile)
@@ -105,8 +138,12 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         return;
     }
 
-    if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+    const bool isPunch = pPacket->itemID == ITEM_ID_FIST;
+    const bool canInteract = isPunch ? pWorld->CanBreak(pPlayer, pTile) : pWorld->CanPlace(pPlayer, pTile);
+    if(!canInteract) {
         pPlayer->SendFakePingReply();
+        pPlayer->PlaySFX("punch_locked.wav");
+        pPlayer->SendOnTalkBubble("`wThat area is owned by " + GetOwnerDisplayName(pWorld, pTile), true);
         return;
     }
 
@@ -217,11 +254,6 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
     }
 
     if(pPacket->itemID == ITEM_ID_FIST) {
-        if(pTile->GetFG() == ITEM_ID_STEAM_STOMPER || pTile->GetFG() == ITEM_ID_STEAM_REVOLVER) {
-            pWorld->TriggerSteamPulse(pTile);
-            return;
-        }
-
         if(pPlayer->GetInventory().GetClothByPart(BODY_PART_HAND) == ITEM_ID_FIRE_HOSE) {
             if(pTile->HasFlag(TILE_FLAG_ON_FIRE)) {
                 pTile->RemoveFlag(TILE_FLAG_ON_FIRE);
@@ -337,6 +369,10 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             }
     
             pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
+
+            if(pTileItem->type != ITEM_TYPE_LOCK) {
+                pPlayer->AddXP(1);
+            }
         }
     }
 

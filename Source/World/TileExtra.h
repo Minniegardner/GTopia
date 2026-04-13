@@ -114,7 +114,10 @@ protected:
 
 enum eTileExtraLockFlag
 {
-    TILE_EXTRA_LOCK_FLAG_IGNORE_AIR = 1 << 0
+    TILE_EXTRA_LOCK_FLAG_IGNORE_AIR = 1 << 0,
+    TILE_EXTRA_LOCK_FLAG_AIR_ONLY = 1 << 1,
+    TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS = 1 << 2,
+    TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY = 1 << 3
 };
 
 class TileExtra_Lock : public TileExtra {

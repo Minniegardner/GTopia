@@ -8,7 +8,7 @@ const CommandInfo& TogglePlayMod::GetInfo()
     {
         "/toggleplaymod",
         "Toggle playmods",
-        ROLE_PERM_SMSTATE,
+        ROLE_PERM_COMMAND_TOGGLEPLAYMOD,
         {
             CompileTimeHashString("toggleplaymod")
         }

@@ -31,6 +31,7 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
     const float distance = std::sqrt((dx * dx) + (dy * dy));
 
     if(distance > 96.0f) {
+        pPlayer->SendOnTalkBubble("Too far away to pick that up.", true);
         pPlayer->SendFakePingReply();
         return;
     }
@@ -38,6 +39,15 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
     pPlayer->ResetCollectObjectTime();
 
     if(pObject->itemID == ITEM_ID_GEMS) {
+        GameUpdatePacket pickupAnim;
+        pickupAnim.type = NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST;
+        pickupAnim.netID = pPlayer->GetNetID();
+        pickupAnim.worldObjectID = pObject->objectID;
+        pickupAnim.itemID = pObject->itemID;
+        pickupAnim.worldObjectCount = pObject->count;
+        pickupAnim.flags = NET_GAME_PACKET_FLAGS_PICKUP;
+        pWorld->SendGamePacketToAll(&pickupAnim);
+
         pPlayer->AddGems(pObject->count);
         pPlayer->SendOnSetBux();
         pWorld->RemoveObject(pObject->objectID);
@@ -68,6 +78,7 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
     }
 
     if(!canAccept || freeSpace == 0) {
+        pPlayer->SendOnTalkBubble("Your inventory is full.", true);
         pPlayer->SendFakePingReply();
         return;
     }
@@ -78,7 +89,20 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
         return;
     }
 
+    GameUpdatePacket pickupAnim;
+    pickupAnim.type = NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST;
+    pickupAnim.netID = pPlayer->GetNetID();
+    pickupAnim.worldObjectID = pObject->objectID;
+    pickupAnim.itemID = pObject->itemID;
+    pickupAnim.worldObjectCount = collected;
+    pickupAnim.flags = NET_GAME_PACKET_FLAGS_PICKUP;
+    pWorld->SendGamePacketToAll(&pickupAnim);
+
     pPlayer->ModifyInventoryItem(pObject->itemID, (int16)collected);
+
+    if(collected > 0) {
+        pPlayer->PlaySFX("pickup.wav", 0);
+    }
 
     if(collected >= pObject->count) {
         pWorld->RemoveObject(pObject->objectID);

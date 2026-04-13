@@ -20,6 +20,7 @@ public:
     DialogBuilder* SetDefaultColor(char colorID);
     DialogBuilder* AddSpacer(bool big = false);
     DialogBuilder* AddCheckBox(const string& boxID, const string& text, bool active);
+    DialogBuilder* AddPlayerPicker(const string& pickerID, const string& buttonText);
 
     DialogBuilder* EmbedData(const string& name, const string& value);
 
