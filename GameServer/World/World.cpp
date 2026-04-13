@@ -5,7 +5,6 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Math/Math.h"
-#include "fmt/core.h"
 #include <array>
 
 #include "IO/File.h"
@@ -1394,10 +1393,9 @@ void World::BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurat
     AddBannedPlayer(banCtx);
 
     // Broadcast ban message to all players in world
-    string banMessage = fmt::format("`4[World Ban] `w{} `4was banned from `w{} `4by `w{}`4!",
-        pTarget->GetDisplayName(),
-        GetWorlName(),
-        pInvoker->GetDisplayName());
+    string banMessage = "`4[World Ban] `w" + pTarget->GetDisplayName() +
+        " `4was banned from `w" + GetWorlName() +
+        " `4by `w" + pInvoker->GetDisplayName() + "`4!";
     
     SendConsoleMessageToAll(banMessage);
     PlaySFXForEveryone("audio/forceequip.wav", 0);
