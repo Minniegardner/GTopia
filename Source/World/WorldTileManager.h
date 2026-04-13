@@ -30,6 +30,7 @@ class WorldInfo;
 class WorldTileManager {
 public:
     WorldTileManager();
+    ~WorldTileManager();
 
 public:
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld);

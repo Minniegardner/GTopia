@@ -116,7 +116,87 @@ QueryRequest MakePlayerByHashReq(int32 hash, uint8 platformType, int32 ownerID)
     return req;
 }
 
-void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& rid, const string& gid, int32 hash, int32 ownerID)
+QueryRequest MakeCountPlayerByGidMacIP(const string& gid, const string& mac, const string& ip, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(3);
+    req.data[0] = gid;
+    req.data[1] = mac;
+    req.data[2] = ip;
+    return req;
+}
+
+QueryRequest MakeCountPlayerByVidMacIP(const string& vid, const string& mac, const string& ip, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(3);
+    req.data[0] = vid;
+    req.data[1] = mac;
+    req.data[2] = ip;
+    return req;
+}
+
+QueryRequest MakeCountPlayerBySidMacIP(const string& sid, const string& mac, const string& ip, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(3);
+    req.data[0] = sid;
+    req.data[1] = mac;
+    req.data[2] = ip;
+    return req;
+}
+
+QueryRequest MakeCountPlayerByMacIP(const string& mac, const string& ip, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = mac;
+    req.data[1] = ip;
+    return req;
+}
+
+QueryRequest MakePlayerGrowIDExists(const string& growID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = growID;
+    return req;
+}
+
+QueryRequest MakePlayerGrowIDCreate(uint32 userID, const string& name, const string& pass, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(3);
+    req.data[0] = name;
+    req.data[1] = pass;
+    req.data[2] = userID;
+    return req;
+}
+
+QueryRequest MakeGetPlayerByNameAndPass(const string& name, const string& pass, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = name;
+    req.data[1] = pass;
+    return req;
+}
+
+void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& sid, const string& rid, const string& gid, int32 hash, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
@@ -131,6 +211,11 @@ void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string
     if(!vid.empty()) {
         query += "VID = UNHEX(MD5(?)), ";
         req.data.push_back(vid);
+    }
+
+    if(!sid.empty()) {
+        query += "SID = UNHEX(MD5(?)), ";
+        req.data.push_back(sid);
     }
 
     if(!rid.empty()) {

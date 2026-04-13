@@ -202,6 +202,22 @@ void Player::SendOnNameChanged(const string& name, Player* pPlayer)
     SendCallFunctionPacket(data, pPlayer ? pPlayer->GetNetID() : GetNetID());
 }
 
+void Player::SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass)
+{
+    VariantVector data(4);
+    data[0] = "SetHasGrowID";
+    data[1] = active ? 1 : 0;
+    data[2] = tankIDName;
+    data[3] = tankIDPass;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendSetHasGrowID(bool active)
+{
+    SendSetHasGrowID(active, m_loginDetail.tankIDName, m_loginDetail.tankIDPass);
+}
+
 void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;
@@ -307,8 +323,6 @@ void Player::SendCharacterState(Player* pPlayer)
     packet.characterAccel = charData.GetAccel();
     packet.characterGravity = charData.GetGravity();
     packet.characterFireDamage = charData.GetFireDamage();
-
-    packet.Print();
 
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, m_pPeer);
 }

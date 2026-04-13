@@ -99,9 +99,13 @@ void GamePlayer::LoginGetAccount()
                 return;
             }
     
-            QueryRequest req = MakePlayerByGIDReq(m_loginDetail.mac, m_loginDetail.platformType, GetNetID());
+            QueryRequest req = MakePlayerByMacReq(m_loginDetail.mac, m_loginDetail.platformType, GetNetID());
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_MAC, req);
         }
+    }
+    else {
+        QueryRequest req = MakeGetPlayerByNameAndPass(m_loginDetail.tankIDName, m_loginDetail.tankIDPass, GetNetID());
+        DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_NAME_AND_PASS, req);
     }
 }
 
@@ -121,10 +125,17 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
         m_userID = result.result->GetField("ID", 0).GetUINT();
     }
     else {
-        m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
+        if(m_loginDetail.tankIDName.empty()) {
+            m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
         
-        QueryRequest req = MakeCountCreatedAccByIP(m_address, GetNetID());
-        DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_COUNT_ACC_IP, req);
+            QueryRequest req = MakeCountCreatedAccByIP(m_address, GetNetID());
+            DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_COUNT_ACC_IP, req);
+        }
+        else {
+            SendLogonFailWithLog("`4Unable to log on:`` That `wGrowID`` doesn't seem valid, or the password is wrong. If you don't have one, press `wCancel``, un-check `w'I have a GrowID'``, then click `wConnect``.");
+            return;
+        }
+
         return;
     }
 
@@ -136,7 +147,7 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
     ExecUpdatePlayerIdentifier(
         GetContext()->GetDatabasePool(), m_userID,
-        m_loginDetail.mac, m_loginDetail.vid, m_loginDetail.rid,
+        m_loginDetail.mac, m_loginDetail.vid, m_loginDetail.sid, m_loginDetail.rid,
         m_loginDetail.gid, m_loginDetail.hash, GetNetID()
     );
 }
@@ -178,7 +189,7 @@ void GamePlayer::CreatingAccount(QueryTaskResult&& result)
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
     ExecUpdatePlayerIdentifier(
         GetContext()->GetDatabasePool(), m_userID,
-        m_loginDetail.mac, m_loginDetail.vid, m_loginDetail.rid,
+        m_loginDetail.mac, m_loginDetail.vid, m_loginDetail.sid, m_loginDetail.rid,
         m_loginDetail.gid, m_loginDetail.hash, GetNetID()
     );
 }

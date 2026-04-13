@@ -17,6 +17,7 @@
 #include "../Event/UDP/GameMessage/QuitToExit.h"
 #include "../Event/UDP/GameMessage/DialogReturn.h"
 #include "../Event/UDP/GameMessage/Trash.h"
+#include "../Event/UDP/GameMessage/GrowID.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
@@ -156,6 +157,7 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<QuitToExit>(CompileTimeHashString("quit_to_exit"));
     RegisterMessagePacket<DialogReturn>(CompileTimeHashString("dialog_return"));
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
+    RegisterMessagePacket<GrowID>(CompileTimeHashString("growid"));
 
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();
@@ -246,6 +248,7 @@ void GameServer::Kill()
 
     GetItemInfoManager()->Kill();
     GetRoleManager()->Kill();
+    GetWorldManager()->Kill();
 
     for(auto& [_, pPlayer] : m_playerCache) {
         SAFE_DELETE(pPlayer);

@@ -5,6 +5,7 @@
 #include "../../../Player/Dialog/TrashDialog.h"
 #include "../../../Player/Dialog/LockDialog.h"
 #include "../../../Player/Dialog/RenderWorldDialog.h"
+#include "../../../Player/Dialog/RegisterDialog.h"
 
 void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
@@ -82,6 +83,11 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("render_reply"): {
             RenderWorldDialog::Handle(pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("growid_apply"): {
+            RegisterDialog::Handle(pPlayer, packet);
             break;
         }
     }

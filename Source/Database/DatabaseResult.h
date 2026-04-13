@@ -15,6 +15,21 @@ public:
     bool Parse(MYSQL* pConnection, MYSQL_STMT* pStmt);
 
     Variant& GetField(const string& fieldName, uint32 index) { return m_results[index][fieldName]; }
+    Variant* GetFieldSafe(const string& fieldName, uint32 index) 
+    {
+        if(m_results.size() < index) {
+            return nullptr;
+        }
+
+        for(auto& res : m_results[index]) {
+            if(res.first == fieldName) {
+                return &res.second;
+            }
+        }
+
+        return nullptr;
+    }
+
     VariantMap& GetRow(uint32 index) { return m_results[index]; }
     uint32 GetRowCount() const { return m_results.size(); }
 

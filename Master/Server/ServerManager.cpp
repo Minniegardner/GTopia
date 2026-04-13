@@ -79,12 +79,11 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
 
 void ServerManager::Kill()
 {
-    ServerBroadwayBase::Kill();
-
-    for(auto& [_, pServer] : m_servers) {
-        SAFE_DELETE(pServer);
+    while (!m_servers.empty()) {
+        RemoveServer(m_servers.begin()->first);
     }
 
+    ServerBroadwayBase::Kill();
     m_servers.clear();
 }
 
@@ -278,8 +277,10 @@ void ServerManager::RemoveServer(uint16 serverID)
     ServerInfo* pServer = it->second;
 
     NetClient* pClient = m_pNetSocket->GetClient(pServer->socketConnID);
-    pClient->status = SOCKET_CLIENT_CLOSE;
+    NetServerInfo* pNetInfo = (NetServerInfo*)pClient->data;
+    SAFE_DELETE(pNetInfo);
 
+    pClient->status = SOCKET_CLIENT_CLOSE;
     SAFE_DELETE(pServer);
     m_servers.erase(it);
 }

@@ -56,6 +56,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/QuitToExit.cpp
     ${GAME_EVENT}/UDP/GameMessage/DialogReturn.cpp
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
+    ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
@@ -80,6 +81,7 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/TrashDialog.cpp
     ${GAME_DIALOG}/LockDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
+    ${GAME_DIALOG}/RegisterDialog.cpp
 
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp

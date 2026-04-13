@@ -29,6 +29,8 @@ public:
     void SendOnTextOverlay(const string& message);
     void SendOnPlayPositioned(const string& fileName, Player* pPlayer = nullptr);
     void SendOnNameChanged(const string& name, Player* pPlayer);
+    void SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass);
+    void SendSetHasGrowID(bool active);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);

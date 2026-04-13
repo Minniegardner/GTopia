@@ -52,4 +52,8 @@ public:
     string rendererStaticPath = "";
     uint16 maxLoginsAtOnce = 20;
     uint16 maxAccountsPerIP = 3;
+    uint16 maxAccountsPerGid = 3;
+    uint16 maxAccountsPerVid = 3;
+    uint16 maxAccountsPerSid = 3;
+    uint16 maxAccountsPerMac = 3;
 };

@@ -72,6 +72,9 @@ void ReplaceString(string& str, const string& replaceThis, const string& replace
 std::vector<string> Split(const string& str, char delim);
 std::vector<string> Split(const char* str, uint32 size, char delim);
 
+std::vector<std::string_view> SplitView(const string& str, char delim);
+std::vector<std::string_view> SplitView(const char* str, uint32 size, char delim);
+
 string JoinString(const std::vector<string>& strs, const string& delim, uint32 startIdx = 0, uint32 endIdx = 0);
 
 template<typename T>

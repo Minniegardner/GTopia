@@ -14,9 +14,13 @@ import (
 	"time"
 )
 
+const SERVER_IP = ""
+const LOGIN_URL = ""
+const MAINTENANCE_MESSAGE = "`#Maintenance"
+
 /**
-* actually theres a diffirent system under it but its ok (encryption) -- it was in MathUtils proton
-* and saving just random datas not actual which growtopia encrypts
+* actually theres a diffirent system under it but its ok (encryption)
+* and saving just random data
  */
 func encryptData(data []byte, key int) []byte {
 	result := make([]byte, len(data))
@@ -93,12 +97,7 @@ func loginHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	serverData := fmt.Sprintf(`server|192.168.1.37
-port|18000
-type2|0
-#maint|maintenance
-meta|%s
-RTENDMARKERBS1001`, meta)
+	serverData := "server|" + SERVER_IP + "\nport|18000\ntype2|0\n#maint|" + MAINTENANCE_MESSAGE + "\nloginurl|" + LOGIN_URL + "\nmeta|" + meta + "\nRTENDMARKERBS1001"
 	res.Write([]byte(serverData))
 
 	fmt.Println(serverData + "\n")
@@ -155,12 +154,31 @@ func serverHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	fmt.Println("Started HTTP/S Server")
+	if SERVER_IP == "" {
+		fmt.Println("SERVER_IP can not be empty!")
+		return
+	}
+
+	if LOGIN_URL == "" {
+		fmt.Println("WARNING: LOGIN_URL is empty, if not using newer versions it doesnt matter!")
+	}
+
+	fmt.Println("Started HTTP + HTTPS Server")
 
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/cache/", cacheHandler)
 	mux.HandleFunc("/", serverHandler)
+	mux.HandleFunc("/cache/", cacheHandler)
 
-	log.Fatal(http.ListenAndServe(":80", mux))
+	httpServer := &http.Server{
+		Addr:    ":80",
+		Handler: mux,
+	}
+
+	httpsServer := &http.Server{
+		Addr:    ":443",
+		Handler: mux,
+	}
+
+	go httpServer.ListenAndServe()
+	log.Fatal(httpsServer.ListenAndServeTLS("cert.pem", "key.pem"))
 }
