@@ -1,6 +1,7 @@
 #include "Ban.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../World/WorldManager.h"
 
 const CommandInfo& Ban::GetInfo()
 {
@@ -65,7 +66,7 @@ void Ban::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     GamePlayer* pTarget = filtered[0];
     
     // Get the current world and ban the player from it with 1 hour duration
-    World* pWorld = GetGameServer()->GetWorld(pPlayer->GetCurrentWorld());
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
     if(pWorld) {
         pWorld->BanPlayer(pTarget, pPlayer, 1);  // Ban for 1 hour
         pPlayer->SendOnConsoleMessage("`oBanned ``" + pTarget->GetDisplayName() + "`` from this world for 1 hour.");

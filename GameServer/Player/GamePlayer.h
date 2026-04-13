@@ -117,10 +117,15 @@ public:
     void AddTradeHistory(std::string entry);
     const std::vector<std::string>& GetTradeHistory() const { return m_tradeHistory; }
 
+    void SendWrenchSelf(std::string page = "PlayerInfo");
+    void SendWrenchOthers(GamePlayer* otherPlayer);
+
     const std::unordered_set<std::string>& GetAchievements() const { return m_achievements; }
     bool HasAchievement(const std::string& achievement) const;
     void GiveAchievement(const std::string& achievement);
     void SendAchievement(std::string achievementName);
+    void IncreaseStat(const std::string& statName, uint64 amount = 1);
+    uint64 GetStatCount(const std::string& statName) const;
 
     Role* GetRole() const { return m_pRole; };
     void ToggleCloth(uint16 itemID);
@@ -204,6 +209,7 @@ private:
     std::vector<TradeOffer> m_tradeOffers = {};
     std::vector<std::string> m_tradeHistory = {};
     std::unordered_set<std::string> m_achievements = {};
+    std::unordered_map<std::string, uint64> m_stats = {};
     uint32 m_lastWhisperUserID = 0;
     uint64 m_lastWhisperAtMS = 0;
 

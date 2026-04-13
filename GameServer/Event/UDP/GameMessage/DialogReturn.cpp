@@ -9,6 +9,7 @@
 #include "../../../Player/GamePlayer.h"
 #include "../../../Server/GameServer.h"
 #include "Utils/StringUtils.h"
+#include "Utils/Timer.h"
 
 void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
@@ -24,6 +25,82 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     uint32 hashedDialogName = HashString(pDialogName->value, pDialogName->size);
 
     switch(hashedDialogName) {
+        case CompileTimeHashString("WrenchSelf"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "PlayerInfo" || buttonClicked == "SocialProfile" || buttonClicked == "PlayerStats" ||
+                buttonClicked == "Settings" || buttonClicked == "Titles" || buttonClicked == "Worlds")
+            {
+                pPlayer->SendWrenchSelf(buttonClicked);
+            }
+            break;
+        }
+
+        case CompileTimeHashString("WrenchOthers"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            auto pNetID = packet.Find(CompileTimeHashString("OtherNetID"));
+
+            if(!pButtonClicked || !pNetID) {
+                return;
+            }
+
+            int32 netID = 0;
+            if(ToInt(string(pNetID->value, pNetID->size), netID) != TO_INT_SUCCESS) {
+                return;
+            }
+
+            GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+            if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
+                pPlayer->SendOnConsoleMessage("`4Target is no longer valid.``");
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "Trade") {
+                pPlayer->StartTrade(pTarget);
+            }
+            else if(buttonClicked == "sendpm") {
+                pPlayer->SetLastWhisperUserID(pTarget->GetUserID());
+                pPlayer->SetLastWhisperAtMS(Time::GetSystemTime());
+                pPlayer->SendOnConsoleMessage("`oUse `/msg " + pTarget->GetRawName() + " <message>`` to send a private message.");
+            }
+            else if(buttonClicked == "show_clothes") {
+                pPlayer->SendOnConsoleMessage(
+                    "`oClothes for ``" + pTarget->GetDisplayName() +
+                    "``: Hair `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_HAIR)) +
+                    "`` | Shirt `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHIRT)) +
+                    "`` | Pants `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_PANTS)) +
+                    "`` | Shoes `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHOES)) + "``"
+                );
+            }
+            else if(buttonClicked == "Pull") {
+                std::vector<string> cmdArgs = { "/pull", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "Kick") {
+                std::vector<string> cmdArgs = { "/kick", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "Ban") {
+                std::vector<string> cmdArgs = { "/ban", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "Add" || buttonClicked == "friend_add") {
+                pPlayer->SendOnConsoleMessage("`oFriend system is not enabled in this source yet.");
+            }
+            else if(buttonClicked == "Ignore" || buttonClicked == "ignore_player") {
+                pPlayer->SendOnConsoleMessage("`oIgnore system is not enabled in this source yet.");
+            }
+            else if(buttonClicked == "Report" || buttonClicked == "report_player") {
+                pPlayer->SendOnConsoleMessage("`oReport queued for review on ``" + pTarget->GetDisplayName() + "``.");
+            }
+            break;
+        }
+
         case CompileTimeHashString("popup"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
             auto pNetID = packet.Find(CompileTimeHashString("netID"));
@@ -38,11 +115,49 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
-            if(buttonClicked == "trade") {
-                GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
-                if(pTarget && pTarget != pPlayer && pTarget->GetCurrentWorld() == pPlayer->GetCurrentWorld()) {
-                    pPlayer->StartTrade(pTarget);
-                }
+            GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+            if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
+                pPlayer->SendOnConsoleMessage("`4Target is no longer valid.``");
+                return;
+            }
+
+            if(buttonClicked == "trade" || buttonClicked == "Trade") {
+                pPlayer->StartTrade(pTarget);
+            }
+            else if(buttonClicked == "pull" || buttonClicked == "Pull") {
+                std::vector<string> cmdArgs = { "/pull", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "kick" || buttonClicked == "Kick") {
+                std::vector<string> cmdArgs = { "/kick", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "ban" || buttonClicked == "Ban") {
+                std::vector<string> cmdArgs = { "/ban", pTarget->GetRawName() };
+                GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            }
+            else if(buttonClicked == "sendpm" || buttonClicked == "PM") {
+                pPlayer->SetLastWhisperUserID(pTarget->GetUserID());
+                pPlayer->SetLastWhisperAtMS(Time::GetSystemTime());
+                pPlayer->SendOnConsoleMessage("`oUse `/msg " + pTarget->GetRawName() + " <message>`` to send a private message.");
+            }
+            else if(buttonClicked == "show_clothes" || buttonClicked == "Show Clothes") {
+                pPlayer->SendOnConsoleMessage(
+                    "`oClothes for ``" + pTarget->GetDisplayName() +
+                    "``: Hair `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_HAIR)) +
+                    "`` | Shirt `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHIRT)) +
+                    "`` | Pants `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_PANTS)) +
+                    "`` | Shoes `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHOES)) + "``"
+                );
+            }
+            else if(buttonClicked == "friend_add" || buttonClicked == "Add") {
+                pPlayer->SendOnConsoleMessage("`oFriend system is not enabled on this source yet.");
+            }
+            else if(buttonClicked == "ignore_player" || buttonClicked == "Ignore") {
+                pPlayer->SendOnConsoleMessage("`oIgnore system is not enabled on this source yet.");
+            }
+            else if(buttonClicked == "report_player" || buttonClicked == "Report") {
+                pPlayer->SendOnConsoleMessage("`oReport sent for review: `w" + pTarget->GetDisplayName() + "``.");
             }
 
             break;

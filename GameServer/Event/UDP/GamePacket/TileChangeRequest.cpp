@@ -130,6 +130,7 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
     }
 
     if(pItem->type == ITEM_TYPE_CONSUMABLE) {
+        pPlayer->IncreaseStat("CONSUMABLES_USED");
         return;
     }
 
@@ -373,6 +374,22 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             if(pTileItem->type != ITEM_TYPE_LOCK) {
                 pPlayer->AddXP(1);
             }
+
+            if(pTileItem->type == ITEM_TYPE_SEED) {
+                pPlayer->IncreaseStat("TREES_HARVESTED");
+            }
+            else {
+                pPlayer->IncreaseStat("BLOCKS_DESTROYED");
+            }
+        }
+    }
+
+    if(pPacket->itemID != ITEM_ID_FIST) {
+        if(pItem->type == ITEM_TYPE_LOCK) {
+            pPlayer->IncreaseStat("LOCKS_PLACED");
+        }
+        else if(pItem->type != ITEM_TYPE_SEED) {
+            pPlayer->IncreaseStat("BLOCKS_PLACED");
         }
     }
 

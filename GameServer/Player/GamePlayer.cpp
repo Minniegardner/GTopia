@@ -272,6 +272,129 @@ void GamePlayer::SendForceTradeEnd()
     SendOnConsoleMessage("`oTrade ended.``");
 }
 
+void GamePlayer::SendWrenchSelf(std::string page)
+{
+    World* pWorld = nullptr;
+    if(!GetWorldManager()->GetWorldByID(GetCurrentWorld())) {
+        return;
+    }
+
+    if(GetCurrentWorld() != 0) {
+        pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o');
+
+    if(page.empty() || page == "PlayerInfo") {
+        db.AddLabelWithIcon("`w" + GetDisplayName() + "``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oCurrent world: `w" + ToString(GetCurrentWorld()) + "``")
+        ->AddTextBox("`oLevel: `w" + ToString(GetLevel()) + "``")
+        ->AddTextBox("`oXP: `w" + ToString(GetXP()) + "``")
+        ->AddSpacer()
+        ->AddButton("PlayerInfo", "Player Info")
+        ->AddButton("SocialProfile", "Social Profile")
+        ->AddButton("PlayerStats", "Player Stats")
+        ->AddButton("Settings", "Settings")
+        ->AddSpacer()
+        ->AddButton("Worlds", "My Worlds")
+        ->AddButton("Titles", "Title Settings")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else if(page == "SocialProfile") {
+        db.AddLabelWithIcon("`wSocial Profile``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oThis source does not currently have the full friend profile system enabled.")
+        ->AddTextBox("`oYou can still use the wrench to inspect your own info and open the available tabs.")
+        ->AddSpacer()
+        ->AddButton("PlayerInfo", "Back")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else if(page == "PlayerStats") {
+        db.AddLabelWithIcon("`wPlayer Stats``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oStatistics and achievement tracking are active in this source.")
+        ->AddTextBox("`oBlocks placed: `w" + ToString(GetStatCount("BLOCKS_PLACED")) + "``")
+        ->AddTextBox("`oBlocks destroyed: `w" + ToString(GetStatCount("BLOCKS_DESTROYED")) + "``")
+        ->AddTextBox("`oTrees harvested: `w" + ToString(GetStatCount("TREES_HARVESTED")) + "``")
+        ->AddTextBox("`oLocks placed: `w" + ToString(GetStatCount("LOCKS_PLACED")) + "``")
+        ->AddTextBox("`oConsumables used: `w" + ToString(GetStatCount("CONSUMABLES_USED")) + "``")
+        ->AddSpacer()
+        ->AddButton("PlayerInfo", "Back")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else if(page == "Settings") {
+        db.AddLabelWithIcon("`wSettings``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oThis source does not yet expose the full V1 profile toggles.")
+        ->AddTextBox("`oUse the other tabs to inspect your level, stats, and world state.")
+        ->AddSpacer()
+        ->AddButton("PlayerInfo", "Back")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else if(page == "Titles") {
+        db.AddLabelWithIcon("`wTitle Settings``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oTitle customization is not fully wired in this source yet.")
+        ->AddSpacer()
+        ->AddButton("PlayerInfo", "Back")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else if(page == "Worlds") {
+        db.AddLabelWithIcon("`wMy Worlds``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oYour current world is `w" + ToString(GetCurrentWorld()) + "``.");
+
+        if(pWorld) {
+            db.AddTextBox("`oPlayers inside: `w" + ToString(pWorld->GetPlayerCount()) + "``");
+        }
+
+        db.AddSpacer()
+        ->AddButton("PlayerInfo", "Back")
+        ->EndDialog("WrenchSelf", "", "Continue");
+    }
+    else {
+        SendWrenchSelf("PlayerInfo");
+        return;
+    }
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
+{
+    if(!otherPlayer) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+    ->EmbedData("MyNetID", GetNetID())
+    ->EmbedData("OtherNetID", otherPlayer->GetNetID())
+    ->AddLabelWithIcon("`w" + otherPlayer->GetDisplayName() + "``", ITEM_ID_WRENCH, true)
+    ->AddTextBox("`oCurrent level: `w" + ToString(otherPlayer->GetLevel()) + "``")
+    ->AddTextBox("`oCurrent world: `w" + ToString(otherPlayer->GetCurrentWorld()) + "``")
+    ->AddSpacer()
+    ->AddButton("Trade", "`wTrade``")
+    ->AddButton("sendpm", "`wSend Message``")
+    ->AddButton("show_clothes", "`wView worn clothes``");
+
+    Role* pRole = GetRole();
+    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_PULL)) {
+        db.AddButton("Pull", "`#Pull``");
+    }
+
+    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_KICK)) {
+        db.AddButton("Kick", "`4Kick``");
+    }
+
+    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_BAN)) {
+        db.AddButton("Ban", "`4World Ban``");
+    }
+
+    db.AddButton("Add", "`wAdd as Friend``")
+    ->AddButton("Ignore", "`wIgnore Player``")
+    ->AddButton("Report", "`wReport Player``")
+    ->EndDialog("WrenchOthers", "", "Continue");
+
+    SendOnDialogRequest(db.Get());
+}
+
 void GamePlayer::AddTradeHistory(std::string entry)
 {
     if(entry.empty()) {
@@ -306,6 +429,42 @@ void GamePlayer::SendAchievement(std::string achievementName)
     }
 
     SendOnConsoleMessage("`wAchievement unlocked:`` " + achievementName);
+}
+
+void GamePlayer::IncreaseStat(const std::string& statName, uint64 amount)
+{
+    if(statName.empty() || amount == 0) {
+        return;
+    }
+
+    uint64& count = m_stats[statName];
+    count += amount;
+
+    if(statName == "BLOCKS_PLACED" && count >= 100) {
+        GiveAchievement("Builder (Classic)");
+    }
+    else if(statName == "TREES_HARVESTED" && count >= 100) {
+        GiveAchievement("Farmer (Classic)");
+    }
+    else if(statName == "BLOCKS_DESTROYED" && count >= 100) {
+        GiveAchievement("Demolition (Classic)");
+    }
+    else if(statName == "LOCKS_PLACED" && count >= 1) {
+        GiveAchievement("Mine, All Mine (Classic)");
+    }
+    else if(statName == "CONSUMABLES_USED" && count >= 100) {
+        GiveAchievement("Paint The Town Blue (Classic)");
+    }
+}
+
+uint64 GamePlayer::GetStatCount(const std::string& statName) const
+{
+    auto it = m_stats.find(statName);
+    if(it == m_stats.end()) {
+        return 0;
+    }
+
+    return it->second;
 }
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
@@ -1012,6 +1171,10 @@ void GamePlayer::AddXP(uint32 amount)
         m_xp -= requiredXP;
         m_level += 1;
         leveledUp = true;
+    }
+
+    if(m_level >= 10) {
+        GiveAchievement("Ding! (Classic)");
     }
 
     if(!leveledUp) {
