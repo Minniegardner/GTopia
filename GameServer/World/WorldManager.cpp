@@ -110,7 +110,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
         }
 
         case TCP_PACKET_WORLD_SEND_PLAYER: {
-            if(result.size() < 7) {
+            if(result.size() < 3) {
                 return;
             }
 
@@ -125,6 +125,14 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             if(oprResult != TCP_RESULT_OK) {
                 pPlayer->SendOnFailedToEnterWorld();
                 pPlayer->SendOnConsoleMessage("Unable to move you to this world, please try again later");
+                pPlayer->SetJoinWorld(false);
+                return;
+            }
+
+            if(result.size() < 7) {
+                pPlayer->SendOnFailedToEnterWorld();
+                pPlayer->SendOnConsoleMessage("Unable to move you to this world, invalid master response");
+                pPlayer->SetJoinWorld(false);
                 return;
             }
             
