@@ -22,6 +22,16 @@ DialogBuilder* DialogBuilder::AddTextBox(const string& str, bool center)
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddCustomLine(const string& line)
+{
+    m_str += line;
+    if(m_str.empty() || m_str.back() != '\n') {
+        m_str += "\n";
+    }
+
+    return this;
+}
+
 DialogBuilder* DialogBuilder::AddLabelWithIcon(const string& str, uint16 itemID, bool big, bool center)
 {
     m_str += "add_label_with_icon|";
