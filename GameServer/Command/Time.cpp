@@ -2,7 +2,7 @@
 
 #include <ctime>
 
-const CommandInfo& Time::GetInfo()
+const CommandInfo& CmdTime::GetInfo()
 {
     static CommandInfo info =
     {
@@ -17,7 +17,7 @@ const CommandInfo& Time::GetInfo()
     return info;
 }
 
-void Time::Execute(GamePlayer* pPlayer, std::vector<string>& args)
+void CmdTime::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 {
     if(!pPlayer || args.empty() || !CheckPerm(pPlayer)) {
         return;

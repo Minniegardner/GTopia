@@ -206,7 +206,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<Warp>();
     RegisterCommand<Who>();
     RegisterCommand<Online>();
-    RegisterCommand<Time>();
+    RegisterCommand<CmdTime>();
     RegisterCommand<News>();
     RegisterCommand<Stats>();
     RegisterCommand<Ping>();

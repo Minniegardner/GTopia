@@ -2,7 +2,7 @@
 
 #include "CommandBase.h"
 
-class Time : public CommandBase<Time> {
+class CmdTime : public CommandBase<CmdTime> {
 public:
     static const CommandInfo& GetInfo();
 
