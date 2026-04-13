@@ -4,6 +4,7 @@
 #include "Player/Role.h"
 #include "Utils/Timer.h"
 #include "Player/PlayMod.h"
+#include "Packet/GamePacket.h"
 
 #include <unordered_set>
 
