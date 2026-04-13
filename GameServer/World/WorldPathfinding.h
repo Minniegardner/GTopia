@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Precompiled.h"
-#include "../Math/Vector2.h"
+#include "../../Source/Math/Vector2.h"
 
 class World;
 class GamePlayer;

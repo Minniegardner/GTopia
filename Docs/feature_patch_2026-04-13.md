@@ -12,12 +12,13 @@
 - Added and wired tile machine data support for vending and Magplant-like blocks.
 - Added Magplant remote position state to the player model.
 - Added door use packet handling and checkpoint respawn updates.
+- Tightened vending payment handling so lock change is only returned after all final checks pass.
 - Fixed `WorldPathfinding` build issues for cross-platform compilation.
 
 ## Security / Stability Notes
 - Machine interactions now revalidate world/tile state before applying changes.
 - Item compatibility checks block unsupported items from vending and Magplant storage.
-- Vending interactions use lock-based payment logic and re-check machine state before completing.
+- Vending interactions use lock-based payment logic and keep lock refund/removal atomic.
 - Door and machine interactions are gated through world access checks.
 
 ## Gameplay Coverage

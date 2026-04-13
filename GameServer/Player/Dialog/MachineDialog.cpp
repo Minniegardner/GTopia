@@ -144,7 +144,7 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
 
     if(ownerAccess) {
         if(pData->stock < 1) {
-            db.AddTextBox("This machine is empty")
+            db.AddTextBox("This machine is empty.")
               ->AddItemPicker("SelectItem", "`wPut an item in``", "Choose an item to put in the machine!")
               ->EndDialog("VendEdit", "", "Close");
         }
@@ -213,10 +213,10 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
                 }
             }
 
-            db.AddSpacer()
-              ->AddTextBox("You have " + ToString(GetWorldLockValue(pPlayer)) + " World Locks.")
-              ->AddTextInput("BuyCount", "How many would you like to buy?", "0", 3)
-              ->EndDialog("VendEdit", "Buy", "Close");
+                        db.AddSpacer()
+                            ->AddTextBox("You have " + ToString(GetWorldLockValue(pPlayer)) + " World Locks.")
+                            ->AddTextInput("BuyCount", "How many would you like to buy?", "0", 3)
+                            ->EndDialog("VendConfirm", "Buy", "Close");
         }
     }
 
@@ -401,7 +401,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     string dialogName(pDialogName->value, pDialogName->size);
 
-    if(dialogName == "VendConfirm" || (dialogName == "VendEdit" && !ownerAccess)) {
+    if(dialogName == "VendConfirm") {
         TileExtra_Vending* pData = pTile->GetExtra<TileExtra_Vending>();
         if(!pData) {
             return;
@@ -487,36 +487,10 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
-        int32 remaining = totalWorldLocks - totalPriceWLS;
-        int32 returnBGL = remaining / 10000;
-        remaining %= 10000;
-        int32 returnDL = remaining / 100;
-        remaining %= 100;
-        int32 returnWL = remaining;
-
         RemoveAllLockTypes(pPlayer);
-
-        if(returnWL > 0) {
-            pPlayer->ModifyInventoryItem(ITEM_ID_WORLD_LOCK, (int16)returnWL);
-        }
-        if(returnDL > 0) {
-            pPlayer->ModifyInventoryItem(ITEM_ID_DIAMOND_LOCK, (int16)returnDL);
-        }
-        if(returnBGL > 0) {
-            pPlayer->ModifyInventoryItem(ITEM_ID_BLUE_GEM_LOCK, (int16)returnBGL);
-        }
-
-        if(!pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)std::min<int32>(totalItemsGive, 200))) {
-            pPlayer->SendOnTalkBubble("That won't fit into your inventory", true);
-            return;
-        }
+        ReturnLockChange(pPlayer, totalWorldLocks - totalPriceWLS);
 
         pPlayer->ModifyInventoryItem(pData->itemID, (int16)totalItemsGive);
-
-        if(totalItemsGive > pData->stock) {
-            pPlayer->SendOnTalkBubble("The machine is already empty!", true);
-            return;
-        }
 
         pData->stock -= totalItemsGive;
         pData->earnings += totalPriceWLS;
@@ -526,7 +500,8 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             pData->stock = 0;
         }
 
-        pWorld->SendConsoleMessageToAll("`7[```9" + pPlayer->GetRawName() + " bought " + ToString(totalItemsGive) + " " + pStock->name + " for " + ToString(totalPriceWLS) + " World Locks.```7]``");
+        ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+        pWorld->SendConsoleMessageToAll("`7[```9" + pPlayer->GetRawName() + " bought " + ToString(totalItemsGive) + " " + string(pStock ? pStock->name : "item") + " for " + ToString(totalPriceWLS) + " World Locks.```7]``");
         pWorld->PlaySFXForEveryone("cash_register.wav");
         pWorld->SendTileUpdate(pTile);
         return;
@@ -645,6 +620,8 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         ParseIntField(packet, CompileTimeHashString("MagAdd"), addAmount);
         ParseIntField(packet, CompileTimeHashString("MagTake"), takeAmount);
 
+        ItemInfo* pStock = GetItemInfoManager()->GetItemByID((uint16)itemID);
+
         int32 selectedItemInt = -1;
         if(ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
             if(selectedItemInt >= 0 && selectedItemInt <= UINT16_MAX) {
@@ -656,6 +633,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
                 pData->itemID = (uint16)selectedItemInt;
                 pData->itemCount = 0;
+                pStock = pSelectedItem;
                 pWorld->SendTileUpdate(pTile);
                 return;
             }
@@ -675,7 +653,6 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         if(itemID >= 0 && itemID <= UINT16_MAX) {
-            ItemInfo* pStock = GetItemInfoManager()->GetItemByID((uint16)itemID);
             if(pStock && IsCompatibleMagplantItem(pTile->GetDisplayedItem(), pStock)) {
                 const uint16 machineID = pTile->GetDisplayedItem();
                 pData->itemID = (uint16)itemID;
