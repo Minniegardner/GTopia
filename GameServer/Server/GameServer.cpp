@@ -72,6 +72,11 @@ void GameServer::OnEventReceive(ENetEvent& event)
     switch(msgType) {
         case NET_MESSAGE_GENERIC_TEXT:
         case NET_MESSAGE_GAME_MESSAGE: {
+            if(!pPlayer->CanProcessGameMessage()) {
+                pPlayer->SendFakePingReply();
+                return;
+            }
+
             LOGGER_LOG_DEBUG("%s", GetTextFromEnetPacket(event.packet));
 
             if(pPlayer->HasState(PLAYER_STATE_LOGIN_REQUEST)) {

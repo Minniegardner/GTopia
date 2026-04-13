@@ -199,6 +199,18 @@ protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
 
+class TileExtra_SpiritStorage : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_SPIRIT_STORAGE;
+
+    TileExtra_SpiritStorage() : TileExtra(TYPE) {}
+
+    int32 spiritCount = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
 /**
  * 
  * 

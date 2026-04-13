@@ -6,6 +6,7 @@
 #include "IO/File.h"
 
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
+#include "../Event/UDP/GamePacket/ItemActivateObjectRequest.h"
 #include "../Event/UDP/GamePacket/TileChangeRequest.h"
 #include "../Event/UDP/GamePacket/State.h"
 
@@ -215,12 +216,17 @@ World* WorldManager::GetWorldByName(const string &worldName)
 void WorldManager::RegisterEvents()
 {
     RegisterPacketEvent<ItemActivateRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST);
+    RegisterPacketEvent<ItemActivateObjectRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST);
     RegisterPacketEvent<TileChangeRequest>(NET_GAME_PACKET_TILE_CHANGE_REQUEST);
     RegisterPacketEvent<State>(NET_GAME_PACKET_STATE);
 }
 
 void WorldManager::OnHandleGamePacket(ENetEvent& event)
 {
+    if(!event.packet || event.packet->dataLength < (sizeof(GameUpdatePacket) + sizeof(uint32))) {
+        return;
+    }
+
     GameUpdatePacket* pGamePacket = GetGamePacketFromEnetPacket(event.packet);
     if(!pGamePacket) {
         return;
@@ -232,6 +238,11 @@ void WorldManager::OnHandleGamePacket(ENetEvent& event)
     }
 
     if(!pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+        return;
+    }
+
+    if(!pPlayer->CanProcessGamePacket((eGamePacketType)pGamePacket->type)) {
+        pPlayer->SendFakePingReply();
         return;
     }
 
@@ -259,6 +270,8 @@ void WorldManager::UpdateWorlds()
         if(!pWorld || pWorld->IsWaitingForClose()) {
             continue;
         }
+
+        pWorld->UpdateSteamActivations();
         
         if(pWorld->GetPlayerCount() == 0 && (pWorld->GetOfflineTime().GetElapsedTime() >= 10 * 60 * 1000)) {
             pWorld->SetWaitingForClose(true);

@@ -24,6 +24,9 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_COMPONENT:
             return TILE_EXTRA_TYPE_COMPONENT;
 
+        case ITEM_TYPE_SPIRIT_STORAGE:
+            return TILE_EXTRA_TYPE_SPIRIT_STORAGE;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
@@ -49,6 +52,9 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_PROVIDER:
             return new TileExtra_Provider();
+
+        case TILE_EXTRA_TYPE_SPIRIT_STORAGE:
+            return new TileExtra_SpiritStorage();
 
         default:
             return nullptr;
@@ -160,6 +166,12 @@ void TileExtra_Provider::Serialize(MemoryBuffer& memBuffer, bool write, bool dat
         // long
         // same as building blocks machine
     }
+}
+
+void TileExtra_SpiritStorage::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(spiritCount, write);
 }
 
 void TileExtra_Lab::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)

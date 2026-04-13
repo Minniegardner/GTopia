@@ -130,6 +130,12 @@ public:
     bool CanActivateItemNow() { return Time::GetSystemTime() - m_lastItemActivateTime >= 100; };
     void ResetItemActiveTime() { m_lastItemActivateTime = Time::GetSystemTime(); }
 
+    bool CanProcessGamePacket(eGamePacketType packetType);
+    bool CanProcessGameMessage();
+    bool CanProcessMovePacket(float nextX, float nextY, uint64 nowMS);
+    bool CanCollectObjectNow() { return Time::GetSystemTime() - m_lastObjectCollectTime >= 60; }
+    void ResetCollectObjectTime() { m_lastObjectCollectTime = Time::GetSystemTime(); }
+
     void SendPositionToWorldPlayers();
 
     Timer& GetLastActionTime() { return m_lastActionTime; }
@@ -143,7 +149,20 @@ private:
     uint32 m_currentWorldID;
 
     uint64 m_lastItemActivateTime;
+    uint64 m_lastObjectCollectTime;
     Timer m_lastActionTime;
+
+    Timer m_lastCheckGamePacketWindow;
+    int32 m_gamePacketsInWindow = 0;
+
+    Timer m_lastCheckGameMessageWindow;
+    int32 m_gameMessagesInWindow = 0;
+
+    Timer m_lastCheckMoveWindow;
+    int32 m_moveViolationsInWindow = 0;
+    uint64 m_lastMovePacketTime = 0;
+    Vector2Float m_lastMovePacketPos;
+    bool m_hasLastMovePacketPos = false;
 
     uint32 m_guestID;
 

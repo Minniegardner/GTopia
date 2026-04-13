@@ -4,6 +4,9 @@
 #include "World/WorldInfo.h"
 #include "Packet/GamePacket.h"
 
+#include <deque>
+#include <unordered_set>
+
 class GamePlayer;
 
 class World : public WorldInfo {
@@ -49,6 +52,11 @@ public:
     void RemoveObject(uint32 objectID);
     void ModifyObject(const WorldObject& obj);
 
+    void TriggerSteamPulse(TileInfo* pTile);
+    void QueueSteamActivation(TileInfo* pTile, uint32 delayMS);
+    void UpdateSteamActivations();
+    void SendSteamPacket(uint8 mode, const Vector2Int& tilePos);
+
     void SendCurrentWeatherToAll();
     uint32 GetPlayerCount() const { return m_players.size(); }
     Timer& GetLastSaveTime() { return m_worldLastSaveTime; }
@@ -63,6 +71,15 @@ private:
 
     Timer m_worldOfflineTime;
     Timer m_worldLastSaveTime;
+
+    struct SteamActivationEntry {
+        Vector2Int tilePos;
+        uint64 activateAtMS = 0;
+    };
+
+    std::deque<SteamActivationEntry> m_steamActivationQueue;
+    std::unordered_set<uint32> m_steamActivationQueuedIndices;
+    uint64 m_lastSteamActivationTick = 0;
 
     bool m_waitingForClose;
 };

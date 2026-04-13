@@ -65,6 +65,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/ItemActivateObjectRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/State.cpp
 

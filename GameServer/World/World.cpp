@@ -5,8 +5,77 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Math/Math.h"
+#include <array>
 
 #include "IO/File.h"
+
+namespace {
+
+enum eSteamDirection {
+    STEAM_DIR_NONE,
+    STEAM_DIR_UP,
+    STEAM_DIR_RIGHT,
+    STEAM_DIR_DOWN,
+    STEAM_DIR_LEFT
+};
+
+bool IsReverseDirection(eSteamDirection lastDir, eSteamDirection nextDir)
+{
+    return
+        (lastDir == STEAM_DIR_UP && nextDir == STEAM_DIR_DOWN) ||
+        (lastDir == STEAM_DIR_DOWN && nextDir == STEAM_DIR_UP) ||
+        (lastDir == STEAM_DIR_LEFT && nextDir == STEAM_DIR_RIGHT) ||
+        (lastDir == STEAM_DIR_RIGHT && nextDir == STEAM_DIR_LEFT);
+}
+
+TileInfo* GetTileByDirection(World* pWorld, const Vector2Int& pos, eSteamDirection dir)
+{
+    if(!pWorld) {
+        return nullptr;
+    }
+
+    switch(dir) {
+        case STEAM_DIR_UP: return pWorld->GetTileManager()->GetTile(pos.x, pos.y - 1);
+        case STEAM_DIR_RIGHT: return pWorld->GetTileManager()->GetTile(pos.x + 1, pos.y);
+        case STEAM_DIR_DOWN: return pWorld->GetTileManager()->GetTile(pos.x, pos.y + 1);
+        case STEAM_DIR_LEFT: return pWorld->GetTileManager()->GetTile(pos.x - 1, pos.y);
+        default: return nullptr;
+    }
+}
+
+bool IsSteamConductor(TileInfo* pTile)
+{
+    if(!pTile) {
+        return false;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    return pItem && pItem->type == ITEM_TYPE_STEAMPUNK;
+}
+
+bool ActivateFunctionalSteamTile(World* pWorld, TileInfo* pTile, uint32 connectorCount)
+{
+    if(!pWorld || !pTile) {
+        return false;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem) {
+        return false;
+    }
+
+    switch(pItem->id) {
+        case ITEM_ID_STEAM_VENT:
+        case ITEM_ID_SPIRIT_STORAGE_UNIT:
+        case ITEM_ID_STEAM_DOOR: {
+            pWorld->QueueSteamActivation(pTile, connectorCount * 115);
+            return true;
+        }
+        default: return false;
+    }
+}
+
+}
 
 World::World()
 : m_worldID(0)
@@ -748,4 +817,355 @@ void World::ModifyObject(const WorldObject& obj)
 
     GetObjectManager()->HandleObjectPackets(&packet);
     SendGamePacketToAll(&packet);
+}
+
+void World::SendSteamPacket(uint8 mode, const Vector2Int& tilePos)
+{
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_STEAM;
+    packet.tileX = tilePos.x;
+    packet.tileY = tilePos.y;
+    packet.netID = -1;
+    packet.field2 = mode;
+    packet.particleEffectType = static_cast<float>(mode);
+
+    SendGamePacketToAll(&packet);
+}
+
+void World::QueueSteamActivation(TileInfo* pTile, uint32 delayMS)
+{
+    if(!pTile) {
+        return;
+    }
+
+    const Vector2Int tilePos = pTile->GetPos();
+    const Vector2Int size = GetTileManager()->GetSize();
+    const uint32 tileIndex = (uint32)(tilePos.x + tilePos.y * size.x);
+
+    if(m_steamActivationQueuedIndices.find(tileIndex) != m_steamActivationQueuedIndices.end()) {
+        return;
+    }
+
+    SteamActivationEntry entry;
+    entry.tilePos = tilePos;
+    entry.activateAtMS = Time::GetSystemTime() + delayMS;
+
+    m_steamActivationQueue.push_back(entry);
+    m_steamActivationQueuedIndices.insert(tileIndex);
+}
+
+void World::UpdateSteamActivations()
+{
+    if(m_steamActivationQueue.empty()) {
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    if(nowMS - m_lastSteamActivationTick < 200) {
+        return;
+    }
+
+    m_lastSteamActivationTick = nowMS;
+
+    int32 processed = 0;
+    auto it = m_steamActivationQueue.begin();
+    while(it != m_steamActivationQueue.end() && processed < 64) {
+        const Vector2Int tilePos = it->tilePos;
+        const Vector2Int worldSize = GetTileManager()->GetSize();
+        const uint32 tileIndex = (uint32)(tilePos.x + tilePos.y * worldSize.x);
+
+        TileInfo* pTile = GetTileManager()->GetTile(tilePos.x, tilePos.y);
+        if(!pTile) {
+            m_steamActivationQueuedIndices.erase(tileIndex);
+            it = m_steamActivationQueue.erase(it);
+            continue;
+        }
+
+        if(nowMS < it->activateAtMS) {
+            ++it;
+            continue;
+        }
+
+        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+        if(pItem) {
+            switch(pItem->id) {
+                case ITEM_ID_SPIRIT_STORAGE_UNIT: {
+                    RectFloat tileRect(tilePos.x * 32.0f, tilePos.y * 32.0f, (tilePos.x + 1) * 32.0f, (tilePos.y + 1) * 32.0f);
+                    auto jars = GetObjectManager()->GetObjectsInRectByItemID(tileRect, ITEM_ID_GHOST_IN_A_JAR);
+
+                    int32 spiritCollected = 0;
+                    for(auto* pObj : jars) {
+                        if(!pObj) {
+                            continue;
+                        }
+
+                        spiritCollected += pObj->count;
+                        RemoveObject(pObj->objectID);
+                    }
+
+                    TileExtra_SpiritStorage* pSpiritData = pTile->GetExtra<TileExtra_SpiritStorage>();
+                    if(pSpiritData) {
+                        pSpiritData->spiritCount += spiritCollected;
+
+                        if(pSpiritData->spiritCount > 40) {
+                            SendSteamPacket(22, tilePos);
+                            pTile->SetFG(ITEM_ID_DESTROYED_SPIRIT_STORAGE_UNIT, GetTileManager());
+                        }
+                        else {
+                            SendSteamPacket(20, tilePos);
+                        }
+
+                        SendTileUpdate(pTile);
+                    }
+                    else {
+                        SendSteamPacket(20, tilePos);
+                    }
+                    break;
+                }
+
+                case ITEM_ID_STEAM_VENT: {
+                    SendSteamPacket(3, tilePos);
+                    break;
+                }
+
+                case ITEM_ID_STEAM_DOOR: {
+                    pTile->ToggleFlag(TILE_FLAG_IS_ON);
+                    SendSteamPacket(pTile->HasFlag(TILE_FLAG_IS_ON) ? 4 : 5, tilePos);
+                    SendTileUpdate(pTile);
+                    break;
+                }
+            }
+        }
+
+        m_steamActivationQueuedIndices.erase(tileIndex);
+        it = m_steamActivationQueue.erase(it);
+        ++processed;
+    }
+}
+
+void World::TriggerSteamPulse(TileInfo* pTile)
+{
+    if(!pTile) {
+        return;
+    }
+
+    SendSteamPacket(0, pTile->GetPos());
+
+    eSteamDirection pulseDir = STEAM_DIR_NONE;
+    eSteamDirection lastDir = STEAM_DIR_NONE;
+
+    Vector2Int currentPos = pTile->GetPos();
+    uint8 maxSteamConductors = 49;
+    int32 redirectsSinceFound = 0;
+    bool cutPulse = false;
+    bool noLookup = false;
+
+    while(maxSteamConductors > 0 && !cutPulse) {
+        if(redirectsSinceFound >= 4) {
+            break;
+        }
+
+        TileInfo* upTile = GetTileManager()->GetTile(currentPos.x, currentPos.y - 1);
+        TileInfo* rightTile = GetTileManager()->GetTile(currentPos.x + 1, currentPos.y);
+        TileInfo* downTile = GetTileManager()->GetTile(currentPos.x, currentPos.y + 1);
+        TileInfo* leftTile = GetTileManager()->GetTile(currentPos.x - 1, currentPos.y);
+
+        if(upTile && (pulseDir == STEAM_DIR_UP || pulseDir == STEAM_DIR_NONE)) {
+            if(IsSteamConductor(upTile) && lastDir != STEAM_DIR_DOWN) {
+                --maxSteamConductors;
+                currentPos.y -= 1;
+                lastDir = STEAM_DIR_UP;
+                redirectsSinceFound = 0;
+                goto found;
+            }
+            else {
+                pulseDir = STEAM_DIR_RIGHT;
+                redirectsSinceFound += 1;
+                continue;
+            }
+        }
+
+        if(rightTile && pulseDir == STEAM_DIR_RIGHT) {
+            if(IsSteamConductor(rightTile) && lastDir != STEAM_DIR_LEFT) {
+                --maxSteamConductors;
+                currentPos.x += 1;
+                lastDir = STEAM_DIR_RIGHT;
+                redirectsSinceFound = 0;
+                goto found;
+            }
+            else {
+                pulseDir = STEAM_DIR_DOWN;
+                redirectsSinceFound += 1;
+                continue;
+            }
+        }
+
+        if(downTile && pulseDir == STEAM_DIR_DOWN) {
+            if(IsSteamConductor(downTile) && lastDir != STEAM_DIR_UP) {
+                --maxSteamConductors;
+                currentPos.y += 1;
+                lastDir = STEAM_DIR_DOWN;
+                redirectsSinceFound = 0;
+                goto found;
+            }
+            else {
+                pulseDir = STEAM_DIR_LEFT;
+                redirectsSinceFound += 1;
+                continue;
+            }
+        }
+
+        if(leftTile && pulseDir == STEAM_DIR_LEFT) {
+            if(IsSteamConductor(leftTile) && lastDir != STEAM_DIR_RIGHT) {
+                --maxSteamConductors;
+                currentPos.x -= 1;
+                lastDir = STEAM_DIR_LEFT;
+                redirectsSinceFound = 0;
+                goto found;
+            }
+            else {
+                pulseDir = STEAM_DIR_UP;
+                redirectsSinceFound += 1;
+                continue;
+            }
+        }
+
+        break;
+
+found:
+
+        TileInfo* currentTile = GetTileManager()->GetTile(currentPos.x, currentPos.y);
+        if(!currentTile) {
+            break;
+        }
+
+        const uint16 itemID = currentTile->GetDisplayedItem();
+
+        switch(itemID) {
+            case ITEM_ID_STEAM_FUNNEL: {
+                pulseDir = currentTile->HasFlag(TILE_FLAG_FLIPPED_X) ? STEAM_DIR_LEFT : STEAM_DIR_RIGHT;
+                break;
+            }
+
+            case ITEM_ID_STEAM_FUNNEL_UP: {
+                pulseDir = STEAM_DIR_UP;
+                break;
+            }
+
+            case ITEM_ID_STEAM_FUNNEL_DOWN: {
+                pulseDir = STEAM_DIR_DOWN;
+                break;
+            }
+
+            case ITEM_ID_STEAM_SCRAMBLER: {
+                std::array<eSteamDirection, 4> dirs = { STEAM_DIR_UP, STEAM_DIR_RIGHT, STEAM_DIR_DOWN, STEAM_DIR_LEFT };
+                std::vector<eSteamDirection> choices;
+
+                for(eSteamDirection dir : dirs) {
+                    if(IsReverseDirection(lastDir, dir)) {
+                        continue;
+                    }
+
+                    TileInfo* nextTile = GetTileByDirection(this, currentPos, dir);
+                    if(IsSteamConductor(nextTile)) {
+                        choices.push_back(dir);
+                    }
+                }
+
+                if(choices.empty()) {
+                    cutPulse = true;
+                    break;
+                }
+
+                pulseDir = choices[rand() % choices.size()];
+                if(pulseDir == STEAM_DIR_UP) {
+                    SendSteamPacket(9, currentPos);
+                }
+                else if(pulseDir == STEAM_DIR_RIGHT) {
+                    SendSteamPacket(6, currentPos);
+                }
+                else if(pulseDir == STEAM_DIR_DOWN) {
+                    SendSteamPacket(7, currentPos);
+                }
+                else if(pulseDir == STEAM_DIR_LEFT) {
+                    SendSteamPacket(8, currentPos);
+                }
+
+                break;
+            }
+
+            case ITEM_ID_STEAM_CROSSOVER: {
+                if(currentTile->HasFlag(TILE_FLAG_FLIPPED_X)) {
+                    if(lastDir == STEAM_DIR_UP) pulseDir = STEAM_DIR_RIGHT;
+                    else if(lastDir == STEAM_DIR_RIGHT) pulseDir = STEAM_DIR_UP;
+                    else if(lastDir == STEAM_DIR_LEFT) pulseDir = STEAM_DIR_DOWN;
+                    else if(lastDir == STEAM_DIR_DOWN) pulseDir = STEAM_DIR_LEFT;
+                }
+                else {
+                    if(lastDir == STEAM_DIR_UP) pulseDir = STEAM_DIR_LEFT;
+                    else if(lastDir == STEAM_DIR_RIGHT) pulseDir = STEAM_DIR_DOWN;
+                    else if(lastDir == STEAM_DIR_LEFT) pulseDir = STEAM_DIR_UP;
+                    else if(lastDir == STEAM_DIR_DOWN) pulseDir = STEAM_DIR_RIGHT;
+                }
+                break;
+            }
+
+            case ITEM_ID_STEAM_CRANK: {
+                if(currentTile->HasFlag(TILE_FLAG_IS_ON)) {
+                    if(lastDir == STEAM_DIR_DOWN || lastDir == STEAM_DIR_UP) {
+                        noLookup = true;
+                        cutPulse = true;
+                    }
+                }
+                else {
+                    if(lastDir == STEAM_DIR_LEFT || lastDir == STEAM_DIR_RIGHT) {
+                        noLookup = true;
+                        cutPulse = true;
+                    }
+                }
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+    }
+
+    int8 lookupIterations = 0;
+    while(lookupIterations < 2 && !noLookup) {
+        if(pulseDir == STEAM_DIR_UP) {
+            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x, currentPos.y - 1);
+            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
+                break;
+            }
+            pulseDir = STEAM_DIR_RIGHT;
+        }
+
+        if(pulseDir == STEAM_DIR_RIGHT) {
+            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x + 1, currentPos.y);
+            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
+                break;
+            }
+            pulseDir = STEAM_DIR_DOWN;
+        }
+
+        if(pulseDir == STEAM_DIR_DOWN) {
+            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x, currentPos.y + 1);
+            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
+                break;
+            }
+            pulseDir = STEAM_DIR_LEFT;
+        }
+
+        if(pulseDir == STEAM_DIR_LEFT) {
+            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x - 1, currentPos.y);
+            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
+                break;
+            }
+            pulseDir = STEAM_DIR_UP;
+        }
+
+        ++lookupIterations;
+    }
 }

@@ -15,6 +15,7 @@
 #include "Utils/DialogBuilder.h"
 #include "../Server/GameServer.h"
 #include <algorithm>
+#include <cmath>
 
 bool GamePlayer::IsTradeOfferExists(uint16 itemID) const
 {
@@ -309,7 +310,7 @@ void GamePlayer::SendAchievement(std::string achievementName)
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
-m_loggingOff(false), m_gems(0)
+m_loggingOff(false), m_gems(0), m_lastObjectCollectTime(0)
 {
 }
 
@@ -839,6 +840,97 @@ void GamePlayer::SendPositionToWorldPlayers()
     }
 
     pWorld->SendGamePacketToAll(&packet, this);
+}
+
+bool GamePlayer::CanProcessGamePacket(eGamePacketType packetType)
+{
+    const uint64 elapsed = m_lastCheckGamePacketWindow.GetElapsedTime();
+    int32 packetLimit = 150;
+
+    if(packetType == NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST) {
+        packetLimit = 220;
+    }
+    else if(packetType == NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST) {
+        packetLimit = 200;
+    }
+
+    if(elapsed < 1000) {
+        if(m_gamePacketsInWindow >= packetLimit) {
+            ++m_gamePacketsInWindow;
+            return false;
+        }
+
+        ++m_gamePacketsInWindow;
+        return true;
+    }
+
+    m_lastCheckGamePacketWindow.Reset();
+    m_gamePacketsInWindow = 1;
+    return true;
+}
+
+bool GamePlayer::CanProcessGameMessage()
+{
+    if(m_lastCheckGameMessageWindow.GetElapsedTime() < 1000) {
+        if(m_gameMessagesInWindow >= 10) {
+            ++m_gameMessagesInWindow;
+            return false;
+        }
+
+        ++m_gameMessagesInWindow;
+        return true;
+    }
+
+    m_lastCheckGameMessageWindow.Reset();
+    m_gameMessagesInWindow = 1;
+    return true;
+}
+
+bool GamePlayer::CanProcessMovePacket(float nextX, float nextY, uint64 nowMS)
+{
+    if(nextX <= 0.0f || nextY <= 0.0f) {
+        return false;
+    }
+
+    if(!std::isfinite(nextX) || !std::isfinite(nextY)) {
+        return false;
+    }
+
+    if(!m_hasLastMovePacketPos) {
+        m_lastMovePacketPos = { nextX, nextY };
+        m_lastMovePacketTime = nowMS;
+        m_hasLastMovePacketPos = true;
+        return true;
+    }
+
+    uint64 deltaMS = nowMS > m_lastMovePacketTime ? (nowMS - m_lastMovePacketTime) : 0;
+    if(deltaMS == 0) {
+        deltaMS = 1;
+    }
+
+    const float dx = nextX - m_lastMovePacketPos.x;
+    const float dy = nextY - m_lastMovePacketPos.y;
+    const float distance = std::sqrt((dx * dx) + (dy * dy));
+
+    // Allow generous burst movement while still rejecting obvious teleports.
+    const float maxAllowedDistance = 180.0f + (2.5f * static_cast<float>(deltaMS));
+    const bool isSuspicious = distance > maxAllowedDistance;
+
+    if(m_lastCheckMoveWindow.GetElapsedTime() >= 5000) {
+        m_lastCheckMoveWindow.Reset();
+        m_moveViolationsInWindow = 0;
+    }
+
+    if(isSuspicious) {
+        ++m_moveViolationsInWindow;
+        if(m_moveViolationsInWindow >= 8) {
+            return false;
+        }
+    }
+
+    m_lastMovePacketPos = { nextX, nextY };
+    m_lastMovePacketTime = nowMS;
+    return true;
 }
 
 bool GamePlayer::TrySpendGems(int32 amount)

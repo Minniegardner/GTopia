@@ -217,6 +217,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
     }
 
     if(pPacket->itemID == ITEM_ID_FIST) {
+        if(pTile->GetFG() == ITEM_ID_STEAM_STOMPER || pTile->GetFG() == ITEM_ID_STEAM_REVOLVER) {
+            pWorld->TriggerSteamPulse(pTile);
+            return;
+        }
+
         if(pPlayer->GetInventory().GetClothByPart(BODY_PART_HAND) == ITEM_ID_FIRE_HOSE) {
             if(pTile->HasFlag(TILE_FLAG_ON_FIRE)) {
                 pTile->RemoveFlag(TILE_FLAG_ON_FIRE);
