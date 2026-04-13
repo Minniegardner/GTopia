@@ -110,7 +110,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
         }
 
         case TCP_PACKET_WORLD_SEND_PLAYER: {
-            if(result.size() < 3) {
+            if(result.size() < 7) {
                 return;
             }
 
@@ -132,18 +132,26 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             uint32 worldID = result[4].GetUINT();
 
             World* pWorld = GetWorldByID(worldID);
-            if(!pWorld) {
-                return;
-            }
-
             if(serverID == GetContext()->GetID()) {
+                if(!pWorld) {
+                    return;
+                }
+
                 if(!pWorld->PlayerJoinWorld(pPlayer)) {
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to join world");
                 }
             }
             else {
-                // onsendtoserver
+                const string serverIP = result[5].GetString();
+                const uint16 serverPort = (uint16)result[6].GetUINT();
+
+                if(pWorld) {
+                    pWorld->PlayerLeaverWorld(pPlayer);
+                }
+
+                pPlayer->SendOnSendToServer(serverPort, pPlayer->GetLoginDetail().token, pPlayer->GetUserID(), serverIP);
+                pPlayer->SetJoinWorld(false);
             }
 
             break;

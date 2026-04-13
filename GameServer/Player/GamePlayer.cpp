@@ -955,15 +955,21 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     ->AddButton("Trade", "`wTrade``");
 
     Role* pRole = GetRole();
-    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_PULL)) {
+    bool hasWorldAdminAccess = false;
+    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+    if(pWorld) {
+        hasWorldAdminAccess = pWorld->IsPlayerWorldOwner(this) || pWorld->IsPlayerWorldAdmin(this);
+    }
+
+    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_PULL)) || hasWorldAdminAccess) {
         db.AddButton("Pull", "`#Pull``");
     }
 
-    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_KICK)) {
+    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_KICK)) || hasWorldAdminAccess) {
         db.AddButton("Kick", "`4Kick``");
     }
 
-    if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_BAN)) {
+    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_BAN)) || hasWorldAdminAccess) {
         db.AddButton("Ban", "`4World Ban``");
     }
 

@@ -65,6 +65,14 @@ void WarpTo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    if(pWorld->HasWorldFlag(WORLD_FLAG_JAMMED)) {
+        const bool canBypassJammer = pWorld->IsPlayerWorldOwner(pPlayer) || pWorld->IsPlayerWorldAdmin(pPlayer);
+        if(!canBypassJammer) {
+            pPlayer->SendOnConsoleMessage("`4This world is signal jammed and can't be warped into this way.``");
+            return;
+        }
+    }
+
     const string worldName = pWorld->GetWorlName();
     pPlayer->SendOnConsoleMessage("`oWarping to `w" + pTarget->GetRawName() + "`o at `w" + worldName + "``...");
     pPlayer->SendOnTextOverlay("Warping to `w" + pTarget->GetRawName() + "`` at (`2" + worldName + "``)..");

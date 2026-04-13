@@ -55,8 +55,8 @@ public:
     bool IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBackground);
 
     std::vector<TileInfo*> RemoveTileParentsLockedBy(TileInfo* pLockTile);
-    bool AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty);
-    bool ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles);
+    bool AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty, bool airOnly);
+    bool ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles, bool airOnly = false);
 
 private:
     void FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance);

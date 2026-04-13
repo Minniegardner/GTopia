@@ -273,7 +273,7 @@ std::vector<TileInfo*> WorldTileManager::RemoveTileParentsLockedBy(TileInfo* pLo
     return unlockedTiles;
 }
 
-bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty)
+bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty, bool airOnly)
 {
     if(!pLockTile || !pTargetTile || pLockTile == pTargetTile) {
         return false;
@@ -286,6 +286,10 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
     if(ignoreEmpty && pTargetTile->GetDisplayedItem() == ITEM_ID_BLANK) {
         return false;
     }   
+
+    if(airOnly && pTargetTile->GetDisplayedItem() != ITEM_ID_BLANK) {
+        return false;
+    }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTargetTile->GetDisplayedItem());
     if(!pItem) {
@@ -322,7 +326,7 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
     return false;
 }
 
-bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles)
+bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles, bool airOnly)
 {
     if(!pLockTile || tileSizeToLock > (m_size.x * m_size.y) || tileSizeToLock == 0) {
         return false;
@@ -337,6 +341,10 @@ bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock,
     int32 totalLocked = 0;
     uint32 maxRadius = Max(m_size.x, m_size.y);
 
+    if(airOnly) {
+        ignoreEmpty = false;
+    }
+
     while(totalLocked < tileSizeToLock && radius <= maxRadius) { // :/ is it really ok? is that O(n^3)???
         int32 minDistance = 111111111;
         TileInfo* pClosestTile = nullptr;
@@ -348,7 +356,7 @@ bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock,
                     continue;
                 }
 
-                if(!AbleToLockThisTile(pLockTile, pCurrTile, ignoreEmpty)) {
+                if(!AbleToLockThisTile(pLockTile, pCurrTile, ignoreEmpty, airOnly)) {
                     continue;
                 }
 

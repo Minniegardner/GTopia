@@ -105,6 +105,7 @@ set(GAME_FILES PRIVATE
     ${SOURCE_WORLD}/WorldTileManager.cpp
     ${SOURCE_WORLD}/WorldObjectManager.cpp
     ${GAME_WORLD}/WorldManager.cpp
+    ${GAME_WORLD}/WorldPathfinding.cpp
     ${GAME_WORLD}/World.cpp
 
     ${GAME_DIALOG}/PlayerDialog.cpp

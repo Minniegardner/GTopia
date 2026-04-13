@@ -1,6 +1,7 @@
 #include "ItemActivateObjectRequest.h"
 
 #include "Item/ItemInfoManager.h"
+#include "../../../World/WorldPathfinding.h"
 #include "Math/Rect.h"
 #include <cmath>
 
@@ -32,6 +33,35 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
 
     if(distance > 96.0f) {
         pPlayer->SendOnTalkBubble("Too far away to pick that up.", true);
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    TileInfo* pTargetTile = pWorld->GetTileManager()->GetTile(
+        static_cast<int32>(pObject->pos.x + 6.0f) / 32,
+        static_cast<int32>(pObject->pos.y + 6.0f) / 32
+    );
+    if(!pTargetTile) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    ItemInfo* pTargetTileItem = GetItemInfoManager()->GetItemByID(pTargetTile->GetDisplayedItem());
+    if(!pTargetTileItem) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    if(
+        !pWorld->CanPlace(pPlayer, pTargetTile) &&
+        (pTargetTileItem->id == ITEM_ID_DISPLAY_BOX || pTargetTileItem->id == ITEM_ID_TRANSMATTER_FIELD)
+    ) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), pObject->pos)) {
+        pPlayer->SendOnTalkBubble("(too far away)", true);
         pPlayer->SendFakePingReply();
         return;
     }

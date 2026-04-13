@@ -579,6 +579,10 @@ bool World::PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile)
         return false;
     }
 
+    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
+        return true;
+    }
+
     return pMainLockExtra->HasAccess(pPlayer->GetUserID());
 }
 
@@ -610,7 +614,7 @@ void World::OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID)
     std::vector<TileInfo*> lockedTiles;
 
     if(!IsWorldLock(lockID)) {
-        bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles);
+        bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles, false);
         if(!lockSuccsess) {
             pPlayer->SendOnTalkBubble("Something went wrong, unable to place lock in here", true);
             return;
@@ -757,6 +761,10 @@ bool World::CanPlace(GamePlayer* pPlayer, TileInfo* pTile)
         return false;
     }
 
+    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
+        return true;
+    }
+
     ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());
     const bool isBuilderLock = pMainLockItem && pMainLockItem->id == ITEM_ID_BUILDERS_LOCK;
 
@@ -828,6 +836,10 @@ bool World::CanBreak(GamePlayer* pPlayer, TileInfo* pTile)
     TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
     if(!pMainLockExtra) {
         return false;
+    }
+
+    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
+        return true;
     }
 
     ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());

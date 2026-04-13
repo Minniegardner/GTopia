@@ -91,6 +91,43 @@ string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
     return pOwner->GetDisplayName();
 }
 
+bool ToggleWorldFlagMachine(World* pWorld, TileInfo* pTile, uint16 itemID)
+{
+    if(!pWorld || !pTile) {
+        return false;
+    }
+
+    uint32 worldFlag = 0;
+    switch(itemID) {
+        case ITEM_ID_SIGNAL_JAMMER: worldFlag = WORLD_FLAG_JAMMED; break;
+        case ITEM_ID_PUNCH_JAMMER: worldFlag = WORLD_FLAG_PUNCH_JAMMER; break;
+        case ITEM_ID_ZOMBIE_JAMMER: worldFlag = WORLD_FLAG_ZOMBIE_JAMMER; break;
+        case ITEM_ID_ANTIGRAVITY_GENERATOR: worldFlag = WORLD_FLAG_ANTI_GRAVITY; break;
+        case ITEM_ID_GUARDIAN_PINEAPPLE: worldFlag = WORLD_FLAG_GUARDIAN_PINEAPPLE; break;
+        default: return false;
+    }
+
+    pTile->ToggleFlag(TILE_FLAG_IS_ON);
+    pWorld->SetWorldFlag(worldFlag, pTile->HasFlag(TILE_FLAG_IS_ON));
+    return true;
+}
+
+void ClearWorldFlagMachine(World* pWorld, uint16 itemID)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    switch(itemID) {
+        case ITEM_ID_SIGNAL_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_JAMMED, false); break;
+        case ITEM_ID_PUNCH_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_PUNCH_JAMMER, false); break;
+        case ITEM_ID_ZOMBIE_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_ZOMBIE_JAMMER, false); break;
+        case ITEM_ID_ANTIGRAVITY_GENERATOR: pWorld->SetWorldFlag(WORLD_FLAG_ANTI_GRAVITY, false); break;
+        case ITEM_ID_GUARDIAN_PINEAPPLE: pWorld->SetWorldFlag(WORLD_FLAG_GUARDIAN_PINEAPPLE, false); break;
+        default: break;
+    }
+}
+
 }
 
 void TileChangeRequest::OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile)
@@ -273,6 +310,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 return;
             }
 
+            if(pTileItem && ToggleWorldFlagMachine(pWorld, pTile, pTileItem->id)) {
+                pWorld->SendTileUpdate(tilePos.x, tilePos.y);
+                return;
+            }
+
             uint8 punchDamage = (uint8)pPlayer->GetCharData().GetPunchDamage();
             if(pTileItem->type == ITEM_TYPE_SEED) {
                 TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
@@ -333,6 +375,8 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             if(pTileItem->type == ITEM_TYPE_LOCK) {
                 pWorld->OnRemoveLock(pPlayer, pTile);
             }
+
+            ClearWorldFlagMachine(pWorld, pTileItem->id);
             
             if(pTileItem->type == ITEM_TYPE_WEATHER_MACHINE) {
                 pWorld->SetCurrentWeather(pTileItem->weatherID);

@@ -286,7 +286,8 @@ void LockDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pTile,
                 GetMaxTilesToLock(pItem->id),
                 pTileExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_IGNORE_AIR),
-                lockedTiles
+                lockedTiles,
+                pTileExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_AIR_ONLY)
             );
 
             if(!lockSuccsess) {
