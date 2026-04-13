@@ -1,6 +1,7 @@
 #include "Summon.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
 #include <algorithm>
 
@@ -43,7 +44,20 @@ void Summon::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + query + "`6.``");
+        World* pInvokerWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+        if(!pInvokerWorld) {
+            pPlayer->SendOnConsoleMessage("`4Oops:`` Could not locate your current world.");
+            return;
+        }
+
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_SUMMON,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            exactMatch,
+            pInvokerWorld->GetWorlName(),
+            0);
         return;
     }
 

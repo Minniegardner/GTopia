@@ -1,5 +1,6 @@
 #include "Msg.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 #include "Utils/StringUtils.h"
 
 const CommandInfo& Msg::GetInfo()
@@ -40,9 +41,27 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    string message = JoinString(args, " ", 2);
+    RemoveExtraWhiteSpaces(message);
+    if(message.empty()) {
+        pPlayer->SendOnConsoleMessage("You can't send an empty message, that's too boring.");
+        return;
+    }
+
+    if(message.size() > 180) {
+        message.resize(180);
+    }
+
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + query + "`6.``");
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_MSG,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            exactMatch,
+            message,
+            0);
         return;
     }
 
@@ -55,17 +74,6 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     if(!pTarget || pTarget == pPlayer) {
         pPlayer->SendOnConsoleMessage("Nope, you can't message yourself.");
         return;
-    }
-
-    string message = JoinString(args, " ", 2);
-    RemoveExtraWhiteSpaces(message);
-    if(message.empty()) {
-        pPlayer->SendOnConsoleMessage("You can't send an empty message, that's too boring.");
-        return;
-    }
-
-    if(message.size() > 180) {
-        message.resize(180);
     }
 
     const uint64 nowMS = Time::GetSystemTime();

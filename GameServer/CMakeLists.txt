@@ -47,6 +47,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventWorldInit.cpp
     ${GAME_EVENT}/TCP/TCPEventRenderWorld.cpp
     ${GAME_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
+    ${GAME_EVENT}/TCP/TCPEventCrossServerAction.cpp
     ${GAME_EVENT}/TCP/TCPEventHeartBeat.cpp
     ${GAME_EVENT}/TCP/TCPEventKillServer.cpp
 

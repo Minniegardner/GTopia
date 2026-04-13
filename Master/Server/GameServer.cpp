@@ -6,6 +6,7 @@
 #include "IO/Log.h"
 #include "ServerManager.h"
 #include "../Context.h"
+#include "Utils/StringUtils.h"
 
 GameServer::GameServer()
 {
@@ -134,6 +135,41 @@ void GameServer::EndPlayerSessionsWithServerID(uint32 serverID)
 
         ++it;
     }
+}
+
+std::vector<PlayerSession*> GameServer::FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch)
+{
+    std::vector<PlayerSession*> matches;
+    if(query.empty()) {
+        return matches;
+    }
+
+    const string queryLower = ToLower(query);
+
+    for(auto& [_, session] : m_sessionCache) {
+        if(session.name.empty()) {
+            continue;
+        }
+
+        const string sessionNameLower = ToLower(session.name);
+        if(exactMatch) {
+            if(sessionNameLower == queryLower) {
+                return { &session };
+            }
+
+            continue;
+        }
+
+        if(sessionNameLower.size() < queryLower.size()) {
+            continue;
+        }
+
+        if(sessionNameLower.compare(0, queryLower.size(), queryLower) == 0) {
+            matches.push_back(&session);
+        }
+    }
+
+    return matches;
 }
 
 GameServer* GetGameServer() { return GameServer::GetInstance(); }

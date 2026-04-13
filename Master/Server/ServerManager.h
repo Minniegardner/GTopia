@@ -64,6 +64,8 @@ public:
 
     void SendPlayerSessionCheck(bool hasSession, int32 playerNetID, int16 connectionID);
     void SendHelloPacket(const string& authKey, int16 connectionID);
+    void SendCrossServerActionResult(uint16 serverID, int32 actionType, uint32 sourceUserID, int32 resultCode, const string& targetName);
+    bool SendCrossServerActionExecute(uint16 targetServerID, int32 actionType, uint32 targetUserID, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber, const string& targetRawName);
 
 private:
     template<class T>

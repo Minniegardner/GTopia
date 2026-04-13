@@ -13,6 +13,7 @@
 #include "../Event/TCP/TCPEventRenderWorld.h"
 #include "../Event/TCP/TCPEventHeartBeat.h"
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
+#include "../Event/TCP/TCPEventCrossServerAction.h"
 #include "../Event/TCP/TCPEventKillServer.h"
 
 MasterBroadway::MasterBroadway()
@@ -34,6 +35,7 @@ void MasterBroadway::RegisterEvents()
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
     RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
+    RegisterEvent<TCPEventCrossServerAction>(TCP_PACKET_CROSS_SERVER_ACTION);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
 }
 
@@ -151,6 +153,34 @@ void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, const string& worldN
     data[1] = (uint32)GetContext()->GetID();
     data[2] = playerNetID;
     data[3] = worldName;
+
+    m_pNetClient->Send(data);
+}
+
+void MasterBroadway::SendCrossServerActionRequest(
+    int32 actionType,
+    uint32 sourceUserID,
+    const string& sourceRawName,
+    const string& targetQuery,
+    bool exactMatch,
+    const string& payloadText,
+    uint64 payloadNumber)
+{
+    if(!m_connected || !m_pNetClient) {
+        return;
+    }
+
+    VariantVector data(10);
+    data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+    data[1] = TCP_CROSS_ACTION_REQUEST;
+    data[2] = actionType;
+    data[3] = (uint32)GetContext()->GetID();
+    data[4] = sourceUserID;
+    data[5] = sourceRawName;
+    data[6] = targetQuery;
+    data[7] = exactMatch;
+    data[8] = payloadText;
+    data[9] = payloadNumber;
 
     m_pNetClient->Send(data);
 }

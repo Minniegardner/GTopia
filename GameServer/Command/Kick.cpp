@@ -1,6 +1,7 @@
 #include "Kick.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 
 const CommandInfo& Kick::GetInfo()
 {
@@ -36,7 +37,14 @@ void Kick::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` There is nobody currently in this server with a name starting with `w" + query + "``.");
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_KICK,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            false,
+            "",
+            0);
         return;
     }
 

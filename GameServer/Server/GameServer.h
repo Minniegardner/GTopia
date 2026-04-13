@@ -28,6 +28,7 @@ public:
 
 public:
     void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
+    void HandleCrossServerAction(VariantVector&& data);
     GamePlayer* GetPlayerByUserID(uint32 userID);
     GamePlayer* GetPlayerByRawName(const string& playerName);
     std::vector<GamePlayer*> FindPlayersByNamePrefix(const string& query, bool sameWorldOnly = false, uint32 worldID = 0) const;

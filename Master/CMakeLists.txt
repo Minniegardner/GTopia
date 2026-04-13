@@ -39,6 +39,7 @@ set(MASTER_FILES PRIVATE
     ${MASTER_EVENT}/TCP/TCPEventWorldInit.cpp
     ${MASTER_EVENT}/TCP/TCPEventRenderWorld.cpp
     ${MASTER_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
+    ${MASTER_EVENT}/TCP/TCPEventCrossServerAction.cpp
     ${MASTER_EVENT}/TCP/TCPEventPlayerEndSession.cpp
     ${MASTER_EVENT}/TCP/TCPEventHeartBeat.cpp
     ${MASTER_EVENT}/TCP/TCPEventKillServer.cpp

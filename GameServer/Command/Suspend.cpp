@@ -1,6 +1,7 @@
 #include "Suspend.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 
 const CommandInfo& Suspend::GetInfo()
 {
@@ -42,9 +43,48 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    const string durationArg = ToLower(args[2]);
+    const bool unmuteCommand = (durationArg == "off" || durationArg == "0" || durationArg == "unmute");
+
+    string reason = "Please follow the rules.";
+    int32 minutes = 0;
+
+    if(!unmuteCommand) {
+        if(ToInt(durationArg, minutes) != TO_INT_SUCCESS || minutes <= 0) {
+            pPlayer->SendOnConsoleMessage("`4Invalid duration.`` Use minutes or `woff``.");
+            return;
+        }
+
+        if(minutes > 10080) {
+            minutes = 10080;
+        }
+
+        if(args.size() >= 4) {
+            reason = JoinString(args, " ", 3);
+            RemoveExtraWhiteSpaces(reason);
+            if(reason.empty()) {
+                reason = "Please follow the rules.";
+            }
+
+            if(reason.size() > 120) {
+                reason.resize(120);
+            }
+        }
+    }
+
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + query + "`6.``");
+        const uint64 nowMS = Time::GetSystemTime();
+        const uint64 mutedUntilMS = unmuteCommand ? 0 : (nowMS + (uint64)minutes * 60ull * 1000ull);
+
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            unmuteCommand ? TCP_CROSS_ACTION_UNSUSPEND : TCP_CROSS_ACTION_SUSPEND,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            exactMatch,
+            reason,
+            mutedUntilMS);
         return;
     }
 
@@ -59,35 +99,11 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    const string durationArg = ToLower(args[2]);
     if(durationArg == "off" || durationArg == "0" || durationArg == "unmute") {
         pTarget->ClearMute();
         pTarget->SendOnConsoleMessage("`oYour mute was removed by ``" + pPlayer->GetDisplayName() + "``.");
         pPlayer->SendOnConsoleMessage("`oUnmuted ``" + pTarget->GetDisplayName() + "``.");
         return;
-    }
-
-    int32 minutes = 0;
-    if(ToInt(durationArg, minutes) != TO_INT_SUCCESS || minutes <= 0) {
-        pPlayer->SendOnConsoleMessage("`4Invalid duration.`` Use minutes or `woff``.");
-        return;
-    }
-
-    if(minutes > 10080) {
-        minutes = 10080;
-    }
-
-    string reason = "Please follow the rules.";
-    if(args.size() >= 4) {
-        reason = JoinString(args, " ", 3);
-        RemoveExtraWhiteSpaces(reason);
-        if(reason.empty()) {
-            reason = "Please follow the rules.";
-        }
-
-        if(reason.size() > 120) {
-            reason.resize(120);
-        }
     }
 
     const uint64 nowMS = Time::GetSystemTime();

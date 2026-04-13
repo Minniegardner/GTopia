@@ -11,6 +11,7 @@
 #include "../Event/TCP/TCPEventHeartBeat.h"
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
 #include "../Event/TCP/TCPEventPlayerEndSession.h"
+#include "../Event/TCP/TCPEventCrossServerAction.h"
 #include "../Event/TCP/TCPEventKillServer.h"
 
 ServerManager::ServerManager()
@@ -130,6 +131,7 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
     RegisterEvent<TCPEventPlayerEndSession>(TCP_PACKET_PLAYER_END_SESSION);
+    RegisterEvent<TCPEventCrossServerAction>(TCP_PACKET_CROSS_SERVER_ACTION);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
 }
 
@@ -277,6 +279,44 @@ void ServerManager::SendHelloPacket(const string &authKey, int16 connectionID)
     data[1] = authKey;
 
     pClient->Send(data);
+}
+
+void ServerManager::SendCrossServerActionResult(uint16 serverID, int32 actionType, uint32 sourceUserID, int32 resultCode, const string& targetName)
+{
+    VariantVector data(6);
+    data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+    data[1] = TCP_CROSS_ACTION_RESULT;
+    data[2] = actionType;
+    data[3] = sourceUserID;
+    data[4] = resultCode;
+    data[5] = targetName;
+
+    SendPacketRaw(serverID, data);
+}
+
+bool ServerManager::SendCrossServerActionExecute(
+    uint16 targetServerID,
+    int32 actionType,
+    uint32 targetUserID,
+    uint32 sourceUserID,
+    const string& sourceRawName,
+    const string& payloadText,
+    uint64 payloadNumber,
+    const string& targetRawName)
+{
+    VariantVector data(10);
+    data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+    data[1] = TCP_CROSS_ACTION_EXECUTE;
+    data[2] = actionType;
+    data[3] = targetUserID;
+    data[4] = sourceUserID;
+    data[5] = sourceRawName;
+    data[6] = payloadText;
+    data[7] = payloadNumber;
+    data[8] = (uint32)targetServerID;
+    data[9] = targetRawName;
+
+    return SendPacketRaw(targetServerID, data);
 }
 
 void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)

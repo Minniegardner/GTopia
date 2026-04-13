@@ -9,6 +9,7 @@
 #include "Player/RoleManager.h"
 #include "../Context.h"
 #include "Utils/StringUtils.h"
+#include "Utils/Timer.h"
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
 #include "../Event/UDP/GameMessage/EnterGame.h"
@@ -52,6 +53,7 @@
 #include "../Command/KickAll.h"
 #include "../Command/Summon.h"
 #include "../Command/Suspend.h"
+#include "../World/WorldManager.h"
 
 GameServer::GameServer()
 : NetEntity(NET_ID_GAME_SERVER)
@@ -249,6 +251,138 @@ void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
         HashString(args[0].substr(1)),
         pPlayer, args
     );
+}
+
+void GameServer::HandleCrossServerAction(VariantVector&& data)
+{
+    if(data.size() < 2) {
+        return;
+    }
+
+    const int32 packetSubType = data[1].GetINT();
+
+    if(packetSubType == TCP_CROSS_ACTION_EXECUTE) {
+        if(data.size() < 10) {
+            return;
+        }
+
+        const int32 actionType = data[2].GetINT();
+        const uint32 targetUserID = data[3].GetUINT();
+        const string sourceRawName = data[5].GetString();
+        const string payloadText = data[6].GetString();
+        const uint64 payloadNumber = data[7].GetUINT64();
+
+        GamePlayer* pTarget = GetPlayerByUserID(targetUserID);
+        if(!pTarget || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
+            return;
+        }
+
+        switch(actionType) {
+            case TCP_CROSS_ACTION_MSG: {
+                pTarget->SendOnConsoleMessage("`o(From `$" + sourceRawName + "`o): " + payloadText);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_SUMMON: {
+                pTarget->SendOnConsoleMessage("`oYou were summoned by ``" + sourceRawName + "`` to `w" + payloadText + "``.");
+                GetWorldManager()->PlayerJoinRequest(pTarget, payloadText);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_SUSPEND: {
+                const uint64 mutedUntilMS = payloadNumber;
+                if(mutedUntilMS <= Time::GetSystemTime()) {
+                    break;
+                }
+
+                pTarget->SetMutedUntilMS(mutedUntilMS, payloadText);
+                const uint64 remainingMinutes = (mutedUntilMS - Time::GetSystemTime() + 59999ull) / 60000ull;
+                pTarget->SendOnConsoleMessage("`4You have been muted for `w" + ToString(remainingMinutes) + "`4 minute(s) by ``" + sourceRawName + "``. Reason: `w" + payloadText + "``");
+                break;
+            }
+
+            case TCP_CROSS_ACTION_UNSUSPEND: {
+                pTarget->ClearMute();
+                pTarget->SendOnConsoleMessage("`oYour mute was removed by ``" + sourceRawName + "``.");
+                break;
+            }
+
+            case TCP_CROSS_ACTION_KICK: {
+                pTarget->SendOnConsoleMessage("`4You were kicked by ``" + sourceRawName + "``.");
+                pTarget->LogOff();
+                break;
+            }
+
+            case TCP_CROSS_ACTION_WARN: {
+                pTarget->SendOnTextOverlay("`4WARNING:`` " + payloadText);
+                pTarget->SendOnConsoleMessage("`4Warning from ``" + sourceRawName + "``: " + payloadText);
+                break;
+            }
+        }
+
+        return;
+    }
+
+    if(packetSubType != TCP_CROSS_ACTION_RESULT || data.size() < 6) {
+        return;
+    }
+
+    const int32 actionType = data[2].GetINT();
+    const uint32 sourceUserID = data[3].GetUINT();
+    const int32 resultCode = data[4].GetINT();
+    const string targetName = data[5].GetString();
+
+    GamePlayer* pSource = GetPlayerByUserID(sourceUserID);
+    if(!pSource || !pSource->HasState(PLAYER_STATE_IN_GAME)) {
+        return;
+    }
+
+    if(resultCode == TCP_CROSS_ACTION_RESULT_OK) {
+        switch(actionType) {
+            case TCP_CROSS_ACTION_MSG:
+                pSource->SendOnConsoleMessage("`o(Sent to `$" + targetName + "`o)");
+                break;
+
+            case TCP_CROSS_ACTION_SUMMON:
+                pSource->SendOnConsoleMessage("`oSummon request sent for ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_SUSPEND:
+                pSource->SendOnConsoleMessage("`oMuted ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_UNSUSPEND:
+                pSource->SendOnConsoleMessage("`oUnmuted ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_KICK:
+                pSource->SendOnConsoleMessage("`oKicked ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_WARN:
+                pSource->SendOnConsoleMessage("`oWarned ``" + targetName + "`` across subserver.");
+                break;
+        }
+
+        return;
+    }
+
+    if(resultCode == TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH) {
+        pSource->SendOnConsoleMessage("`oThere are multiple players matching that name globally, be more specific.");
+        return;
+    }
+
+    if(resultCode == TCP_CROSS_ACTION_RESULT_SELF_TARGET) {
+        pSource->SendOnConsoleMessage("Nope, you can't use that on yourself.");
+        return;
+    }
+
+    if(resultCode == TCP_CROSS_ACTION_RESULT_SEND_FAILED) {
+        pSource->SendOnConsoleMessage("`4Cross-server action failed, target may have switched subserver.``");
+        return;
+    }
+
+    pSource->SendOnConsoleMessage("`6>> No one online who has a name starting with that query globally.``");
 }
 
 bool GameServer::CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const

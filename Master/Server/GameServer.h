@@ -35,6 +35,7 @@ public:
     void AddPlayerSession(const PlayerSession& session);
     void DeletePlayerSession(uint32 userID);
     void EndPlayerSessionsWithServerID(uint32 serverID);
+    std::vector<PlayerSession*> FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch);
 
 private:
     std::unordered_map<uint32, PlayerSession> m_sessionCache;

@@ -208,6 +208,7 @@ void GamePlayer::SwitchingToGame()
     session.userID = m_userID;
     session.loginToken = RandomRangeInt(100000, 9999999);
     session.ip = m_address;
+    session.name = m_loginDetail.tankIDName.empty() ? m_loginDetail.requestedName : m_loginDetail.tankIDName;
 
     GetGameServer()->AddPlayerSession(session);
     SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP);

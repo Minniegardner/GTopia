@@ -1,6 +1,7 @@
 #include "Warn.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 
 const CommandInfo& Warn::GetInfo()
 {
@@ -41,9 +42,28 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         query.erase(query.begin());
     }
 
+    string reason = JoinString(args, " ", 2);
+    RemoveExtraWhiteSpaces(reason);
+    if(reason.empty()) {
+        pPlayer->SendOnConsoleMessage("Command incomplete. Here's the argument list:");
+        pPlayer->SendOnConsoleMessage("-> /warn <name> <reason>");
+        return;
+    }
+
+    if(reason.size() > 120) {
+        reason.resize(120);
+    }
+
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` There is nobody currently in this server with a name starting with `w" + query + "``.");
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_WARN,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            exactMatch,
+            reason,
+            0);
         return;
     }
 
@@ -56,18 +76,6 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     if(!pTarget || pTarget == pPlayer) {
         pPlayer->SendOnConsoleMessage("Nope, you can't use that on yourself.");
         return;
-    }
-
-    string reason = JoinString(args, " ", 2);
-    RemoveExtraWhiteSpaces(reason);
-    if(reason.empty()) {
-        pPlayer->SendOnConsoleMessage("Command incomplete. Here's the argument list:");
-        pPlayer->SendOnConsoleMessage("-> /warn <name> <reason>");
-        return;
-    }
-
-    if(reason.size() > 120) {
-        reason.resize(120);
     }
 
     pTarget->SendOnTextOverlay("`4WARNING:`` " + reason);
