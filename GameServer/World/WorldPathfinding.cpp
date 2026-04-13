@@ -5,6 +5,7 @@
 #include "Item/ItemInfoManager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace WorldPathfinding {
