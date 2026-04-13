@@ -3,6 +3,15 @@
 #include "Item/ItemUtils.h"
 #include "Utils/Timer.h"
 
+namespace {
+
+bool IsMagplantFamily(uint16 itemID)
+{
+    return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
+}
+
+}
+
 uint8 GetTileExtraType(uint8 itemType)
 {
     switch(itemType) {
@@ -28,9 +37,21 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_SPIRIT_STORAGE:
             return TILE_EXTRA_TYPE_SPIRIT_STORAGE;
 
+        case ITEM_TYPE_VENDING:
+            return TILE_EXTRA_TYPE_VENDING;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
+}
+
+uint8 GetTileExtraTypeByItem(uint16 itemID, uint8 itemType)
+{
+    if(IsMagplantFamily(itemID)) {
+        return TILE_EXTRA_TYPE_MAGPLANT;
+    }
+
+    return GetTileExtraType(itemType);
 }
 
 TileExtra* TileExtra::Create(uint8 tileExtraType)
@@ -41,6 +62,12 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_SIGN:
             return new TileExtra_Sign();
+
+        case TILE_EXTRA_TYPE_VENDING:
+            return new TileExtra_Vending();
+
+        case TILE_EXTRA_TYPE_MAGPLANT:
+            return new TileExtra_Magplant();
 
         case TILE_EXTRA_TYPE_LOCK:
             return new TileExtra_Lock(); 
@@ -89,6 +116,33 @@ void TileExtra_Sign::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
 
     int32 unk = -1; // something with owner union but eh
     memBuffer.ReadWrite(unk, write);
+}
+
+void TileExtra_Vending::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(itemID, write);
+    memBuffer.ReadWrite(price, write);
+    memBuffer.ReadWrite(stock, write);
+    memBuffer.ReadWrite(earnings, write);
+}
+
+void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(itemID, write);
+    memBuffer.ReadWrite(itemCount, write);
+    memBuffer.ReadWrite(itemLimit, write);
+
+    uint8 magneticFlag = magnetic ? 1 : 0;
+    uint8 remoteFlag = remote ? 1 : 0;
+    memBuffer.ReadWrite(magneticFlag, write);
+    memBuffer.ReadWrite(remoteFlag, write);
+
+    if(!write) {
+        magnetic = magneticFlag != 0;
+        remote = remoteFlag != 0;
+    }
 }
 
 void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)

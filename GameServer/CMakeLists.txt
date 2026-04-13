@@ -67,6 +67,7 @@ set(GAME_FILES PRIVATE
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateObjectRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/UseDoorRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/State.cpp
 
@@ -113,6 +114,8 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/TrashDialog.cpp
     ${GAME_DIALOG}/DropDialog.cpp
     ${GAME_DIALOG}/LockDialog.cpp
+    ${GAME_DIALOG}/DoorDialog.cpp
+    ${GAME_DIALOG}/MachineDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
 
     ${GAME_STORE}/StoreCatalog.cpp

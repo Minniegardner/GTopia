@@ -1,4 +1,5 @@
 #include "State.h"
+#include "Item/ItemInfoManager.h"
 #include "Utils/Timer.h"
 
 void State::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket)
@@ -39,6 +40,11 @@ void State::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacke
     Vector2Int currentTilePos((int32)(pPacket->posX / 32.0f), (int32)(pPacket->posY / 32.0f));
     TileInfo* pSteppedTile = pWorld->GetTileManager()->GetTile(currentTilePos.x, currentTilePos.y);
     if(pSteppedTile) {
+        ItemInfo* pSteppedItem = GetItemInfoManager()->GetItemByID(pSteppedTile->GetDisplayedItem());
+        if(pSteppedItem && pSteppedItem->type == ITEM_TYPE_CHECKPOINT) {
+            pPlayer->SetRespawnPos(pPacket->posX, pPacket->posY);
+        }
+
         uint16 steppedFG = pSteppedTile->GetFG();
         if(
             (steppedFG == ITEM_ID_STEAM_STOMPER || steppedFG == ITEM_ID_STEAM_REVOLVER)

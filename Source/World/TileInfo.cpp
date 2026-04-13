@@ -40,8 +40,8 @@ void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, Wor
                 return;
             }
 
-            uint8 tileExtraType = GetTileExtraType(pItem->type);
-            if(tileExtraType != TILE_EXTRA_TYPE_NONE) {                
+            uint8 tileExtraType = GetTileExtraTypeByItem(m_fg, pItem->type);
+            if(tileExtraType != TILE_EXTRA_TYPE_NONE) {
                 m_pExtraData = TileExtra::Create(tileExtraType);
 
                 if(m_pExtraData) {
@@ -77,11 +77,26 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
         return;
     }
 
-    uint8 tileExtraType = GetTileExtraType(pItem->type);
+    uint8 tileExtraType = GetTileExtraTypeByItem(itemID, pItem->type);
     if(tileExtraType != TILE_EXTRA_TYPE_NONE) {
         SetFlag(TILE_FLAG_HAS_EXTRA_DATA);
-        
+
         m_pExtraData = TileExtra::Create(tileExtraType);
+
+        if(TileExtra_Magplant* pMagplant = GetExtra<TileExtra_Magplant>()) {
+            if(itemID == ITEM_ID_MAGPLANT_5000) {
+                pMagplant->itemLimit = 5000;
+                pMagplant->remote = true;
+            }
+            else if(itemID == ITEM_ID_UNSTABLE_TESSERACT) {
+                pMagplant->itemLimit = 1500;
+                pMagplant->remote = false;
+            }
+            else if(itemID == ITEM_ID_GAIAS_BEACON) {
+                pMagplant->itemLimit = 200;
+                pMagplant->remote = false;
+            }
+        }
     }
 
     m_fg = itemID;

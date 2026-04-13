@@ -69,6 +69,9 @@ public:
     void SetRespawnPos(float x, float y) { m_respawnPos.x = x; m_respawnPos.y = y; }
     Vector2Float GetRespawnPos() const { return m_respawnPos; }
 
+    Vector2Int GetMagplantPos() const { return m_magplantPos; }
+    void SetMagplantPos(Vector2Int pos) { m_magplantPos = pos; }
+
     int32 GetGems() const { return m_gems; }
     void SetGems(int32 gems) { m_gems = std::max(0, gems); }
     bool TrySpendGems(int32 amount);
@@ -207,6 +210,7 @@ private:
 
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;
+    Vector2Int m_magplantPos = { -1, -1 };
 
     Timer m_lastDbSaveTime;
 

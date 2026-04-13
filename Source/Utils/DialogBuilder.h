@@ -18,6 +18,8 @@ public:
     DialogBuilder* AddButton(const string& buttonID, const string& text, const string& flags = "NOFLAGS");
     DialogBuilder* AddTextInput(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength = 10);
     DialogBuilder* EndDialog(const string& dialogID, const string& acceptText, const string& cancelText);
+    DialogBuilder* AddQuickExit();
+    DialogBuilder* AddItemPicker(const string& pickerID, const string& label, const string& description);
     DialogBuilder* SetDefaultColor(char colorID);
     DialogBuilder* AddSpacer(bool big = false);
     DialogBuilder* AddCheckBox(const string& boxID, const string& text, bool active);

@@ -2,6 +2,7 @@
 
 #include "../Precompiled.h"
 #include "../Memory/MemoryBuffer.h"
+#include "../Item/ItemUtils.h"
 
 enum eTileExtraTypes 
 {
@@ -63,11 +64,13 @@ enum eTileExtraTypes
     TILE_EXTRA_TYPE_OVEN = 55,
     TILE_EXTRA_TYPE_SUPER_MUSIC = 56,
     TILE_EXTRA_TYPE_GEIGER_CHARGER = 57,
+    TILE_EXTRA_TYPE_MAGPLANT = 58,
 
     TILE_EXTRA_TYPE_SIZE
 };
 
 uint8 GetTileExtraType(uint8 itemType);
+uint8 GetTileExtraTypeByItem(uint16 itemID, uint8 itemType);
 
 class TileInfo;
 
@@ -107,6 +110,37 @@ public:
     TileExtra_Sign() : TileExtra(TYPE) {}
 
     string text;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Vending : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_VENDING;
+
+    TileExtra_Vending() : TileExtra(TYPE) {}
+
+    uint16 itemID = ITEM_ID_BLANK;
+    int32 price = 0;
+    int32 stock = 0;
+    int32 earnings = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Magplant : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_MAGPLANT;
+
+    TileExtra_Magplant() : TileExtra(TYPE) {}
+
+    uint16 itemID = ITEM_ID_BLANK;
+    int32 itemCount = 0;
+    int32 itemLimit = 200;
+    bool magnetic = true;
+    bool remote = false;
 
 protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;

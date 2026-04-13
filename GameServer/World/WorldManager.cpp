@@ -7,6 +7,7 @@
 
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
 #include "../Event/UDP/GamePacket/ItemActivateObjectRequest.h"
+#include "../Event/UDP/GamePacket/UseDoorRequest.h"
 #include "../Event/UDP/GamePacket/TileChangeRequest.h"
 #include "../Event/UDP/GamePacket/State.h"
 
@@ -233,6 +234,7 @@ void WorldManager::RegisterEvents()
 {
     RegisterPacketEvent<ItemActivateRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST);
     RegisterPacketEvent<ItemActivateObjectRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST);
+    RegisterPacketEvent<UseDoorRequest>(NET_GAME_PACKET_USE_DOOR);
     RegisterPacketEvent<TileChangeRequest>(NET_GAME_PACKET_TILE_CHANGE_REQUEST);
     RegisterPacketEvent<State>(NET_GAME_PACKET_STATE);
 }

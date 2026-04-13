@@ -5,6 +5,8 @@
 #include "../../../Player/Dialog/TrashDialog.h"
 #include "../../../Player/Dialog/DropDialog.h"
 #include "../../../Player/Dialog/LockDialog.h"
+#include "../../../Player/Dialog/DoorDialog.h"
+#include "../../../Player/Dialog/MachineDialog.h"
 #include "../../../Player/Dialog/RenderWorldDialog.h"
 #include "../../../Player/GamePlayer.h"
 #include "../../../Server/GameServer.h"
@@ -342,6 +344,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         case CompileTimeHashString("lock_edit"):
         case CompileTimeHashString("lock_remove_self"): {
             LockDialog::Handle(pPlayer, packet);
+            break;
+        }
+
+        case CompileTimeHashString("door_edit"): {
+            DoorDialog::Handle(pPlayer, packet);
+            break;
+        }
+
+        case CompileTimeHashString("VendEdit"):
+        case CompileTimeHashString("VendConfirm"):
+        case CompileTimeHashString("Magplant"): {
+            MachineDialog::Handle(pPlayer, packet);
             break;
         }
 

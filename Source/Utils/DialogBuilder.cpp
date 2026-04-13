@@ -66,6 +66,18 @@ DialogBuilder* DialogBuilder::EndDialog(const string& dialogID, const string& ac
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddQuickExit()
+{
+    m_str += "add_quick_exit|\n";
+    return this;
+}
+
+DialogBuilder* DialogBuilder::AddItemPicker(const string& pickerID, const string& label, const string& description)
+{
+    m_str += "add_item_picker|" + pickerID + "|" + label + "|" + description + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::SetDefaultColor(char colorID)
 {
     m_str += "set_default_color|`";
