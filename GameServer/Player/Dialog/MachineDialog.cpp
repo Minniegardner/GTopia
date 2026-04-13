@@ -42,7 +42,7 @@ int32 GetWorldLockValue(GamePlayer* pPlayer)
         return 0;
     }
 
-    const auto& inv = pPlayer->GetInventory();
+    auto& inv = pPlayer->GetInventory();
     return (int32)inv.GetCountOfItem(ITEM_ID_WORLD_LOCK) +
         ((int32)inv.GetCountOfItem(ITEM_ID_DIAMOND_LOCK) * 100) +
         ((int32)inv.GetCountOfItem(ITEM_ID_BLUE_GEM_LOCK) * 10000);
