@@ -1173,12 +1173,24 @@ uint64 GamePlayer::GetStatCount(const std::string& statName) const
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
-m_loggingOff(false), m_gems(0), m_lastObjectCollectTime(0), m_magplantPos({ -1, -1 })
+m_loggingOff(false), m_gems(0), m_lastObjectCollectTime(0), m_lastCollectFailCheckTime(0), m_magplantPos({ -1, -1 })
 {
 }
 
 GamePlayer::~GamePlayer()
 {
+}
+
+void GamePlayer::SetMagplantPos(Vector2Int pos)
+{
+    if(pos.x == -1 && pos.y == -1) {
+        const uint8 remoteCount = GetInventory().GetCountOfItem(ITEM_ID_MAGPLANT_5000_REMOTE);
+        if(remoteCount > 0) {
+            ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, (int16)-remoteCount);
+        }
+    }
+
+    m_magplantPos = pos;
 }
 
 void GamePlayer::OnHandleDatabase(QueryTaskResult&& result)

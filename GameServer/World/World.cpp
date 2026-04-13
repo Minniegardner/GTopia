@@ -111,6 +111,7 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
 
     pPlayer->SetJoinWorld(false);
     pPlayer->SetCurrentWorld(m_worldID);
+    pPlayer->SetMagplantPos({ -1, -1 });
     m_players.push_back(pPlayer);
 
     if(m_players.size() >= 20) {
@@ -187,6 +188,7 @@ void World::PlayerLeaverWorld(GamePlayer* pPlayer)
         m_players.pop_back();
 
         pPlayer->SetCurrentWorld(0);
+        pPlayer->SetMagplantPos({ -1, -1 });
     }
 
     if(m_players.empty()) {

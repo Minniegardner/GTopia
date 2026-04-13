@@ -132,12 +132,12 @@ void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool dat
     TileExtra::Serialize(memBuffer, write);
     memBuffer.ReadWrite(itemID, write);
     memBuffer.ReadWrite(itemCount, write);
-    memBuffer.ReadWrite(itemLimit, write);
 
     uint8 magneticFlag = magnetic ? 1 : 0;
     uint8 remoteFlag = remote ? 1 : 0;
     memBuffer.ReadWrite(magneticFlag, write);
     memBuffer.ReadWrite(remoteFlag, write);
+    memBuffer.ReadWrite(itemLimit, write);
 
     if(!write) {
         magnetic = magneticFlag != 0;

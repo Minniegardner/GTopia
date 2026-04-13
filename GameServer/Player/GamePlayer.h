@@ -70,7 +70,7 @@ public:
     Vector2Float GetRespawnPos() const { return m_respawnPos; }
 
     Vector2Int GetMagplantPos() const { return m_magplantPos; }
-    void SetMagplantPos(Vector2Int pos) { m_magplantPos = pos; }
+    void SetMagplantPos(Vector2Int pos);
 
     int32 GetGems() const { return m_gems; }
     void SetGems(int32 gems) { m_gems = std::max(0, gems); }
@@ -167,6 +167,10 @@ public:
     bool CanProcessMovePacket(float nextX, float nextY, uint64 nowMS);
     bool CanCollectObjectNow() { return Time::GetSystemTime() - m_lastObjectCollectTime >= 60; }
     void ResetCollectObjectTime() { m_lastObjectCollectTime = Time::GetSystemTime(); }
+    uint64 GetLastCollectFailCheckTime() const { return m_lastCollectFailCheckTime; }
+    uint8 GetCollectFailsInWindow() const { return m_collectFailsInWindow; }
+    void ResetCollectFailWindow(uint64 nowMS) { m_lastCollectFailCheckTime = nowMS; m_collectFailsInWindow = 0; }
+    void IncrementCollectFailWindow() { ++m_collectFailsInWindow; }
     bool CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS);
 
     void SendPositionToWorldPlayers();
@@ -187,6 +191,8 @@ private:
 
     uint64 m_lastItemActivateTime;
     uint64 m_lastObjectCollectTime;
+    uint64 m_lastCollectFailCheckTime = 0;
+    uint8 m_collectFailsInWindow = 0;
     Timer m_lastActionTime;
 
     Timer m_lastCheckGamePacketWindow;

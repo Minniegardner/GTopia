@@ -127,6 +127,80 @@ bool IsCompatibleMagplantItem(uint16 machineID, ItemInfo* pItem)
     return true;
 }
 
+void ShowVendingPurchaseDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* pData, int32 buyCount, int32 totalItemsGive, int32 totalPriceWLS)
+{
+    if(!pPlayer || !pTile || !pData) {
+        return;
+    }
+
+    ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddQuickExit()
+        ->AddLabelWithIcon("`wPurchase Confirmation``", ITEM_ID_DUMB_FRIEND, true)
+        ->AddSpacer()
+        ->AddSpacer()
+        ->AddTextBox("`4You'll give:``")
+        ->AddSpacer()
+        ->AddLabelWithIcon("(`w" + ToString(totalPriceWLS) + "``) `8World Locks``", ITEM_ID_WORLD_LOCK, false)
+        ->AddSpacer()
+        ->AddTextBox("`2You'll get:``")
+        ->AddLabelWithIcon("(`w" + ToString(totalItemsGive) + "``) `2" + string(pStock ? pStock->name : "item") + "``", pData->itemID, false)
+        ->AddSpacer()
+        ->AddSpacer()
+        ->AddTextBox("Are you sure that you really wanna do this purchase?")
+        ->EmbedData("tilex", pTile->GetPos().x)
+        ->EmbedData("tiley", pTile->GetPos().y)
+        ->EmbedData("TileItemID", pTile->GetDisplayedItem())
+        ->EmbedData("CurrentVendPrice", pData->price)
+        ->EmbedData("CurrentVendItemID", pData->itemID)
+        ->EmbedData("TotalItemsGive", totalItemsGive)
+        ->EmbedData("TotalPriceWLS", totalPriceWLS)
+        ->EmbedData("BuyCount", buyCount)
+        ->EndDialog("VendConfirm", "Confirm", "Cancel");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowMagplantAmountDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant* pData, bool isAdd)
+{
+    if(!pPlayer || !pTile || !pData) {
+        return;
+    }
+
+    ItemInfo* pMachine = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+    if(!pStock || pData->itemID == ITEM_ID_BLANK) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddQuickExit()
+        ->AddLabelWithIcon("`w" + string(pMachine ? pMachine->name : "Magplant") + "``", pMachine ? pMachine->id : ITEM_ID_MAGPLANT_5000, true)
+        ->EmbedData("tilex", pTile->GetPos().x)
+        ->EmbedData("tiley", pTile->GetPos().y)
+        ->EmbedData("TileItemID", pTile->GetDisplayedItem())
+        ->EmbedData("MagItemID", pData->itemID);
+
+    if(isAdd) {
+        db.AddTextBox("You have " + ToString(pPlayer->GetInventory().GetCountOfItem(pData->itemID)) + " `2" + string(pStock->name) + "`` in your backpack.")
+          ->AddTextBox("How many `2" + string(pStock->name) + "`` would you like to add?")
+          ->AddTextInput("AddAmount", "Amount:", ToString(pPlayer->GetInventory().GetCountOfItem(pData->itemID)), 3)
+          ->EndDialog("Magplant", "Confirm", "Close");
+    }
+    else {
+        const int32 defaultTake = std::max<int32>(0, std::min<int32>(200, pData->itemCount));
+        db.AddTextBox("The Magplant 5000 contains " + ToString(pData->itemCount) + " `2" + string(pStock->name) + "``")
+          ->AddTextBox("How many `2" + string(pStock->name) + "`` would you like to take?")
+          ->AddTextInput("TakeAmount", "Amount:", ToString(defaultTake), 3)
+          ->EndDialog("Magplant", "Confirm", "Close");
+    }
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
 void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* pData, bool ownerAccess)
 {
     ItemInfo* pMachine = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
@@ -144,11 +218,33 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
 
     if(ownerAccess) {
         if(pData->stock < 1) {
-            db.AddTextBox("This machine is empty.")
+                        db.AddTextBox("This machine is empty")
               ->AddItemPicker("SelectItem", "`wPut an item in``", "Choose an item to put in the machine!")
               ->EndDialog("VendEdit", "", "Close");
         }
         else {
+                        if(pPlayer->GetInventory().GetCountOfItem(pData->itemID) > 0) {
+                                db.AddTextBox("You have " + ToString(pPlayer->GetInventory().GetCountOfItem(pData->itemID)) + " " + string(pStock ? pStock->name : "item") + " in your inventory.")
+                                    ->AddButton("PutStock", "Put stock into the machine");
+                        }
+
+                        db.AddLabelWithIcon("The machine contains a total of " + ToString(pData->stock) + " `2" + string(pStock ? pStock->name : "item") + "``.", pData->itemID, false)
+                            ->AddSpacer();
+
+                        if(pData->price == 0) {
+                                db.AddTextBox("Not currently for sale!")
+                                    ->AddSpacer()
+                                    ->AddButton("TakeStock", "Empty the machine")
+                                    ->AddTextBox("`5(Vending Machine will not function when price is set to 0)``")
+                                    ->AddTextInput("VendPrice", "Price", "0", 9)
+                                    ->AddCheckBox("PerItem", "World Locks per Item", true)
+                                    ->AddCheckBox("PerWL", "Items per World Lock", false)
+                                    ->EndDialog("VendEdit", "Update", "Close");
+
+                                pPlayer->SendOnDialogRequest(db.Get());
+                                return;
+                        }
+
             db.AddTextBox("For a cost of:");
 
             if(pData->price > 0) {
@@ -171,25 +267,17 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
             }
 
             db.AddSpacer();
-            db.AddTextBox("The machine contains a total of " + ToString(pData->stock) + " `2" + string(pStock ? pStock->name : "item") + "``.");
-
-            if(pData->price == 0) {
-                db.AddTextBox("Not currently for sale!");
-                db.AddTextBox("`5(Vending Machine will not function when price is set to 0)``");
-            }
-
-            db.AddTextInput("VendItemID", "Item ID", ToString(pData->itemID), 5)
+            db.AddButton("TakeStock", "Empty the machine")
               ->AddTextInput("VendPrice", "Price", ToString(std::abs(pData->price)), 9)
               ->AddTextInput("VendAddStock", "Add stock amount", "0", 3)
-                            ->AddCheckBox("PerItem", "World Locks per Item", pData->price >= 0)
-                            ->AddCheckBox("PerWL", "Items per World Lock", pData->price < 0)
-              ->AddButton("TakeStock", "Empty the machine")
+              ->AddCheckBox("PerItem", "World Locks per Item", pData->price >= 0)
+              ->AddCheckBox("PerWL", "Items per World Lock", pData->price < 0)
               ->AddItemPicker("SelectItem", "`wChange Item``", "Choose an item to put in the machine!")
               ->EndDialog("VendEdit", "Update", "Close");
         }
     }
     else {
-        if(pData->price == 0 || pData->stock < 1) {
+        if(pData->price == 0 || pData->stock < 1 || (pData->price < 0 && pData->stock < std::abs(pData->price))) {
             db.AddTextBox("This machine is out of order.")
               ->EndDialog("VendEdit", "", "Close");
         } 
@@ -216,7 +304,7 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
                         db.AddSpacer()
                             ->AddTextBox("You have " + ToString(GetWorldLockValue(pPlayer)) + " World Locks.")
                             ->AddTextInput("BuyCount", "How many would you like to buy?", "0", 3)
-                            ->EndDialog("VendConfirm", "Buy", "Close");
+                            ->EndDialog("VendEdit", "Buy", "Close");
         }
     }
 
@@ -232,21 +320,19 @@ void ShowMagplantDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant
     db.SetDefaultColor('o')
         ->AddQuickExit()
         ->AddLabelWithIcon("`w" + string(pMachine ? pMachine->name : "Magplant") + "``", pMachine ? pMachine->id : ITEM_ID_MAGPLANT_5000, true)
-        ->AddTextBox("The machine contains " + ToString(std::max<int32>(0, pData->itemCount)) + " `2" + string(pStock ? pStock->name : "Blank") + "``")
         ->EmbedData("tilex", pTile->GetPos().x)
         ->EmbedData("tiley", pTile->GetPos().y)
-        ->EmbedData("TileItemID", pTile->GetDisplayedItem())
-        ->EmbedData("MagItemID", pData->itemID);
+        ->EmbedData("TileItemID", pTile->GetDisplayedItem());
 
     if(ownerAccess) {
         if(pData->itemID != ITEM_ID_BLANK) {
             db.AddLabelWithIcon("`2" + string(pStock ? pStock->name : "Blank") + "``", pData->itemID, false);
 
             if(pData->itemCount > 0) {
-                db.AddTextBox("The machine contains " + ToString(pData->itemCount) + " `2" + string(pStock ? pStock->name : "Blank") + "``");
+                db.AddTextBox("`6The machine contains " + ToString(pData->itemCount) + " `2" + string(pStock ? pStock->name : "Blank") + "``");
             }
             else {
-                db.AddTextBox("This machine is empty.");
+                db.AddTextBox("`6The machine is currently empty!``");
             }
 
             db.AddSpacer();
@@ -277,15 +363,12 @@ void ShowMagplantDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant
                 }
             }
 
-            db.AddTextInput("MagAdd", "Add amount", "0", 4)
-              ->AddTextInput("MagTake", "Take amount", "0", 4)
-              ->AddTextInput("MagItemID", "Item ID", ToString(pData->itemID), 5)
-                            ->AddCheckBox("EnableSucking", "Enable Collection", pData->magnetic);
+            db.AddCheckBox("EnableSucking", "Enable Collection", pData->magnetic);
 
             db.EndDialog("Magplant", "Update", "Close");
         }
         else {
-            db.AddTextBox("This machine is empty.");
+            db.AddTextBox("`6This machine is empty.");
             db.AddItemPicker("SelectItem", "`wChoose Item``", "Choose an item to put in the machine!");
             db.EndDialog("Magplant", "", "Close");
         }
@@ -295,10 +378,10 @@ void ShowMagplantDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant
             db.AddLabelWithIcon("`2" + string(pStock ? pStock->name : "Blank") + "``", pData->itemID, false);
 
             if(pData->itemCount > 0) {
-                db.AddTextBox("The machine contains " + ToString(pData->itemCount) + " `2" + string(pStock ? pStock->name : "Blank") + "``");
+                db.AddTextBox("`6The machine contains " + ToString(pData->itemCount) + " `2" + string(pStock ? pStock->name : "Blank") + "``");
             }
             else {
-                db.AddTextBox("This machine is empty.");
+                db.AddTextBox("`6The machine is currently empty!``");
             }
 
             if(pMachine && pMachine->id == ITEM_ID_MAGPLANT_5000) {
@@ -316,7 +399,7 @@ void ShowMagplantDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant
             db.EndDialog("Magplant", "", "Close");
         }
         else {
-            db.AddTextBox("This machine is empty.");
+            db.AddTextBox("`6This machine is empty.");
             db.EndDialog("Magplant", "", "Close");
         }
     }
@@ -401,6 +484,68 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     string dialogName(pDialogName->value, pDialogName->size);
 
+    if(dialogName == "VendEdit" && !ownerAccess) {
+        TileExtra_Vending* pData = pTile->GetExtra<TileExtra_Vending>();
+        if(!pData) {
+            return;
+        }
+
+        auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+        string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+        if(buttonClicked != "Buy") {
+            return;
+        }
+
+        if(pData->price == 0 || pData->itemID == ITEM_ID_BLANK || pData->stock < 1 || (pData->price < 0 && pData->stock < std::abs(pData->price))) {
+            pPlayer->SendOnTalkBubble("This machine is out of order.", true);
+            return;
+        }
+
+        int32 buyCount = 0;
+        ParseIntField(packet, CompileTimeHashString("BuyCount"), buyCount);
+        if(buyCount < 1) {
+            return;
+        }
+
+        if(buyCount > 200) {
+            buyCount = 200;
+        }
+
+        int32 totalItemsGive = 0;
+        int32 totalPriceWLS = 0;
+
+        if(pData->price > 0) {
+            if(buyCount > pData->stock) {
+                buyCount = pData->stock;
+            }
+
+            totalItemsGive = buyCount;
+            totalPriceWLS = pData->price * buyCount;
+        }
+        else {
+            if(buyCount > pData->stock) {
+                buyCount = pData->stock;
+            }
+
+            totalItemsGive = (buyCount / std::abs(pData->price)) * std::abs(pData->price);
+            totalPriceWLS = buyCount / std::abs(pData->price);
+
+            if(buyCount < std::abs(pData->price)) {
+                pPlayer->SendOnTalkBubble("You can't buy less than the item's price per World Lock!", true);
+                return;
+            }
+        }
+
+        const int32 totalWorldLocks = GetWorldLockValue(pPlayer);
+        if(totalWorldLocks < totalPriceWLS) {
+            pPlayer->SendOnTalkBubble("You can't afford that. You are `4" + ToString(totalPriceWLS - totalWorldLocks) + "`` world locks short.", true);
+            return;
+        }
+
+        ShowVendingPurchaseDialog(pPlayer, pTile, pData, buyCount, totalItemsGive, totalPriceWLS);
+        return;
+    }
+
     if(dialogName == "VendConfirm") {
         TileExtra_Vending* pData = pTile->GetExtra<TileExtra_Vending>();
         if(!pData) {
@@ -409,6 +554,9 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
         string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+        if(buttonClicked != "Confirm") {
+            return;
+        }
 
         if(pData->price == 0) {
             pPlayer->SendOnTalkBubble("This vending machine is disabled.", true);
@@ -432,12 +580,6 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         int32 buyCount = 0;
         ParseIntField(packet, CompileTimeHashString("BuyCount"), buyCount);
-
-        if(buttonClicked == "Update") {
-            pPlayer->SendOnTalkBubble("This vending machine has been modified. Please try again.", true);
-            return;
-        }
-
         if(buyCount < 1) {
             return;
         }
@@ -476,6 +618,15 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
+        int32 confirmItemsGive = 0;
+        int32 confirmPriceWLS = 0;
+        ParseIntField(packet, CompileTimeHashString("TotalItemsGive"), confirmItemsGive);
+        ParseIntField(packet, CompileTimeHashString("TotalPriceWLS"), confirmPriceWLS);
+        if(confirmItemsGive != totalItemsGive || confirmPriceWLS != totalPriceWLS) {
+            pPlayer->SendOnTalkBubble("This vending machine has been modified. Please try again.", true);
+            return;
+        }
+
         const int32 totalWorldLocks = GetWorldLockValue(pPlayer);
         if(totalWorldLocks < totalPriceWLS) {
             pPlayer->SendOnTalkBubble("You can't afford that. You are `4" + ToString(totalPriceWLS - totalWorldLocks) + "`` world locks short.", true);
@@ -490,7 +641,8 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         RemoveAllLockTypes(pPlayer);
         ReturnLockChange(pPlayer, totalWorldLocks - totalPriceWLS);
 
-        pPlayer->ModifyInventoryItem(pData->itemID, (int16)totalItemsGive);
+        const uint16 boughtItemID = pData->itemID;
+        pPlayer->ModifyInventoryItem(boughtItemID, (int16)totalItemsGive);
 
         pData->stock -= totalItemsGive;
         pData->earnings += totalPriceWLS;
@@ -500,7 +652,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             pData->stock = 0;
         }
 
-        ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+        ItemInfo* pStock = GetItemInfoManager()->GetItemByID(boughtItemID);
         pWorld->SendConsoleMessageToAll("`7[```9" + pPlayer->GetRawName() + " bought " + ToString(totalItemsGive) + " " + string(pStock ? pStock->name : "item") + " for " + ToString(totalPriceWLS) + " World Locks.```7]``");
         pWorld->PlaySFXForEveryone("cash_register.wav");
         pWorld->SendTileUpdate(pTile);
@@ -523,11 +675,41 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 }
 
                 pData->itemID = (uint16)selectedItemInt;
+                pData->price = 0;
                 pData->stock = 0;
+
+                const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
+                if(owned > 0) {
+                    pData->stock = owned;
+                    pPlayer->ModifyInventoryItem(pData->itemID, (int16)-owned);
+                    pPlayer->SendOnTalkBubble("Added `9" + ToString(owned) + " " + string(pSelectedItem->name) + "`` into the machine.", true);
+                }
+
+                pWorld->SendTileUpdate(pTile);
+                return;
             }
         }
 
         auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+        if(pButtonClicked && string(pButtonClicked->value, pButtonClicked->size) == "PutStock") {
+            if(pData->itemID == ITEM_ID_BLANK) {
+                return;
+            }
+
+            const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
+            if(owned < 1) {
+                return;
+            }
+
+            ItemInfo* pStockItem = GetItemInfoManager()->GetItemByID(pData->itemID);
+            pData->stock += owned;
+            pPlayer->ModifyInventoryItem(pData->itemID, (int16)-owned);
+            pPlayer->SendOnTalkBubble("Added `9" + ToString(owned) + " " + string(pStockItem ? pStockItem->name : "item") + "`` into the machine.", true);
+            pPlayer->SendOnConsoleMessage("Added `9" + ToString(owned) + " " + string(pStockItem ? pStockItem->name : "item") + "`` into the machine.");
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
         if(pButtonClicked && string(pButtonClicked->value, pButtonClicked->size) == "TakeStock") {
             if(pData->itemID != ITEM_ID_BLANK && pData->stock > 0) {
                 if(!pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)std::min<int32>(pData->stock, 200))) {
@@ -582,10 +764,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         if(addStock > 0 && pData->itemID != ITEM_ID_BLANK) {
             const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
-            const int32 actualAdd = std::min<int32>(addStock, owned);
-            if(actualAdd > 200) {
-                addStock = 200;
-            }
+            const int32 actualAdd = std::min<int32>(200, std::min<int32>(addStock, owned));
             if(actualAdd > 0) {
                 pPlayer->ModifyInventoryItem(pData->itemID, (int16)-actualAdd);
                 pData->stock += actualAdd;
@@ -598,12 +777,27 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     if(dialogName == "Magplant") {
         TileExtra_Magplant* pData = pTile->GetExtra<TileExtra_Magplant>();
-        if(!pData || !pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+        if(!pData) {
             return;
         }
 
         auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
         string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+
+        if(buttonClicked == "GetRemote") {
+            if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000 && pData->remote && pPlayer->GetMagplantPos() != pTile->GetPos()) {
+                pPlayer->SetMagplantPos(pTile->GetPos());
+                pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, 1);
+                pPlayer->SendOnTalkBubble("`wYou received a `2Magplant 5000 `wRemote!", true);
+            }
+
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        if(!ownerAccess) {
+            return;
+        }
 
         auto pMagnetic = packet.Find(CompileTimeHashString("EnableSucking"));
         if(pMagnetic) {
@@ -612,15 +806,6 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pData->magnetic = value == 1;
             }
         }
-
-        int32 itemID = pData->itemID;
-        int32 addAmount = 0;
-        int32 takeAmount = 0;
-        ParseIntField(packet, CompileTimeHashString("MagItemID"), itemID);
-        ParseIntField(packet, CompileTimeHashString("MagAdd"), addAmount);
-        ParseIntField(packet, CompileTimeHashString("MagTake"), takeAmount);
-
-        ItemInfo* pStock = GetItemInfoManager()->GetItemByID((uint16)itemID);
 
         int32 selectedItemInt = -1;
         if(ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
@@ -633,87 +818,97 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
                 pData->itemID = (uint16)selectedItemInt;
                 pData->itemCount = 0;
-                pStock = pSelectedItem;
                 pWorld->SendTileUpdate(pTile);
                 return;
             }
         }
 
-        if(buttonClicked == "GetRemote") {
-            if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000 && pData->remote) {
-                pPlayer->SetMagplantPos(pTile->GetPos());
-                if(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_MAGPLANT_5000_REMOTE) > 0) {
-                    pPlayer->GetInventory().RemoveItem(ITEM_ID_MAGPLANT_5000_REMOTE, pPlayer);
-                }
-                pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, 1);
-                pPlayer->SendOnTalkBubble("`wYou received a `2Magplant 5000 `wRemote!", true);
+        if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000) {
+            pData->remote = true;
+        }
+
+        if(buttonClicked == "AddItem") {
+            if(pData->itemID == ITEM_ID_BLANK) {
+                return;
             }
-            pWorld->SendTileUpdate(pTile);
+
+            ShowMagplantAmountDialog(pPlayer, pTile, pData, true);
             return;
         }
 
-        if(itemID >= 0 && itemID <= UINT16_MAX) {
-            if(pStock && IsCompatibleMagplantItem(pTile->GetDisplayedItem(), pStock)) {
-                const uint16 machineID = pTile->GetDisplayedItem();
-                pData->itemID = (uint16)itemID;
-                if(machineID == ITEM_ID_MAGPLANT_5000) {
-                    pData->remote = true;
-                }
-            }
-            else if(pStock) {
-                pPlayer->SendOnTalkBubble("This item is not compatible with this machine.", true);
-                return;
-            }
-        }
-
-        if(buttonClicked == "AddItem" || addAmount > 0) {
+        if(buttonClicked == "TakeItem") {
             if(pData->itemID == ITEM_ID_BLANK) {
                 return;
             }
 
-            const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
-            int32 canAdd = std::min<int32>(200, owned);
-            canAdd = std::min<int32>(canAdd, std::max(0, pData->itemLimit - pData->itemCount));
-            canAdd = std::min<int32>(canAdd, addAmount);
+            ShowMagplantAmountDialog(pPlayer, pTile, pData, false);
+            return;
+        }
+
+        int32 magItemID = 0;
+        ParseIntField(packet, CompileTimeHashString("MagItemID"), magItemID);
+        if(magItemID > 0 && magItemID <= UINT16_MAX && (uint16)magItemID != pData->itemID) {
+            return;
+        }
+
+        int32 addAmount = 0;
+        if(ParseIntField(packet, CompileTimeHashString("AddAmount"), addAmount)) {
             if(addAmount > 200) {
                 addAmount = 200;
             }
-            if(canAdd > 0) {
-                pPlayer->ModifyInventoryItem(pData->itemID, (int16)-canAdd);
-                pData->itemCount += canAdd;
-                const string itemName = pStock ? pStock->name : "item";
-                pPlayer->SendOnConsoleMessage("Added " + ToString(canAdd) + " " + itemName + " to the " + pMachine->name);
-                pPlayer->SendOnTalkBubble("Added " + ToString(canAdd) + " " + itemName + " to the `2" + pMachine->name + "``!", true);
+
+            if(addAmount > 0 && pData->itemID != ITEM_ID_BLANK) {
+                ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+                if(pStock) {
+                    if(addAmount > pPlayer->GetInventory().GetCountOfItem(pData->itemID)) {
+                        addAmount = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
+                    }
+
+                    const int32 fit = std::max<int32>(0, pData->itemLimit - pData->itemCount);
+                    if(addAmount > fit) {
+                        pPlayer->SendOnTalkBubble("That won't fit into the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                        addAmount = fit;
+                    }
+
+                    if(addAmount > 0) {
+                        pPlayer->ModifyInventoryItem(pData->itemID, (int16)-addAmount);
+                        pData->itemCount += addAmount;
+                        pPlayer->SendOnConsoleMessage("Added " + ToString(addAmount) + " " + string(pStock->name) + " to the " + string(pMachine ? pMachine->name : "machine"));
+                        pPlayer->SendOnTalkBubble("Added " + ToString(addAmount) + " " + string(pStock->name) + " to the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                    }
+                }
             }
         }
 
-        if(buttonClicked == "TakeItem" || takeAmount > 0) {
-            if(pData->itemID == ITEM_ID_BLANK) {
-                return;
+        int32 takeAmount = 0;
+        if(ParseIntField(packet, CompileTimeHashString("TakeAmount"), takeAmount)) {
+            if(takeAmount > 200) {
+                takeAmount = 200;
             }
 
-            int32 canTake = std::min<int32>(200, takeAmount);
-            canTake = std::min<int32>(canTake, pData->itemCount);
-            if(canTake > 0 && pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)canTake)) {
-                pPlayer->ModifyInventoryItem(pData->itemID, (int16)canTake);
-                pData->itemCount -= canTake;
-                const string itemName = pStock ? pStock->name : "item";
-                pPlayer->SendOnConsoleMessage("Took " + ToString(canTake) + " " + itemName + " from the " + pMachine->name);
-                pPlayer->SendOnTalkBubble("Took " + ToString(canTake) + " " + itemName + " from the `2" + pMachine->name + "``!", true);
+            if(takeAmount > pData->itemCount) {
+                takeAmount = pData->itemCount;
+            }
+
+            if(takeAmount > 0 && pData->itemID != ITEM_ID_BLANK) {
+                ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
+                if(pStock) {
+                    if(!pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)takeAmount)) {
+                        pPlayer->SendOnTalkBubble("That won't fit into your inventory.", true);
+                        return;
+                    }
+
+                    pPlayer->ModifyInventoryItem(pData->itemID, (int16)takeAmount);
+                    pData->itemCount -= takeAmount;
+                    pPlayer->SendOnConsoleMessage("Took " + ToString(takeAmount) + " " + string(pStock->name) + " from the " + string(pMachine ? pMachine->name : "machine"));
+                    pPlayer->SendOnTalkBubble("Took " + ToString(takeAmount) + " " + string(pStock->name) + " from the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                }
             }
         }
 
         if(pData->itemCount <= 0) {
             pData->itemCount = 0;
-            if(takeAmount > 0) {
-                pData->itemID = ITEM_ID_BLANK;
-            }
-        }
-
-        if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000) {
-            if(pData->remote && pPlayer->GetMagplantPos() != pTile->GetPos() && buttonClicked == "GetRemote") {
-                pPlayer->SetMagplantPos(pTile->GetPos());
-            }
+            pData->itemID = ITEM_ID_BLANK;
         }
 
         pWorld->SendTileUpdate(pTile);

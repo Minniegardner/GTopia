@@ -3,7 +3,6 @@
 #include "Item/ItemInfoManager.h"
 #include "../../../World/WorldPathfinding.h"
 #include "Math/Rect.h"
-#include <cmath>
 
 void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket)
 {
@@ -11,7 +10,18 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
         return;
     }
 
+    const uint64 nowMS = Time::GetSystemTime();
+    if(nowMS - pPlayer->GetLastCollectFailCheckTime() >= 5000) {
+        pPlayer->ResetCollectFailWindow(nowMS);
+    }
+
     if(!pPlayer->CanCollectObjectNow()) {
+        pPlayer->IncrementCollectFailWindow();
+        return;
+    }
+
+    if(pPlayer->GetCollectFailsInWindow() >= 5) {
+        pPlayer->SendFakePingReply();
         return;
     }
 
@@ -27,13 +37,12 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
     }
 
     Vector2Float playerPos = pPlayer->GetWorldPos();
-    const float dx = pObject->pos.x - playerPos.x;
-    const float dy = pObject->pos.y - playerPos.y;
-    const float distance = std::sqrt((dx * dx) + (dy * dy));
-
-    if(distance > 96.0f) {
+    const float xDist = std::abs(playerPos.x - pObject->pos.x);
+    const float yDist = std::abs(playerPos.y - pObject->pos.y);
+    if(xDist > (32.0f * 8.0f) || yDist > (32.0f * 4.0f)) {
         pPlayer->SendOnTalkBubble("Too far away to pick that up.", true);
         pPlayer->SendFakePingReply();
+        pPlayer->IncrementCollectFailWindow();
         return;
     }
 
@@ -60,9 +69,15 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
         return;
     }
 
-    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), pObject->pos)) {
+    const Vector2Float targetPos = {
+        static_cast<float>(pTargetTile->GetPos().x * 32),
+        static_cast<float>(pTargetTile->GetPos().y * 32)
+    };
+
+    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), targetPos)) {
         pPlayer->SendOnTalkBubble("(too far away)", true);
         pPlayer->SendFakePingReply();
+        pPlayer->IncrementCollectFailWindow();
         return;
     }
 

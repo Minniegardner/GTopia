@@ -4,19 +4,20 @@
 #include "../Player/GamePlayer.h"
 #include "Item/ItemInfoManager.h"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
+#include <list>
+#include <vector>
 
 namespace WorldPathfinding {
 
 namespace {
 
 struct PathNode {
-    int32 parent = -1;
-    float localCost = std::numeric_limits<float>::infinity();
-    float globalCost = std::numeric_limits<float>::infinity();
+    Vector2Int tilePos = { 0, 0 };
+    int32 parentIndex = -1;
     bool visited = false;
+    float localCost = INFINITY;
+    float globalCost = INFINITY;
 };
 
 bool IsOutOfBounds(const Vector2Int& tilePos, const Vector2Int& worldSize)
@@ -49,9 +50,9 @@ bool IsObstacle(World* pWorld, GamePlayer* pPlayer, const Vector2Int& tilePos)
 
 float Heuristic(const Vector2Int& a, const Vector2Int& b)
 {
-    const float dx = static_cast<float>(a.x - b.x);
-    const float dy = static_cast<float>(a.y - b.y);
-    return std::sqrt((dx * dx) + (dy * dy));
+    const float xDist = static_cast<float>(a.x - b.x);
+    const float yDist = static_cast<float>(a.y - b.y);
+    return std::sqrt((xDist * xDist) + (yDist * yDist));
 }
 
 int32 ToIndex(const Vector2Int& tilePos, int32 width)
@@ -75,8 +76,25 @@ bool HasPath(World* pWorld, GamePlayer* pPlayer, const Vector2Float& currentPos,
         return false;
     }
 
+    if(pPlayer->GetCharData().HasPlayMod(PLAYMOD_TYPE_GHOST)) {
+        return true;
+    }
+
     const Vector2Int worldSize = pWorld->GetTileManager()->GetSize();
     if(worldSize.x <= 0 || worldSize.y <= 0) {
+        return false;
+    }
+
+    const Vector2Float worldPixels = {
+        static_cast<float>(worldSize.x * 32),
+        static_cast<float>(worldSize.y * 32)
+    };
+
+    if(currentPos.x < 0.0f || currentPos.x >= worldPixels.x || currentPos.y < 0.0f || currentPos.y >= worldPixels.y) {
+        return false;
+    }
+
+    if(futurePos.x < 0.0f || futurePos.x >= worldPixels.x || futurePos.y < 0.0f || futurePos.y >= worldPixels.y) {
         return false;
     }
 
@@ -100,91 +118,77 @@ bool HasPath(World* pWorld, GamePlayer* pPlayer, const Vector2Float& currentPos,
     }
 
     std::vector<PathNode> nodes(static_cast<size_t>(worldArea));
-
-    nodes[startIndex].localCost = 0.0f;
-    nodes[startIndex].globalCost = Heuristic(currentTile, futureTile);
-
-    std::vector<int32> openList;
-    openList.push_back(startIndex);
-
-    const int8 neighbors[4][2] = {
-        { 0, 1 },
-        { 1, 0 },
-        { 0, -1 },
-        { -1, 0 }
-    };
-
-    while(!openList.empty()) {
-        std::sort(openList.begin(), openList.end(), [&](int32 lhs, int32 rhs) {
-            return nodes[lhs].globalCost < nodes[rhs].globalCost;
-        });
-
-        while(!openList.empty() && nodes[openList.front()].visited) {
-            openList.erase(openList.begin());
-        }
-
-        if(openList.empty()) {
-            break;
-        }
-
-        const int32 currentIndex = openList.front();
-        openList.erase(openList.begin());
-
-        if(currentIndex == endIndex) {
-            break;
-        }
-
-        nodes[currentIndex].visited = true;
-
-        const Vector2Int currentTilePos = {
-            currentIndex % worldSize.x,
-            currentIndex / worldSize.x
-        };
-
-        for(const auto& delta : neighbors) {
-            const Vector2Int neighborTilePos = {
-                currentTilePos.x + delta[0],
-                currentTilePos.y + delta[1]
-            };
-
-            if(IsOutOfBounds(neighborTilePos, worldSize)) {
-                continue;
-            }
-
-            if(IsObstacle(pWorld, pPlayer, neighborTilePos)) {
-                continue;
-            }
-
-            const int32 neighborIndex = ToIndex(neighborTilePos, worldSize.x);
-            if(nodes[neighborIndex].visited) {
-                continue;
-            }
-
-            openList.push_back(neighborIndex);
-
-            const float localCost = nodes[currentIndex].localCost + Heuristic(currentTilePos, neighborTilePos);
-            if(localCost < nodes[neighborIndex].localCost) {
-                nodes[neighborIndex].parent = currentIndex;
-                nodes[neighborIndex].localCost = localCost;
-                nodes[neighborIndex].globalCost = localCost + Heuristic(neighborTilePos, futureTile);
-            }
-        }
+    for(int32 i = 0; i < worldArea; ++i) {
+        nodes[(size_t)i].tilePos = { i % worldSize.x, i / worldSize.x };
+        nodes[(size_t)i].parentIndex = -1;
+        nodes[(size_t)i].visited = false;
+        nodes[(size_t)i].localCost = INFINITY;
+        nodes[(size_t)i].globalCost = INFINITY;
     }
 
-    if(endIndex < 0 || endIndex >= worldArea) {
-        return false;
+    nodes[(size_t)startIndex].localCost = 0.0f;
+    nodes[(size_t)startIndex].globalCost = Heuristic(currentTile, futureTile);
+
+    int32 currentIndex = startIndex;
+    std::list<int32> untestedNodes;
+    untestedNodes.emplace_back(currentIndex);
+
+    auto TryRelax = [&](const Vector2Int& nextPos) {
+        if(IsOutOfBounds(nextPos, worldSize)) {
+            return;
+        }
+
+        const int32 neighborIndex = ToIndex(nextPos, worldSize.x);
+        PathNode& neighbor = nodes[(size_t)neighborIndex];
+        if(neighbor.visited) {
+            return;
+        }
+
+        if(IsObstacle(pWorld, pPlayer, nextPos)) {
+            return;
+        }
+
+        untestedNodes.emplace_back(neighborIndex);
+
+        const float candidate = nodes[(size_t)currentIndex].localCost + Heuristic(nodes[(size_t)currentIndex].tilePos, neighbor.tilePos);
+        if(candidate < neighbor.localCost) {
+            neighbor.parentIndex = currentIndex;
+            neighbor.localCost = candidate;
+            neighbor.globalCost = candidate + Heuristic(neighbor.tilePos, futureTile);
+        }
+    };
+
+    while(!untestedNodes.empty() && currentIndex != endIndex) {
+        untestedNodes.sort([&](int32 lhs, int32 rhs) {
+            return nodes[(size_t)lhs].globalCost < nodes[(size_t)rhs].globalCost;
+        });
+
+        while(!untestedNodes.empty() && nodes[(size_t)untestedNodes.front()].visited) {
+            untestedNodes.pop_front();
+        }
+
+        if(untestedNodes.empty()) {
+            break;
+        }
+
+        currentIndex = untestedNodes.front();
+        nodes[(size_t)currentIndex].visited = true;
+
+        const Vector2Int pos = nodes[(size_t)currentIndex].tilePos;
+        TryRelax({ pos.x, pos.y + 1 });
+        TryRelax({ pos.x + 1, pos.y });
+        TryRelax({ pos.x, pos.y - 1 });
+        TryRelax({ pos.x - 1, pos.y });
     }
 
     int32 trace = endIndex;
-    while(nodes[trace].parent != -1) {
-        if(nodes[trace].parent == trace) {
+    while(trace >= 0 && trace < worldArea && nodes[(size_t)trace].parentIndex != -1) {
+        const int32 parent = nodes[(size_t)trace].parentIndex;
+        if(parent == trace) {
             return false;
         }
 
-        trace = nodes[trace].parent;
-        if(trace < 0 || trace >= worldArea) {
-            return false;
-        }
+        trace = parent;
     }
 
     return trace == startIndex;
