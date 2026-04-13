@@ -4,6 +4,7 @@
 #include "Item/ItemInfoManager.h"
 #include "../../World/WorldManager.h"
 #include "../../Server/GameServer.h"
+#include "../../../Source/Math/Math.h"
 #include <algorithm>
 
 namespace {
