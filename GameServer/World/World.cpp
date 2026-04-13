@@ -5,6 +5,7 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Math/Math.h"
+#include "fmt/core.h"
 #include <array>
 
 #include "IO/File.h"
