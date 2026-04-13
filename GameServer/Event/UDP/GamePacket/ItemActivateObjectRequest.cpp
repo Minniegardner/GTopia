@@ -100,6 +100,15 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
 
     pPlayer->ModifyInventoryItem(pObject->itemID, (int16)collected);
 
+    if(pItemInfo->rarity >= 999) {
+        pPlayer->SendOnConsoleMessage("Collected `w" + std::to_string((int32)collected) + " " + pItemInfo->name + "``.");
+    }
+    else {
+        pPlayer->SendOnConsoleMessage(
+            "Collected `w" + std::to_string((int32)collected) + " " + pItemInfo->name + "``. Rarity: `w" + std::to_string((int32)pItemInfo->rarity) + "``"
+        );
+    }
+
     if(collected > 0) {
         pPlayer->PlaySFX("pickup.wav", 0);
     }

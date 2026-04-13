@@ -48,6 +48,10 @@
 #include "../Command/RandomPull.h"
 #include "../Command/Warn.h"
 #include "../Command/WarpTo.h"
+#include "../Command/Uba.h"
+#include "../Command/KickAll.h"
+#include "../Command/Summon.h"
+#include "../Command/Suspend.h"
 
 GameServer::GameServer()
 : NetEntity(NET_ID_GAME_SERVER)
@@ -216,6 +220,10 @@ void GameServer::RegisterEvents()
     RegisterCommand<RandomPull>();
     RegisterCommand<Warn>();
     RegisterCommand<WarpTo>();
+    RegisterCommand<Uba>();
+    RegisterCommand<KickAll>();
+    RegisterCommand<Summon>();
+    RegisterCommand<Suspend>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)

@@ -93,6 +93,10 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/RandomPull.cpp
     ${GAME_COMMAND}/Warn.cpp
     ${GAME_COMMAND}/WarpTo.cpp
+    ${GAME_COMMAND}/Uba.cpp
+    ${GAME_COMMAND}/KickAll.cpp
+    ${GAME_COMMAND}/Summon.cpp
+    ${GAME_COMMAND}/Suspend.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp

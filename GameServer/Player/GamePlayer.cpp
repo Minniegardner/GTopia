@@ -303,8 +303,8 @@ void GamePlayer::SendWrenchSelf(std::string page)
     }
     else if(page == "SocialProfile") {
         db.AddLabelWithIcon("`wSocial Profile``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oThis source does not currently have the full friend profile system enabled.")
-        ->AddTextBox("`oYou can still use the wrench to inspect your own info and open the available tabs.")
+        ->AddTextBox("`oFriend and messaging shortcuts are available through wrenching other players.")
+        ->AddTextBox("`oUse this menu to navigate your own profile tabs.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
@@ -323,15 +323,15 @@ void GamePlayer::SendWrenchSelf(std::string page)
     }
     else if(page == "Settings") {
         db.AddLabelWithIcon("`wSettings``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oThis source does not yet expose the full V1 profile toggles.")
-        ->AddTextBox("`oUse the other tabs to inspect your level, stats, and world state.")
+        ->AddTextBox("`oWrench settings are currently lightweight in this source.")
+        ->AddTextBox("`oUse Titles and Worlds tabs for currently supported options.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "Titles") {
         db.AddLabelWithIcon("`wTitle Settings``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oTitle customization is not fully wired in this source yet.")
+        ->AddTextBox("`oRole prefix and title switching is server-side in this source.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
@@ -393,6 +393,81 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     ->EndDialog("WrenchOthers", "", "Continue");
 
     SendOnDialogRequest(db.Get());
+}
+
+bool GamePlayer::IsFriendWith(uint32 userID) const
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_friendUserIDs.find(userID) != m_friendUserIDs.end();
+}
+
+bool GamePlayer::AddFriendUserID(uint32 userID)
+{
+    if(userID == 0 || userID == GetUserID()) {
+        return false;
+    }
+
+    return m_friendUserIDs.insert(userID).second;
+}
+
+bool GamePlayer::RemoveFriendUserID(uint32 userID)
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_friendUserIDs.erase(userID) > 0;
+}
+
+bool GamePlayer::IsIgnoring(uint32 userID) const
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_ignoredUserIDs.find(userID) != m_ignoredUserIDs.end();
+}
+
+bool GamePlayer::AddIgnoredUserID(uint32 userID)
+{
+    if(userID == 0 || userID == GetUserID()) {
+        return false;
+    }
+
+    return m_ignoredUserIDs.insert(userID).second;
+}
+
+bool GamePlayer::RemoveIgnoredUserID(uint32 userID)
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_ignoredUserIDs.erase(userID) > 0;
+}
+
+bool GamePlayer::IsMuted() const
+{
+    if(m_mutedUntilMS == 0) {
+        return false;
+    }
+
+    return Time::GetSystemTime() < m_mutedUntilMS;
+}
+
+void GamePlayer::SetMutedUntilMS(uint64 untilMS, const string& reason)
+{
+    m_mutedUntilMS = untilMS;
+    m_muteReason = reason;
+}
+
+void GamePlayer::ClearMute()
+{
+    m_mutedUntilMS = 0;
+    m_muteReason.clear();
 }
 
 void GamePlayer::AddTradeHistory(std::string entry)

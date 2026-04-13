@@ -38,6 +38,27 @@ void Input::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
+    if(pPlayer->IsMuted()) {
+        const uint64 nowMS = Time::GetSystemTime();
+        const uint64 mutedUntilMS = pPlayer->GetMutedUntilMS();
+        uint64 secondsLeft = 1;
+
+        if(mutedUntilMS > nowMS) {
+            secondsLeft = (mutedUntilMS - nowMS) / 1000;
+            if(secondsLeft == 0) {
+                secondsLeft = 1;
+            }
+        }
+
+        string reason = pPlayer->GetMuteReason();
+        if(reason.empty()) {
+            reason = "No reason provided";
+        }
+
+        pPlayer->SendOnConsoleMessage("`4You are muted for another `w" + ToString((int)secondsLeft) + "`4 seconds. Reason: `w" + reason + "``");
+        return;
+    }
+
     char colorCode = pPlayer->GetRole()->GetChatColor();
 
     string consoleText = "<" + pPlayer->GetDisplayName() + "``> ";

@@ -7,8 +7,8 @@ const CommandInfo& Ban::GetInfo()
 {
     static CommandInfo info =
     {
-        "/ban <player_prefix>",
-        "Ban (disconnect) a player",
+        "/ban <player_prefix> [hours]",
+        "Ban a player from your current world",
         ROLE_PERM_COMMAND_BAN,
         {
             CompileTimeHashString("ban")
@@ -64,14 +64,24 @@ void Ban::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     GamePlayer* pTarget = filtered[0];
-    
-    // Get the current world and ban the player from it with 1 hour duration
+
+    uint32 banHours = 1;
+    if(args.size() >= 3) {
+        int32 parsedHours = 0;
+        if(ToInt(args[2], parsedHours) == TO_INT_SUCCESS && parsedHours > 0) {
+            if(parsedHours > 720) {
+                parsedHours = 720;
+            }
+            banHours = (uint32)parsedHours;
+        }
+    }
+
     World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
-    if(pWorld) {
-        pWorld->BanPlayer(pTarget, pPlayer, 1);  // Ban for 1 hour
-        pPlayer->SendOnConsoleMessage("`oBanned ``" + pTarget->GetDisplayName() + "`` from this world for 1 hour.");
-    }
-    else {
+    if(!pWorld) {
         pPlayer->SendOnConsoleMessage("`4Error: Could not find world for ban.");
+        return;
     }
+
+    pWorld->BanPlayer(pTarget, pPlayer, banHours);
+    pPlayer->SendOnConsoleMessage("`oBanned ``" + pTarget->GetDisplayName() + "`` from this world for `w" + ToString(banHours) + "`` hour(s).");
 }

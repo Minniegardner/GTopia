@@ -90,13 +90,30 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
             else if(buttonClicked == "Add" || buttonClicked == "friend_add") {
-                pPlayer->SendOnConsoleMessage("`oFriend system is not enabled in this source yet.");
+                const bool addedMine = pPlayer->AddFriendUserID(pTarget->GetUserID());
+                const bool addedOther = pTarget->AddFriendUserID(pPlayer->GetUserID());
+
+                if(addedMine || addedOther) {
+                    pPlayer->SendOnConsoleMessage("`oFriend request accepted with ``" + pTarget->GetDisplayName() + "``.");
+                    pTarget->SendOnConsoleMessage("`oYou are now friends with ``" + pPlayer->GetDisplayName() + "``.");
+                }
+                else {
+                    pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
+                }
             }
             else if(buttonClicked == "Ignore" || buttonClicked == "ignore_player") {
-                pPlayer->SendOnConsoleMessage("`oIgnore system is not enabled in this source yet.");
+                if(pPlayer->IsIgnoring(pTarget->GetUserID())) {
+                    pPlayer->RemoveIgnoredUserID(pTarget->GetUserID());
+                    pPlayer->SendOnConsoleMessage("`oYou no longer ignore ``" + pTarget->GetDisplayName() + "``.");
+                }
+                else {
+                    pPlayer->AddIgnoredUserID(pTarget->GetUserID());
+                    pPlayer->SendOnConsoleMessage("`oYou now ignore ``" + pTarget->GetDisplayName() + "``.");
+                }
             }
             else if(buttonClicked == "Report" || buttonClicked == "report_player") {
                 pPlayer->SendOnConsoleMessage("`oReport queued for review on ``" + pTarget->GetDisplayName() + "``.");
+                pPlayer->SendOnTalkBubble("`wThanks for the report, our team will review it.", true);
             }
             break;
         }
@@ -151,13 +168,30 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 );
             }
             else if(buttonClicked == "friend_add" || buttonClicked == "Add") {
-                pPlayer->SendOnConsoleMessage("`oFriend system is not enabled on this source yet.");
+                const bool addedMine = pPlayer->AddFriendUserID(pTarget->GetUserID());
+                const bool addedOther = pTarget->AddFriendUserID(pPlayer->GetUserID());
+
+                if(addedMine || addedOther) {
+                    pPlayer->SendOnConsoleMessage("`oFriend request accepted with ``" + pTarget->GetDisplayName() + "``.");
+                    pTarget->SendOnConsoleMessage("`oYou are now friends with ``" + pPlayer->GetDisplayName() + "``.");
+                }
+                else {
+                    pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
+                }
             }
             else if(buttonClicked == "ignore_player" || buttonClicked == "Ignore") {
-                pPlayer->SendOnConsoleMessage("`oIgnore system is not enabled on this source yet.");
+                if(pPlayer->IsIgnoring(pTarget->GetUserID())) {
+                    pPlayer->RemoveIgnoredUserID(pTarget->GetUserID());
+                    pPlayer->SendOnConsoleMessage("`oYou no longer ignore ``" + pTarget->GetDisplayName() + "``.");
+                }
+                else {
+                    pPlayer->AddIgnoredUserID(pTarget->GetUserID());
+                    pPlayer->SendOnConsoleMessage("`oYou now ignore ``" + pTarget->GetDisplayName() + "``.");
+                }
             }
             else if(buttonClicked == "report_player" || buttonClicked == "Report") {
                 pPlayer->SendOnConsoleMessage("`oReport sent for review: `w" + pTarget->GetDisplayName() + "``.");
+                pPlayer->SendOnTalkBubble("`wThanks for the report, our team will review it.", true);
             }
 
             break;

@@ -1,6 +1,7 @@
 #include "TileExtra.h"
 #include "TileInfo.h"
 #include "Item/ItemUtils.h"
+#include "Utils/Time.h"
 
 uint8 GetTileExtraType(uint8 itemType)
 {
@@ -120,7 +121,20 @@ void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
 void TileExtra_Seed::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
-    memBuffer.ReadWrite(growTime, write);
+    if(write && !database) {
+        uint32 elapsedSec = 0;
+        uint64 nowMS = Time::GetSystemTime();
+
+        if(growTime > 0 && nowMS > growTime) {
+            elapsedSec = (uint32)((nowMS - growTime) / 1000);
+        }
+
+        memBuffer.ReadWrite(elapsedSec, true);
+    }
+    else {
+        memBuffer.ReadWrite(growTime, write);
+    }
+
     memBuffer.ReadWrite(fruitCount, write);
 }
 

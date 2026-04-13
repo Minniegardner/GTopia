@@ -8,6 +8,11 @@
 init_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_giveitem|command_toggleplaymod|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
 
 # command_* used to access the slash command
+# compatibility commands mapped to existing perms:
+# command_pull -> /pull, /summon
+# command_kick -> /kick, /kickall
+# command_ban  -> /ban, /uba, /unban
+# command_warn -> /warn, /suspend, /mute, /unmute
 
 # mstate | used for zooming
 # smstate | long build & punch range

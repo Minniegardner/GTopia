@@ -120,6 +120,19 @@ public:
     void SendWrenchSelf(std::string page = "PlayerInfo");
     void SendWrenchOthers(GamePlayer* otherPlayer);
 
+    bool IsFriendWith(uint32 userID) const;
+    bool AddFriendUserID(uint32 userID);
+    bool RemoveFriendUserID(uint32 userID);
+    bool IsIgnoring(uint32 userID) const;
+    bool AddIgnoredUserID(uint32 userID);
+    bool RemoveIgnoredUserID(uint32 userID);
+
+    bool IsMuted() const;
+    uint64 GetMutedUntilMS() const { return m_mutedUntilMS; }
+    const string& GetMuteReason() const { return m_muteReason; }
+    void SetMutedUntilMS(uint64 untilMS, const string& reason = "");
+    void ClearMute();
+
     const std::unordered_set<std::string>& GetAchievements() const { return m_achievements; }
     bool HasAchievement(const std::string& achievement) const;
     void GiveAchievement(const std::string& achievement);
@@ -210,8 +223,12 @@ private:
     std::vector<std::string> m_tradeHistory = {};
     std::unordered_set<std::string> m_achievements = {};
     std::unordered_map<std::string, uint64> m_stats = {};
+    std::unordered_set<uint32> m_friendUserIDs = {};
+    std::unordered_set<uint32> m_ignoredUserIDs = {};
     uint32 m_lastWhisperUserID = 0;
     uint64 m_lastWhisperAtMS = 0;
+    uint64 m_mutedUntilMS = 0;
+    string m_muteReason = "";
 
     Role* m_pRole;
 };
