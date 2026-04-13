@@ -36,7 +36,7 @@ bool IsBlockedMachineItem(ItemInfo* pItem)
     return false;
 }
 
-int32 GetWorldLockValue(const GamePlayer* pPlayer)
+int32 GetWorldLockValue(GamePlayer* pPlayer)
 {
     if(!pPlayer) {
         return 0;
@@ -280,7 +280,7 @@ void ShowMagplantDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Magplant
             db.AddTextInput("MagAdd", "Add amount", "0", 4)
               ->AddTextInput("MagTake", "Take amount", "0", 4)
               ->AddTextInput("MagItemID", "Item ID", ToString(pData->itemID), 5)
-                            ->AddCheckBox("EnableSucking", "Enable Collection", pData->magnetic)
+                            ->AddCheckBox("EnableSucking", "Enable Collection", pData->magnetic);
 
             db.EndDialog("Magplant", "Update", "Close");
         }
