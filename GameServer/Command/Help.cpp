@@ -29,12 +29,11 @@ void Help::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     const auto& commandInfos = GetGameServer()->GetCommandInfos();
-
-    std::vector<const CommandInfo*> availableCommands;
-    availableCommands.reserve(commandInfos.size());
+    std::vector<string> commandNames;
+    commandNames.reserve(commandInfos.size());
 
     for(const CommandInfo* pInfo : commandInfos) {
-        if(!pInfo || pInfo->usage.empty()) {
+        if(!pInfo || pInfo->aliases.empty()) {
             continue;
         }
 
@@ -42,28 +41,23 @@ void Help::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             continue;
         }
 
-        availableCommands.push_back(pInfo);
+        commandNames.push_back(pInfo->aliases.front());
     }
 
-    std::sort(availableCommands.begin(), availableCommands.end(), [](const CommandInfo* lhs, const CommandInfo* rhs) {
-        return ToLower(lhs->usage) < ToLower(rhs->usage);
+    std::sort(commandNames.begin(), commandNames.end(), [](const string& lhs, const string& rhs) {
+        return ToLower(lhs) < ToLower(rhs);
     });
 
-    DialogBuilder db;
-    db.SetDefaultColor('o')
-        ->AddLabelWithIcon("`wHelp``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oRole: `w" + pPlayer->GetRole()->GetName() + "``")
-        ->AddSpacer();
-
-    if(availableCommands.empty()) {
-        db.AddTextBox("`4No command available for your role.");
-    }
-    else {
-        for(const CommandInfo* pInfo : availableCommands) {
-            db.AddTextBox("`w" + pInfo->usage + "`` - " + pInfo->desc);
+    string commands = "`o>> Commands: ";
+    for(size_t i = 0; i < commandNames.size(); ++i) {
+        if(i == 0) {
+            commands += commandNames[i];
+        }
+        else {
+            commands += ", " + commandNames[i];
         }
     }
 
-    db.EndDialog("command_help", "", "Close");
-    pPlayer->SendOnDialogRequest(db.Get());
+    commands += "``";
+    pPlayer->SendOnConsoleMessage(commands);
 }

@@ -197,6 +197,67 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             break;
         }
 
+        case CompileTimeHashString("TradeModify"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked != "OK" && buttonClicked != "Confirm") {
+                return;
+            }
+
+            auto pItemID = packet.Find(CompileTimeHashString("ItemID"));
+            if(!pItemID) {
+                pItemID = packet.Find(CompileTimeHashString("itemID"));
+            }
+
+            auto pAmount = packet.Find(CompileTimeHashString("Amount"));
+            if(!pAmount) {
+                pAmount = packet.Find(CompileTimeHashString("amount"));
+            }
+
+            if(!pAmount) {
+                pAmount = packet.Find(CompileTimeHashString("count"));
+            }
+
+            if(!pItemID) {
+                return;
+            }
+
+            uint32 itemID = 0;
+            if(ToUInt(string(pItemID->value, pItemID->size), itemID) != TO_INT_SUCCESS || itemID > UINT16_MAX) {
+                return;
+            }
+
+            uint32 amount = 0;
+            if(pAmount) {
+                if(ToUInt(string(pAmount->value, pAmount->size), amount) != TO_INT_SUCCESS) {
+                    amount = 0;
+                }
+            }
+
+            pPlayer->ModifyOffer((uint16)itemID, (uint16)amount);
+            break;
+        }
+
+        case CompileTimeHashString("TradeConfirm"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "Confirm" || buttonClicked == "OK") {
+                pPlayer->ConfirmOffer();
+            }
+            else if(buttonClicked == "Cancel") {
+                pPlayer->CancelTrade(false);
+            }
+            break;
+        }
+
         case CompileTimeHashString("sign_edit"): {
             auto pTileX = packet.Find(CompileTimeHashString("tilex"));
             auto pTileY = packet.Find(CompileTimeHashString("tiley"));

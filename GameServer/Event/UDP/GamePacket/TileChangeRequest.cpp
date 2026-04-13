@@ -267,6 +267,12 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             return;
         }
         else {
+            if(pTileItem && pTileItem->id == ITEM_ID_STEAM_CRANK) {
+                pTile->ToggleFlag(TILE_FLAG_IS_ON);
+                pWorld->SendTileUpdate(tilePos.x, tilePos.y);
+                return;
+            }
+
             uint8 punchDamage = (uint8)pPlayer->GetCharData().GetPunchDamage();
             if(pTileItem->type == ITEM_TYPE_SEED) {
                 TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();

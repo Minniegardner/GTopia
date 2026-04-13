@@ -100,6 +100,10 @@ void ItemActivateObjectRequest::Execute(GamePlayer* pPlayer, World* pWorld, Game
 
     pPlayer->ModifyInventoryItem(pObject->itemID, (int16)collected);
 
+    if(pObject->itemID == ITEM_ID_COMET_DUST && collected > 0) {
+        pPlayer->GiveAchievement("Sparkly Dust (Classic)");
+    }
+
     if(pItemInfo->rarity >= 999) {
         pPlayer->SendOnConsoleMessage("Collected `w" + std::to_string((int32)collected) + " " + pItemInfo->name + "``.");
     }

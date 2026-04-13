@@ -25,7 +25,7 @@ add_role|Developer|1|@||
 set_name_color|6|
 set_chat_color|#|
 set_inherits|2|
-set_perms|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_giveitem|command_toggleplaymod|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
+set_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_giveitem|command_toggleplaymod|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
 
 add_role|Moderator|2|@||
 set_name_color|#|

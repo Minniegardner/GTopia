@@ -16,6 +16,8 @@ CREATE TABLE `Players` (
   `Gems` int NOT NULL DEFAULT '0',
   `Level` int NOT NULL DEFAULT '1',
   `XP` int NOT NULL DEFAULT '0',
+  `AchievementData` longtext DEFAULT NULL,
+  `StatisticData` longtext DEFAULT NULL,
   `RoleID` int DEFAULT NULL,
   `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Hash` int NOT NULL DEFAULT '0',

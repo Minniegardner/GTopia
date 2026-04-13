@@ -125,6 +125,7 @@ set(GAME_FILES PRIVATE
     ${SOURCE_PLAYER}/CharacterData.cpp
     ${SOURCE_PLAYER}/PlayMod.cpp
     ${SOURCE_PLAYER}/PlayModManager.cpp
+    ${GAME_PLAYER}/AchievementCatalog.cpp
     ${GAME_PLAYER}/GamePlayer.cpp
 
     ${SOURCE_SERVER}/ServerBase.cpp

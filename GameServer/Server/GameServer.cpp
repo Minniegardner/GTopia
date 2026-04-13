@@ -382,7 +382,7 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         return;
     }
 
-    pSource->SendOnConsoleMessage("`6>> No one online who has a name starting with that query globally.``");
+    pSource->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + targetName + "`6.``");
 }
 
 bool GameServer::CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const

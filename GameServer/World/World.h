@@ -5,7 +5,6 @@
 #include "Packet/GamePacket.h"
 
 #include <deque>
-#include <unordered_set>
 #include <chrono>
 
 class GamePlayer;
@@ -97,7 +96,6 @@ private:
     };
 
     std::deque<SteamActivationEntry> m_steamActivationQueue;
-    std::unordered_set<uint32> m_steamActivationQueuedIndices;
     uint64 m_lastSteamActivationTick = 0;
 
     bool m_waitingForClose;

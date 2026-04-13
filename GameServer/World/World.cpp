@@ -113,6 +113,10 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     pPlayer->SetCurrentWorld(m_worldID);
     m_players.push_back(pPlayer);
 
+    if(m_players.size() >= 20) {
+        pPlayer->GiveAchievement("Social Butterfly (Classic)");
+    }
+
     TileInfo* pMainDoorTile = GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
     if(!pMainDoorTile) {
         pPlayer->SetWorldPos(0, 0);
@@ -1000,20 +1004,11 @@ void World::QueueSteamActivation(TileInfo* pTile, uint32 delayMS)
         return;
     }
 
-    const Vector2Int tilePos = pTile->GetPos();
-    const Vector2Int size = GetTileManager()->GetSize();
-    const uint32 tileIndex = (uint32)(tilePos.x + tilePos.y * size.x);
-
-    if(m_steamActivationQueuedIndices.find(tileIndex) != m_steamActivationQueuedIndices.end()) {
-        return;
-    }
-
     SteamActivationEntry entry;
-    entry.tilePos = tilePos;
+    entry.tilePos = pTile->GetPos();
     entry.activateAtMS = Time::GetSystemTime() + delayMS;
 
     m_steamActivationQueue.push_back(entry);
-    m_steamActivationQueuedIndices.insert(tileIndex);
 }
 
 void World::UpdateSteamActivations()
@@ -1033,12 +1028,9 @@ void World::UpdateSteamActivations()
     auto it = m_steamActivationQueue.begin();
     while(it != m_steamActivationQueue.end() && processed < 64) {
         const Vector2Int tilePos = it->tilePos;
-        const Vector2Int worldSize = GetTileManager()->GetSize();
-        const uint32 tileIndex = (uint32)(tilePos.x + tilePos.y * worldSize.x);
 
         TileInfo* pTile = GetTileManager()->GetTile(tilePos.x, tilePos.y);
         if(!pTile) {
-            m_steamActivationQueuedIndices.erase(tileIndex);
             it = m_steamActivationQueue.erase(it);
             continue;
         }
@@ -1099,7 +1091,6 @@ void World::UpdateSteamActivations()
             }
         }
 
-        m_steamActivationQueuedIndices.erase(tileIndex);
         it = m_steamActivationQueue.erase(it);
         ++processed;
     }

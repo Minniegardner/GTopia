@@ -12,10 +12,271 @@
 #include "Math/Random.h"
 #include "Dialog/PlayerDialog.h"
 #include "Dialog/RenderWorldDialog.h"
+#include "AchievementCatalog.h"
 #include "Utils/DialogBuilder.h"
 #include "../Server/GameServer.h"
 #include <algorithm>
 #include <cmath>
+#include <sstream>
+
+namespace fmt {
+
+inline void AppendFormat(std::string& output, const std::string& pattern, size_t& position)
+{
+    output.append(pattern, position, std::string::npos);
+    position = pattern.size();
+}
+
+template<typename TValue, typename... TRest>
+void AppendFormat(std::string& output, const std::string& pattern, size_t& position, TValue&& value, TRest&&... rest)
+{
+    const size_t placeholderPos = pattern.find("{}", position);
+    if(placeholderPos == std::string::npos) {
+        output.append(pattern, position, std::string::npos);
+        position = pattern.size();
+        return;
+    }
+
+    output.append(pattern, position, placeholderPos - position);
+
+    std::ostringstream stream;
+    stream << std::forward<TValue>(value);
+    output += stream.str();
+
+    position = placeholderPos + 2;
+    AppendFormat(output, pattern, position, std::forward<TRest>(rest)...);
+}
+
+inline std::string format(const std::string& pattern)
+{
+    return pattern;
+}
+
+template<typename... TArgs>
+std::string format(const std::string& pattern, TArgs&&... args)
+{
+    std::string output;
+    output.reserve(pattern.size() + sizeof...(TArgs) * 8);
+
+    size_t position = 0;
+    AppendFormat(output, pattern, position, std::forward<TArgs>(args)...);
+    if(position < pattern.size()) {
+        output.append(pattern, position, std::string::npos);
+    }
+
+    return output;
+}
+
+}
+
+namespace {
+
+constexpr uint64 kTradeChangeThrottleMS = 1800;
+constexpr uint8 kTradeMaxOfferItems = 4;
+
+bool IsTradeSystemItem(uint16 itemID)
+{
+    return itemID == ITEM_ID_BLANK || itemID == ITEM_ID_FIST || itemID == ITEM_ID_WRENCH;
+}
+
+bool IsTradeItemAllowed(uint16 itemID)
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    if(!pItem) {
+        return false;
+    }
+
+    if(IsTradeSystemItem(itemID)) {
+        return false;
+    }
+
+    return !pItem->HasFlag(ITEM_FLAG_UNTRADEABLE);
+}
+
+const char* GetTradeItemName(uint16 itemID)
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    return pItem ? pItem->name.c_str() : "Unknown Item";
+}
+
+std::string BuildTradeOfferSummary(const std::vector<TradeOffer>& offers)
+{
+    if(offers.empty()) {
+        return "nothing";
+    }
+
+    std::string summary;
+    for(const auto& offer : offers) {
+        if(!summary.empty()) {
+            summary += ", ";
+        }
+
+        summary += fmt::format("{} {}", offer.Amount, GetTradeItemName(offer.ID));
+    }
+
+    return summary;
+}
+
+std::string BuildTradeHistorySummary(const std::vector<TradeOffer>& offers)
+{
+    std::string summary;
+    for(const auto& offer : offers) {
+        summary += fmt::format("[{} {}]", offer.Amount, GetTradeItemName(offer.ID));
+    }
+
+    return summary;
+}
+
+enum class TradeReceiveState {
+    OK,
+    FULL_SLOTS,
+    WILL_MAX
+};
+
+TradeReceiveState GetTradeReceiveState(GamePlayer* pPlayer, uint16 itemID, uint8 amount)
+{
+    if(!pPlayer || amount == 0) {
+        return TradeReceiveState::FULL_SLOTS;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    if(!pItem) {
+        return TradeReceiveState::FULL_SLOTS;
+    }
+
+    InventoryItemInfo* pCurrentItem = pPlayer->GetInventory().GetItemByID(itemID);
+    if(pCurrentItem) {
+        if((uint32)pCurrentItem->count + amount > pItem->maxCanHold) {
+            return TradeReceiveState::WILL_MAX;
+        }
+
+        return TradeReceiveState::OK;
+    }
+
+    if(amount > pItem->maxCanHold) {
+        return TradeReceiveState::WILL_MAX;
+    }
+
+    if(!pPlayer->GetInventory().HaveRoomForItem(itemID, amount)) {
+        return TradeReceiveState::FULL_SLOTS;
+    }
+
+    return TradeReceiveState::OK;
+}
+
+bool IsValidTradePair(GamePlayer* pPlayer, GamePlayer* pTarget)
+{
+    if(!pPlayer || !pTarget || pPlayer == pTarget) {
+        return false;
+    }
+
+    if(pPlayer->GetCurrentWorld() == 0 || pPlayer->GetCurrentWorld() != pTarget->GetCurrentWorld()) {
+        return false;
+    }
+
+    return true;
+}
+
+void ResetTradeState(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    pPlayer->SetTrading(false);
+    pPlayer->SetTradingWithUserID(0);
+    pPlayer->SetTradeAccepted(false);
+    pPlayer->SetTradeConfirmed(false);
+    pPlayer->SetTradeAcceptedAt(0);
+    pPlayer->SetTradeConfirmedAt(0);
+    pPlayer->SetLastChangeTradeDeal(0);
+    pPlayer->ClearTradeOffers();
+}
+
+std::string BuildTradeStatusDialog(GamePlayer* pViewer, GamePlayer* pOfferOwner)
+{
+    if(!pViewer || !pOfferOwner) {
+        return "";
+    }
+
+    std::string dialog;
+    for(const auto& offer : pOfferOwner->GetTradeOffers()) {
+        dialog += fmt::format("add_slot|{}|{}|\n", offer.ID, offer.Amount);
+    }
+
+    dialog += "locked|0\n";
+    dialog += "reset_locks|1\n";
+    dialog += fmt::format("accepted|{}\n", pOfferOwner->IsTradeAccepted() ? 1 : 0);
+    return dialog;
+}
+
+DialogBuilder BuildTradeConfirmationDialog(GamePlayer* pViewer, GamePlayer* pOfferOwner, World* pWorld)
+{
+    DialogBuilder db;
+    db.SetDefaultColor('o');
+    db.AddLabelWithIcon("`wTrade Confirmation``", ITEM_ID_WRENCH, true);
+    db.AddSpacer();
+    db.AddLabel("`4You'll give:``");
+    db.AddSpacer();
+
+    for(const auto& offer : pViewer->GetTradeOffers()) {
+        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(offer.ID);
+        if(!pItem) {
+            continue;
+        }
+
+        db.AddLabelWithIcon(fmt::format("(`w{}``)`` {}", offer.Amount, pItem->name), offer.ID);
+    }
+
+    if(pViewer->GetTradeOffers().empty()) {
+        db.AddLabel("`4Nothing!``");
+    }
+
+    db.AddSpacer();
+    db.AddLabel("`2You'll get:``");
+    db.AddSpacer();
+
+    for(const auto& offer : pOfferOwner->GetTradeOffers()) {
+        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(offer.ID);
+        if(!pItem) {
+            continue;
+        }
+
+        db.AddLabelWithIcon(fmt::format("(`w{}``)`` {}", offer.Amount, pItem->name), offer.ID);
+    }
+
+    if(pOfferOwner->GetTradeOffers().empty()) {
+        db.AddLabel("`4Nothing!``");
+    }
+
+    db.AddSpacer();
+
+    if(pOfferOwner->GetTradeOffers().empty()) {
+        db.AddLabel("`4SCAM WARNING: ``You are about to do a trade without anything in return. Once you do the trade, you can't get your items back.");
+        db.AddLabel("`4Do you really wanna do this trade?``");
+        db.AddSpacer();
+    }
+
+    if(pOfferOwner->IsTradeOfferExists(ITEM_ID_WORLD_KEY)) {
+        db.AddLabel(fmt::format("`4SCAM WARNING: ``You are buying this world, `#{}``. Don't buy a world just to get its rare items, because scammers can easily place secret doors allowing someone to jump in and `4steal the items back`` after a trade!", pWorld ? pWorld->GetWorlName() : "unknown"));
+        db.AddSpacer();
+        db.AddLabel("Also, all ratings will be removed from a world when it is traded. Don't buy a world for its ranking!");
+        db.AddSpacer();
+        db.AddLabel("To be safe, only buy a world for its name and placed blocks, not loose items or high ratings. Consider yourself warned!");
+        db.AddSpacer();
+    }
+    else if(pViewer->IsTradeOfferExists(ITEM_ID_WORLD_LOCK) || pViewer->IsTradeOfferExists(ITEM_ID_DIAMOND_LOCK) || pViewer->IsTradeOfferExists(ITEM_ID_HARMONIC_LOCK) || pViewer->IsTradeOfferExists(ITEM_ID_ROBOTIC_LOCK)) {
+        db.AddLabel(fmt::format("``4WARNING: ``You are about to sell your world `#{}`` - the world lock ownership will be transferred over to `w{}`o.``", pWorld ? pWorld->GetWorlName() : "unknown", pOfferOwner->GetRawName()));
+        db.AddSpacer();
+    }
+
+    db.AddButton("Confirm", "Confirm Trade");
+    db.AddButton("Cancel", "Cancel");
+    db.EndDialog("TradeConfirm", "", "");
+    return db;
+}
+
+}
 
 bool GamePlayer::IsTradeOfferExists(uint16 itemID) const
 {
@@ -50,237 +311,558 @@ void GamePlayer::AddTradeOffer(TradeOffer tradeOffer)
         }
     }
 
-    m_tradeOffers.push_back(tradeOffer);
-}
-
-void GamePlayer::ClearTradeOffers()
-{
-    m_tradeOffers.clear();
-}
-
-void GamePlayer::StartTrade(GamePlayer* player)
-{
-    if(!player || player == this || IsTrading() || player->IsTrading()) {
+    if(m_tradeOffers.size() >= kTradeMaxOfferItems) {
         return;
     }
 
-    SetTrading(true);
-    SetTradingWithUserID(player->GetNetID());
-    SetTradeAccepted(false);
-    SetTradeConfirmed(false);
-    SetTradeAcceptedAt(0);
-    SetTradeConfirmedAt(0);
-    ClearTradeOffers();
+    m_tradeOffers.push_back(tradeOffer);
+}
+                    if(!player || player == this) {
+                        return;
+                    }
 
-    player->SetTrading(true);
-    player->SetTradingWithUserID(GetNetID());
-    player->SetTradeAccepted(false);
-    player->SetTradeConfirmed(false);
+                    CancelTrade(false);
+
+                    if(!IsValidTradePair(this, player)) {
+                        SendOnConsoleMessage("`4Target is no longer valid.``");
+                        return;
+                    }
+
+                    if(player->IsTrading()) {
+                        SendOnConsoleMessage(fmt::format("`8[`w{} `4is too busy to trade!`8]``", player->GetRawName()));
+                        return;
+                    }
+
+                    SetTrading(true);
+                    SetTradingWithUserID(player->GetNetID());
+                    SetTradeAccepted(false);
+                    SetTradeConfirmed(false);
+                    SetTradeAcceptedAt(0);
+                    SetTradeConfirmedAt(0);
+                    ClearTradeOffers();
+
+                    player->SetTrading(true);
+                    player->SetTradingWithUserID(GetNetID());
+                    player->SetTradeAccepted(false);
+                    player->SetTradeConfirmed(false);
+                    player->SetTradeAcceptedAt(0);
+                    player->SetTradeConfirmedAt(0);
+                    player->ClearTradeOffers();
+
+                    SendTradeAlert(player);
+                    player->SendTradeAlert(this);
+                    SendStartTrade(player);
+                    player->SendStartTrade(this);
     player->SetTradeAcceptedAt(0);
     player->SetTradeConfirmedAt(0);
     player->ClearTradeOffers();
 
     SendTradeAlert(player);
-    player->SendTradeAlert(this);
-    SendStartTrade(player);
-    player->SendStartTrade(this);
-}
+                    if(!player || player == this) {
+                        return;
+                    }
 
-void GamePlayer::CancelTrade(bool busy, std::string customMessage)
-{
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
-    if(pTarget && pTarget != this) {
-        pTarget->SetTrading(false);
-        pTarget->SetTradingWithUserID(0);
-        pTarget->SetTradeAccepted(false);
-        pTarget->SetTradeConfirmed(false);
-        pTarget->SetTradeAcceptedAt(0);
-        pTarget->SetTradeConfirmedAt(0);
-        pTarget->ClearTradeOffers();
-        pTarget->SendForceTradeEnd();
-        if(!customMessage.empty()) {
-            pTarget->SendOnConsoleMessage(customMessage);
-        }
-    }
+                    CancelTrade(false);
 
-    SetTrading(false);
-    SetTradingWithUserID(0);
-    SetTradeAccepted(false);
-    SetTradeConfirmed(false);
-    SetTradeAcceptedAt(0);
-    SetTradeConfirmedAt(0);
-    ClearTradeOffers();
+                    if(!IsValidTradePair(this, player)) {
+                        SendOnConsoleMessage("`4Target is no longer valid.``");
+                        return;
+                    }
 
-    if(busy) {
-        SendForceTradeEnd();
-    }
-}
+                    if(player->IsTrading()) {
+                        SendOnConsoleMessage(fmt::format("`8[`w{} `4is too busy to trade!`8]``", player->GetRawName()));
+                        return;
+                    }
 
-void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
-{
-    if(!IsTrading()) {
+                    SetTrading(true);
+                    SetTradingWithUserID(player->GetNetID());
+                    SetTradeAccepted(false);
+                    SetTradeConfirmed(false);
+                    SetTradeAcceptedAt(0);
+                    SetTradeConfirmedAt(0);
+                    ClearTradeOffers();
+
+                    player->SetTrading(true);
+                    player->SetTradingWithUserID(GetNetID());
+                    player->SetTradeAccepted(false);
+                    player->SetTradeConfirmed(false);
+                    player->SetTradeAcceptedAt(0);
+                    player->SetTradeConfirmedAt(0);
+                    player->ClearTradeOffers();
+
+                    SendTradeAlert(player);
+                    player->SendTradeAlert(this);
+                    SendStartTrade(player);
+                    player->SendStartTrade(this);
+                }
+
+                void GamePlayer::CancelTrade(bool busy, std::string customMessage)
+                {
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+                    const bool isTradingWithMe = pTarget && pTarget != this && pTarget->GetTradingWithUserID() == GetNetID();
+
+                    if(isTradingWithMe) {
+                        if(!customMessage.empty()) {
+                            pTarget->SendOnConsoleMessage(customMessage);
+                            pTarget->SendOnTextOverlay(customMessage);
+                        }
+                        else if(busy) {
+                            const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", GetRawName());
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                        }
+                        else {
+                            const std::string message = fmt::format("`8[`4Trade cancelled by `w{}`4!`8]``", GetRawName());
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                        }
+
+                        pTarget->SendForceTradeEnd();
+                        ResetTradeState(pTarget);
+                    }
+
+                    if(!customMessage.empty()) {
+                        SendOnConsoleMessage(customMessage);
+                        SendOnTextOverlay(customMessage);
+                    }
+                    else if(busy) {
+                        const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", pTarget ? pTarget->GetRawName() : GetRawName());
+                        SendOnConsoleMessage(message);
+                        SendOnTextOverlay(message);
+                    }
+                    else if(isTradingWithMe) {
+                        const std::string message = fmt::format("`8[`4Trade cancelled by `w{}`4!`8]``", pTarget->GetRawName());
+                        SendOnConsoleMessage(message);
+                        SendOnTextOverlay(message);
+                    }
+
+                    SendForceTradeEnd();
+                    ResetTradeState(this);
+                }
+
+                void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
+                {
+                    if(!IsTrading()) {
+                        return;
+                    }
+
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+                    if(!IsValidTradePair(this, pTarget)) {
+                        CancelTrade(false);
+                        return;
+                    }
+
+                    if(!IsTradeItemAllowed(itemID)) {
+                        return;
+                    }
+
+                    const uint64 nowMS = Time::GetSystemTime();
+                    if(GetLastChangeTradeDeal() != 0 && nowMS - GetLastChangeTradeDeal() < kTradeChangeThrottleMS) {
+                        SendOnConsoleMessage("Please slow down when changing trade offers.");
+                        return;
+                    }
+
+                    const uint8 ownedCount = GetInventory().GetCountOfItem(itemID);
+                    if(ownedCount == 0) {
+                        return;
+                    }
+
+                    if(amount == 0) {
+                        amount = ownedCount;
+                    }
+
+                    if(amount > ownedCount) {
+                        return;
+                    }
+
+                    if(!IsTradeOfferExists(itemID) && m_tradeOffers.size() >= kTradeMaxOfferItems) {
+                        return;
+                    }
+
+                    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+                    if(!pItem || amount > pItem->maxCanHold) {
+                        return;
+                    }
+
+                    AddTradeOffer({ itemID, (uint8)amount });
+
+                    SetTradeAccepted(false);
+                    SetTradeConfirmed(false);
+                    SetTradeAcceptedAt(0);
+                    SetTradeConfirmedAt(0);
+                    SetLastChangeTradeDeal(nowMS);
+
+                    if(pTarget) {
+                        pTarget->SetTradeAccepted(false);
+                        pTarget->SetTradeConfirmed(false);
+                        pTarget->SetTradeAcceptedAt(0);
+                        pTarget->SetTradeConfirmedAt(0);
+                    }
+
+                    SendTradeStatus(this);
+                    if(pTarget) {
+                        pTarget->SendTradeStatus(this);
+                        pTarget->SendTradeStatus(pTarget);
+                    }
+
+                    const std::string itemName = GetTradeItemName(itemID);
+                    SendOnConsoleMessage("`#The trade deal has been updated.");
+                    SendOnTextOverlay("`#The trade deal has been updated.");
+                    SendOnConsoleMessage(fmt::format("{} `` offered ``{}x {}``", GetRawName(), amount, itemName));
+                    SendOnTextOverlay(fmt::format("{} `` offered ``{}x {}``", GetRawName(), amount, itemName));
+                    SendAudio("audio/tile_removed.wav");
+
+                    if(pTarget) {
+                        pTarget->SendOnConsoleMessage("`#The trade deal has been updated.");
+                        pTarget->SendOnTextOverlay("`#The trade deal has been updated.");
+                        pTarget->SendOnConsoleMessage(fmt::format("{} `` offered ``{}x {}``", GetRawName(), amount, itemName));
+                        pTarget->SendOnTextOverlay(fmt::format("{} `` offered ``{}x {}``", GetRawName(), amount, itemName));
+                        pTarget->SendAudio("audio/tile_removed.wav");
+                    }
+                }
+
+                void GamePlayer::RemoveOffer(uint16 itemID)
+                {
+                    if(!IsTrading()) {
+                        return;
+                    }
+
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+                    if(!IsValidTradePair(this, pTarget)) {
+                        CancelTrade(false);
+                        return;
+                    }
+
+                    if(!IsTradeItemAllowed(itemID)) {
+                        return;
+                    }
+
+                    const uint64 nowMS = Time::GetSystemTime();
+                    if(GetLastChangeTradeDeal() != 0 && nowMS - GetLastChangeTradeDeal() < kTradeChangeThrottleMS) {
+                        SendOnConsoleMessage("Please slow down when changing trade offers.");
+                        return;
+                    }
+
+                    uint8 removedAmount = 0;
+                    for(const auto& offer : m_tradeOffers) {
+                        if(offer.ID == itemID) {
+                            removedAmount = offer.Amount;
+                            break;
+                        }
+                    }
+
+                    if(removedAmount == 0) {
+                        return;
+                    }
+
+                    RemoveTradeOffer(itemID);
+
+                    SetTradeAccepted(false);
+                    SetTradeConfirmed(false);
+                    SetTradeAcceptedAt(0);
+                    SetTradeConfirmedAt(0);
+                    SetLastChangeTradeDeal(nowMS);
+
+                    if(pTarget) {
+                        pTarget->SetTradeAccepted(false);
+                        pTarget->SetTradeConfirmed(false);
+                        pTarget->SetTradeAcceptedAt(0);
+                        pTarget->SetTradeConfirmedAt(0);
+                    }
+
+                    SendTradeStatus(this);
+                    if(pTarget) {
+                        pTarget->SendTradeStatus(this);
+                        pTarget->SendTradeStatus(pTarget);
+                    }
+
+                    const std::string itemName = GetTradeItemName(itemID);
+                    SendOnConsoleMessage("`#The trade deal has been updated.");
+                    SendOnTextOverlay("`#The trade deal has been updated.");
+                    SendOnConsoleMessage(fmt::format("{} `` `4removed ``{}x {}``", GetRawName(), removedAmount, itemName));
+                    SendOnTextOverlay(fmt::format("{} `` `4removed ``{}x {}``", GetRawName(), removedAmount, itemName));
+                    SendAudio("audio/tile_removed.wav");
+
+                    if(pTarget) {
+                        pTarget->SendOnConsoleMessage("`#The trade deal has been updated.");
+                        pTarget->SendOnTextOverlay("`#The trade deal has been updated.");
+                        pTarget->SendOnConsoleMessage(fmt::format("{} `` `4removed ``{}x {}``", GetRawName(), removedAmount, itemName));
+                        pTarget->SendOnTextOverlay(fmt::format("{} `` `4removed ``{}x {}``", GetRawName(), removedAmount, itemName));
+                        pTarget->SendAudio("audio/tile_removed.wav");
+                    }
+                }
+
+                void GamePlayer::AcceptOffer(bool status)
+                {
+                    if(!IsTrading()) {
+                        return;
+                    }
+
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+                    if(!IsValidTradePair(this, pTarget)) {
+                        CancelTrade(false);
+                        return;
+                    }
+
+                    if(!status) {
+                        SetTradeAccepted(false);
+                        SetTradeConfirmed(false);
+                        SetTradeAcceptedAt(0);
+                        SetTradeConfirmedAt(0);
+
+                        if(pTarget) {
+                            pTarget->SetTradeAccepted(false);
+                            pTarget->SetTradeConfirmed(false);
+                            pTarget->SetTradeAcceptedAt(0);
+                            pTarget->SetTradeConfirmedAt(0);
+                            pTarget->SendTradeStatus(this);
+                            pTarget->SendTradeStatus(pTarget);
+                        }
+
+                        SendTradeStatus(this);
+                        if(pTarget) {
+                            SendTradeStatus(pTarget);
+                        }
+                        return;
+                    }
+
+                    SetTradeAccepted(true);
+                    SetTradeAcceptedAt(Time::GetSystemTime());
+
+                    if(pTarget && pTarget->GetTradingWithUserID() == GetNetID()) {
+                        pTarget->SendTradeStatus(this);
+                    }
+
+                    if(!pTarget || !pTarget->IsTradeAccepted() || !IsTradeAccepted() || pTarget->GetTradingWithUserID() != GetNetID()) {
+                        SendOnConsoleMessage("`6[``Trade accepted, waiting for other player to accept`6]``");
+                        SendOnTextOverlay("`6[``Trade accepted, waiting for other player to accept`6]``");
+
+                        if(pTarget) {
+                            pTarget->SendOnConsoleMessage("`6[``Trade accepted by other player, waiting for you`6]``");
+                            pTarget->SendOnTextOverlay("`6[``Trade accepted by other player, waiting for you`6]``");
+                        }
+
+                        return;
+                    }
+
+                    bool allowTrade = true;
+                    for(const auto& offer : pTarget->GetTradeOffers()) {
+                        TradeReceiveState receiveState = GetTradeReceiveState(this, offer.ID, offer.Amount);
+                        if(receiveState == TradeReceiveState::FULL_SLOTS) {
+                            const std::string message = fmt::format("`w{}`` needs more backpack room first!", GetRawName());
+                            SendOnConsoleMessage(message);
+                            SendOnTextOverlay(message);
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                            allowTrade = false;
+                            break;
+                        }
+
+                        if(receiveState == TradeReceiveState::WILL_MAX) {
+                            const std::string message = fmt::format("`w{}`` `4is carrying too many `w{}`4.", GetRawName(), GetTradeItemName(offer.ID));
+                            SendOnConsoleMessage(message);
+                            SendOnTextOverlay(message);
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                            allowTrade = false;
+                            break;
+                        }
+                    }
+
+                    if(allowTrade) {
+                        for(const auto& offer : GetTradeOffers()) {
+                            TradeReceiveState receiveState = GetTradeReceiveState(pTarget, offer.ID, offer.Amount);
+                            if(receiveState == TradeReceiveState::FULL_SLOTS) {
+                                const std::string message = fmt::format("`w{}`` needs more backpack room first!", pTarget->GetRawName());
+                                SendOnConsoleMessage(message);
+                                SendOnTextOverlay(message);
+                                pTarget->SendOnConsoleMessage(message);
+                                pTarget->SendOnTextOverlay(message);
+                                allowTrade = false;
+                                break;
+                            }
+
+                            if(receiveState == TradeReceiveState::WILL_MAX) {
+                                const std::string message = fmt::format("`w{}`` `4is carrying too many `w{}`4.", pTarget->GetRawName(), GetTradeItemName(offer.ID));
+                                SendOnConsoleMessage(message);
+                                SendOnTextOverlay(message);
+                                pTarget->SendOnConsoleMessage(message);
+                                pTarget->SendOnTextOverlay(message);
+                                allowTrade = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if(!allowTrade) {
+                        SetTradeConfirmed(false);
+                        SetTradeAccepted(false);
+                        SetTradeConfirmedAt(0);
+                        SetTradeAcceptedAt(0);
+
+                        if(pTarget) {
+                            pTarget->SetTradeConfirmed(false);
+                            pTarget->SetTradeAccepted(false);
+                            pTarget->SetTradeConfirmedAt(0);
+                            pTarget->SetTradeAcceptedAt(0);
+
+                            SendTradeStatus(this);
+                            SendTradeStatus(pTarget);
+                            pTarget->SendTradeStatus(this);
+                            pTarget->SendTradeStatus(pTarget);
+                        }
+
+                        return;
+                    }
+
+                    SendForceTradeEnd();
+                    pTarget->SendForceTradeEnd();
+
+                    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+                    DialogBuilder ours = BuildTradeConfirmationDialog(this, pTarget, pWorld);
+                    DialogBuilder theirs = BuildTradeConfirmationDialog(pTarget, this, pWorld);
+
+                    SendOnDialogRequest(ours.Get());
+                    pTarget->SendOnDialogRequest(theirs.Get());
+
+                    SetTradeConfirmed(false);
+                    pTarget->SetTradeConfirmed(false);
+                }
+
+                void GamePlayer::ConfirmOffer()
+                {
+                    if(!IsTrading() || !IsTradeAccepted()) {
+                        return;
+                    }
+
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+                    if(!IsValidTradePair(this, pTarget) || !pTarget->IsTrading()) {
+                        CancelTrade(false);
+                        return;
+                    }
+
+                    SetTradeConfirmed(true);
+                    SetTradeConfirmedAt(Time::GetSystemTime());
+
+                    if(!pTarget->IsTradeConfirmed()) {
+                        SendOnConsoleMessage("`6[``Trade accepted, waiting for other player to accept`6]``");
+                        SendOnTextOverlay("`6[``Trade accepted, waiting for other player to accept`6]``");
+
+                        pTarget->SendOnConsoleMessage("`6[``Trade accepted by other player, waiting for you`6]``");
+                        pTarget->SendOnTextOverlay("`6[``Trade accepted by other player, waiting for you`6]``");
+                        return;
+                    }
+
+                    for(const auto& offer : pTarget->GetTradeOffers()) {
+                        if(GetInventory().GetCountOfItem(offer.ID) < offer.Amount) {
+                            const std::string message = "`4Trade cancelled - the other player doesn't have enough items anymore.";
+                            SendOnConsoleMessage(message);
+                            SendOnTextOverlay(message);
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                            CancelTrade(false);
+                            return;
+                        }
+                    }
+
+                    for(const auto& offer : GetTradeOffers()) {
+                        if(pTarget->GetInventory().GetCountOfItem(offer.ID) < offer.Amount) {
+                            const std::string message = "`4Trade cancelled - the other player doesn't have enough items anymore.";
+                            SendOnConsoleMessage(message);
+                            SendOnTextOverlay(message);
+                            pTarget->SendOnConsoleMessage(message);
+                            pTarget->SendOnTextOverlay(message);
+                            CancelTrade(false);
+                            return;
+                        }
+                    }
+
+                    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+                    std::string myOffersSummary = BuildTradeOfferSummary(GetTradeOffers());
+                    std::string theirOffersSummary = BuildTradeOfferSummary(pTarget->GetTradeOffers());
+
+                    for(const auto& offer : pTarget->GetTradeOffers()) {
+                        pTarget->ModifyInventoryItem(offer.ID, -(int16)offer.Amount);
+                        ModifyInventoryItem(offer.ID, offer.Amount);
+                    }
+
+                    for(const auto& offer : GetTradeOffers()) {
+                        ModifyInventoryItem(offer.ID, -(int16)offer.Amount);
+                        pTarget->ModifyInventoryItem(offer.ID, offer.Amount);
+                    }
+
+                    if(pWorld) {
+                        pWorld->SendConsoleMessageToAll(fmt::format("`1{} `1traded {} to {}.``", GetRawName(), myOffersSummary, pTarget->GetRawName()));
+                        pWorld->SendConsoleMessageToAll(fmt::format("`1{} `1traded {} to {}.``", pTarget->GetRawName(), theirOffersSummary, GetRawName()));
+                        pWorld->PlaySFXForEveryone("keypad_hit.wav");
+                    }
+
+                    AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(GetTradeOffers()), pTarget->GetRawName()));
+                    pTarget->AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(pTarget->GetTradeOffers()), GetRawName()));
+
+                    SetLastTradedAt(Time::GetSystemTime());
+                    pTarget->SetLastTradedAt(Time::GetSystemTime());
+
+                    ResetTradeState(this);
+                    ResetTradeState(pTarget);
+                }
+
+                void GamePlayer::SendTradeStatus(GamePlayer* player)
+                {
+                    if(!player) {
+                        return;
+                    }
+
+                    VariantVector data(5);
+                    data[0] = "OnTradeStatus";
+                    data[1] = player->GetNetID();
+                    data[2] = "";
+                    data[3] = player == this ? "`oSelect an item from your Inventory.``" : fmt::format("`w{}`o's trade offer.``", player->GetRawName());
+                    data[4] = BuildTradeStatusDialog(this, player);
+
+                    SendCallFunctionPacket(data);
+                }
+
+                void GamePlayer::SendTradeAlert(GamePlayer* player)
+                {
+                    if(!player) {
+                        return;
+                    }
+
+                    const std::string message = fmt::format("`#TRADE ALERT:`` {} `owants to trade with you!  To start, use the `wWrench`` on that person's wrench icon, or type `w/trade {}``", player->GetRawName(), player->GetRawName());
+                    SendOnConsoleMessage(message);
+                    SendOnTextOverlay(message);
+                    SendAudio("cash_register.wav");
+                }
+
+                void GamePlayer::SendStartTrade(GamePlayer* player)
+                {
+                    if(!player) {
+                        return;
+                    }
+
+                    VariantVector data(3);
+                    data[0] = "OnStartTrade";
+                    data[1] = player->GetRawName();
+                    data[2] = player->GetNetID();
+
+                    SendCallFunctionPacket(data);
+                }
+
+                void GamePlayer::SendForceTradeEnd()
+                {
+                    VariantVector data(1);
+                    data[0] = "OnForceTradeEnd";
+
+                    SendCallFunctionPacket(data);
+                }
+    if(entry.empty()) {
         return;
     }
 
-    if(amount == 0) {
-        RemoveOffer(itemID);
-        return;
-    }
-
-    uint8 ownedCount = GetInventory().GetCountOfItem(itemID);
-    if(ownedCount == 0) {
-        return;
-    }
-
-    if(amount > ownedCount) {
-        amount = ownedCount;
-    }
-
-    AddTradeOffer({ itemID, (uint8)amount });
-
-    SetTradeAccepted(false);
-    SetTradeConfirmed(false);
-    SetTradeAcceptedAt(0);
-    SetTradeConfirmedAt(0);
-    SetLastChangeTradeDeal(Time::GetSystemTime());
-
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
-    if(pTarget) {
-        pTarget->SetTradeAccepted(false);
-        pTarget->SetTradeConfirmed(false);
-        pTarget->SetTradeAcceptedAt(0);
-        pTarget->SetTradeConfirmedAt(0);
-    }
-}
-
-void GamePlayer::RemoveOffer(uint16 itemID)
-{
-    RemoveTradeOffer(itemID);
-    SetTradeAccepted(false);
-    SetTradeConfirmed(false);
-    SetTradeAcceptedAt(0);
-    SetTradeConfirmedAt(0);
-    SetLastChangeTradeDeal(Time::GetSystemTime());
-}
-
-void GamePlayer::AcceptOffer(bool status)
-{
-    if(!IsTrading()) {
-        return;
-    }
-
-    SetTradeAccepted(status);
-    SetTradeAcceptedAt(status ? Time::GetSystemTime() : 0);
-
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
-    if(pTarget) {
-        pTarget->SetTradeAccepted(false);
-        pTarget->SetTradeConfirmed(false);
-        pTarget->SetTradeConfirmedAt(0);
-    }
-}
-
-void GamePlayer::ConfirmOffer()
-{
-    if(!IsTrading() || !IsTradeAccepted()) {
-        return;
-    }
-
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
-    if(!pTarget || !pTarget->IsTrading()) {
-        CancelTrade();
-        return;
-    }
-
-    for(const auto& tradeOffer : m_tradeOffers) {
-        if(GetInventory().GetCountOfItem(tradeOffer.ID) < tradeOffer.Amount) {
-            CancelTrade(true, "`4Trade failed.`` You no longer have enough items.");
-            return;
-        }
-    }
-
-    for(const auto& tradeOffer : pTarget->GetTradeOffers()) {
-        if(pTarget->GetInventory().GetCountOfItem(tradeOffer.ID) < tradeOffer.Amount) {
-            pTarget->CancelTrade(true, "`4Trade failed.`` You no longer have enough items.");
-            return;
-        }
-    }
-
-    for(const auto& tradeOffer : m_tradeOffers) {
-        ModifyInventoryItem(tradeOffer.ID, -(int16)tradeOffer.Amount);
-        pTarget->ModifyInventoryItem(tradeOffer.ID, tradeOffer.Amount);
-    }
-
-    for(const auto& tradeOffer : pTarget->GetTradeOffers()) {
-        pTarget->ModifyInventoryItem(tradeOffer.ID, -(int16)tradeOffer.Amount);
-        ModifyInventoryItem(tradeOffer.ID, tradeOffer.Amount);
-    }
-
-    AddTradeHistory("Traded with " + pTarget->GetRawName());
-    pTarget->AddTradeHistory("Traded with " + GetRawName());
-    SetLastTradedAt(Time::GetSystemTime());
-    pTarget->SetLastTradedAt(Time::GetSystemTime());
-
-    CancelTrade(false);
-    pTarget->CancelTrade(false);
-}
-
-void GamePlayer::SendTradeStatus(GamePlayer* player)
-{
-    if(!player) {
-        return;
-    }
-
-    DialogBuilder db;
-    db.SetDefaultColor('o')
-    ->AddLabelWithIcon("`wTrade Status``", ITEM_ID_WRENCH, true)
-    ->AddTextBox("`oTrading with `w" + player->GetDisplayName() + "``")
-    ->AddTextBox("`oYour offers: `w" + ToString((int)m_tradeOffers.size()) + "``")
-    ->AddTextBox("`oTheir offers: `w" + ToString((int)player->GetTradeOffers().size()) + "``")
-    ->EndDialog("popup", "", "Continue");
-
-    SendOnDialogRequest(db.Get());
-}
-
-void GamePlayer::SendTradeAlert(GamePlayer* player)
-{
-    if(!player) {
-        return;
-    }
-
-    SendOnConsoleMessage("`oTrade request sent to `w" + player->GetDisplayName() + "``.");
-}
-
-void GamePlayer::SendStartTrade(GamePlayer* player)
-{
-    if(!player) {
-        return;
-    }
-
-    DialogBuilder db;
-    db.SetDefaultColor('o')
-    ->AddLabelWithIcon("`wTrade``", ITEM_ID_WRENCH, true)
-    ->AddTextBox("`oTrading with `w" + player->GetDisplayName() + "``")
-    ->AddTextBox("`oUse the trade command to add or remove items.")
-    ->EndDialog("popup", "", "Continue");
-
-    SendOnDialogRequest(db.Get());
-}
-
-void GamePlayer::SendForceTradeEnd()
-{
-    SendOnConsoleMessage("`oTrade ended.``");
-}
-
-void GamePlayer::SendWrenchSelf(std::string page)
-{
-    World* pWorld = nullptr;
-    if(!GetWorldManager()->GetWorldByID(GetCurrentWorld())) {
-        return;
-    }
-
-    if(GetCurrentWorld() != 0) {
-        pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+    m_tradeHistory.push_back(std::move(entry));
+    if(m_tradeHistory.size() > 20) {
+        m_tradeHistory.erase(m_tradeHistory.begin());
     }
 
     DialogBuilder db;
@@ -288,9 +870,9 @@ void GamePlayer::SendWrenchSelf(std::string page)
 
     if(page.empty() || page == "PlayerInfo") {
         db.AddLabelWithIcon("`w" + GetDisplayName() + "``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oCurrent world: `w" + ToString(GetCurrentWorld()) + "``")
-        ->AddTextBox("`oLevel: `w" + ToString(GetLevel()) + "``")
-        ->AddTextBox("`oXP: `w" + ToString(GetXP()) + "``")
+        ->AddLabel("`oCurrent world: `w" + ToString(GetCurrentWorld()) + "``")
+        ->AddLabel("`oLevel: `w" + ToString(GetLevel()) + "``")
+        ->AddLabel("`oXP: `w" + ToString(GetXP()) + "``")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Player Info")
         ->AddButton("SocialProfile", "Social Profile")
@@ -303,45 +885,45 @@ void GamePlayer::SendWrenchSelf(std::string page)
     }
     else if(page == "SocialProfile") {
         db.AddLabelWithIcon("`wSocial Profile``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oFriend and messaging shortcuts are available through wrenching other players.")
-        ->AddTextBox("`oUse this menu to navigate your own profile tabs.")
+        ->AddLabel("`oFriend and messaging shortcuts are available through wrenching other players.")
+        ->AddLabel("`oUse this menu to navigate your own profile tabs.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "PlayerStats") {
         db.AddLabelWithIcon("`wPlayer Stats``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oStatistics and achievement tracking are active in this source.")
-        ->AddTextBox("`oBlocks placed: `w" + ToString(GetStatCount("BLOCKS_PLACED")) + "``")
-        ->AddTextBox("`oBlocks destroyed: `w" + ToString(GetStatCount("BLOCKS_DESTROYED")) + "``")
-        ->AddTextBox("`oTrees harvested: `w" + ToString(GetStatCount("TREES_HARVESTED")) + "``")
-        ->AddTextBox("`oLocks placed: `w" + ToString(GetStatCount("LOCKS_PLACED")) + "``")
-        ->AddTextBox("`oConsumables used: `w" + ToString(GetStatCount("CONSUMABLES_USED")) + "``")
+        ->AddLabel("`oStatistics and achievement tracking are active in this source.")
+        ->AddLabel("`oBlocks placed: `w" + ToString(GetStatCount("BLOCKS_PLACED")) + "``")
+        ->AddLabel("`oBlocks destroyed: `w" + ToString(GetStatCount("BLOCKS_DESTROYED")) + "``")
+        ->AddLabel("`oTrees harvested: `w" + ToString(GetStatCount("TREES_HARVESTED")) + "``")
+        ->AddLabel("`oLocks placed: `w" + ToString(GetStatCount("LOCKS_PLACED")) + "``")
+        ->AddLabel("`oConsumables used: `w" + ToString(GetStatCount("CONSUMABLES_USED")) + "``")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "Settings") {
         db.AddLabelWithIcon("`wSettings``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oWrench settings are currently lightweight in this source.")
-        ->AddTextBox("`oUse Titles and Worlds tabs for currently supported options.")
+        ->AddLabel("`oWrench settings are currently lightweight in this source.")
+        ->AddLabel("`oUse Titles and Worlds tabs for currently supported options.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "Titles") {
         db.AddLabelWithIcon("`wTitle Settings``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oRole prefix and title switching is server-side in this source.")
+        ->AddLabel("`oRole prefix and title switching is server-side in this source.")
         ->AddSpacer()
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "Worlds") {
         db.AddLabelWithIcon("`wMy Worlds``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oYour current world is `w" + ToString(GetCurrentWorld()) + "``.");
+        ->AddLabel("`oYour current world is `w" + ToString(GetCurrentWorld()) + "``.");
 
         if(pWorld) {
-            db.AddTextBox("`oPlayers inside: `w" + ToString(pWorld->GetPlayerCount()) + "``");
+            db.AddLabel("`oPlayers inside: `w" + ToString(pWorld->GetPlayerCount()) + "``");
         }
 
         db.AddSpacer()
@@ -367,12 +949,10 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     ->EmbedData("MyNetID", GetNetID())
     ->EmbedData("OtherNetID", otherPlayer->GetNetID())
     ->AddLabelWithIcon("`w" + otherPlayer->GetDisplayName() + "``", ITEM_ID_WRENCH, true)
-    ->AddTextBox("`oCurrent level: `w" + ToString(otherPlayer->GetLevel()) + "``")
-    ->AddTextBox("`oCurrent world: `w" + ToString(otherPlayer->GetCurrentWorld()) + "``")
+    ->AddLabel("`oCurrent level: `w" + ToString(otherPlayer->GetLevel()) + "``")
+    ->AddLabel("`oCurrent world: `w" + ToString(otherPlayer->GetCurrentWorld()) + "``")
     ->AddSpacer()
-    ->AddButton("Trade", "`wTrade``")
-    ->AddButton("sendpm", "`wSend Message``")
-    ->AddButton("show_clothes", "`wView worn clothes``");
+    ->AddButton("Trade", "`wTrade``");
 
     Role* pRole = GetRole();
     if(pRole && pRole->HasPerm(ROLE_PERM_COMMAND_PULL)) {
@@ -389,7 +969,7 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
 
     db.AddButton("Add", "`wAdd as Friend``")
     ->AddButton("Ignore", "`wIgnore Player``")
-    ->AddButton("Report", "`wReport Player``")
+    ->AddSpacer()
     ->EndDialog("WrenchOthers", "", "Continue");
 
     SendOnDialogRequest(db.Get());
@@ -503,7 +1083,116 @@ void GamePlayer::SendAchievement(std::string achievementName)
         return;
     }
 
-    SendOnConsoleMessage("`wAchievement unlocked:`` " + achievementName);
+    const std::string message = fmt::format("`w{}`` `5earned the achievement \"{}\"!", GetDisplayName(), achievementName);
+
+    if(m_currentWorldID != 0) {
+        World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
+        if(pWorld) {
+            pWorld->SendTalkBubbleAndConsoleToAll(message, false, this);
+            pWorld->SendParticleEffectToAll(m_worldPos.x + 12.0f, m_worldPos.y + 15.0f, 46);
+            return;
+        }
+    }
+
+    SendOnConsoleMessage(message);
+}
+
+std::string GamePlayer::SerializeAchievements() const
+{
+    if(m_achievements.empty()) {
+        return "";
+    }
+
+    std::string data;
+    for(const auto& achievement : m_achievements) {
+        if(!data.empty()) {
+            data += '\n';
+        }
+
+        data += achievement;
+    }
+
+    return data;
+}
+
+std::string GamePlayer::SerializeStatistics() const
+{
+    if(m_stats.empty()) {
+        return "";
+    }
+
+    std::string data;
+    for(const auto& entry : m_stats) {
+        if(!data.empty()) {
+            data += '\n';
+        }
+
+        data += entry.first;
+        data += '=';
+        data += ToString(entry.second);
+    }
+
+    return data;
+}
+
+void GamePlayer::LoadAchievements(const std::string& data)
+{
+    m_achievements.clear();
+
+    if(data.empty()) {
+        return;
+    }
+
+    auto lines = Split(data, '\n');
+    for(auto achievement : lines) {
+        RemoveExtraWhiteSpaces(achievement);
+        if(achievement.empty()) {
+            continue;
+        }
+
+        if(!AchievementCatalog::IsKnownAchievement(achievement)) {
+            continue;
+        }
+
+        m_achievements.insert(achievement);
+    }
+}
+
+void GamePlayer::LoadStatistics(const std::string& data)
+{
+    m_stats.clear();
+
+    if(data.empty()) {
+        return;
+    }
+
+    auto lines = Split(data, '\n');
+    for(auto line : lines) {
+        RemoveExtraWhiteSpaces(line);
+        if(line.empty()) {
+            continue;
+        }
+
+        const size_t equalPos = line.find('=');
+        if(equalPos == std::string::npos) {
+            continue;
+        }
+
+        std::string key = line.substr(0, equalPos);
+        std::string valueStr = line.substr(equalPos + 1);
+        RemoveExtraWhiteSpaces(key);
+        RemoveExtraWhiteSpaces(valueStr);
+        if(key.empty() || valueStr.empty()) {
+            continue;
+        }
+
+        int32 value = 0;
+        if(ToInt(valueStr, value) != TO_INT_SUCCESS || value < 0) {
+            continue;
+        }
+
+        m_stats[key] = (uint64)value;
+    }
 }
 
 void GamePlayer::IncreaseStat(const std::string& statName, uint64 amount)
@@ -515,21 +1204,7 @@ void GamePlayer::IncreaseStat(const std::string& statName, uint64 amount)
     uint64& count = m_stats[statName];
     count += amount;
 
-    if(statName == "BLOCKS_PLACED" && count >= 100) {
-        GiveAchievement("Builder (Classic)");
-    }
-    else if(statName == "TREES_HARVESTED" && count >= 100) {
-        GiveAchievement("Farmer (Classic)");
-    }
-    else if(statName == "BLOCKS_DESTROYED" && count >= 100) {
-        GiveAchievement("Demolition (Classic)");
-    }
-    else if(statName == "LOCKS_PLACED" && count >= 1) {
-        GiveAchievement("Mine, All Mine (Classic)");
-    }
-    else if(statName == "CONSUMABLES_USED" && count >= 100) {
-        GiveAchievement("Paint The Town Blue (Classic)");
-    }
+    AchievementCatalog::ApplyStatAchievements(this, statName, count);
 }
 
 uint64 GamePlayer::GetStatCount(const std::string& statName) const
@@ -666,6 +1341,11 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         m_inventory.AddItem(ITEM_ID_WRENCH, 1);
     }
 
+    const std::string achievementData = result.result->GetField("AchievementData", 0).GetString();
+    const std::string statisticData = result.result->GetField("StatisticData", 0).GetString();
+    LoadAchievements(achievementData);
+    LoadStatistics(statisticData);
+
     m_guestID = result.result->GetField("GuestID", 0).GetUINT();
 
     for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
@@ -738,6 +1418,8 @@ void GamePlayer::SaveToDatabase()
         m_gems,
         m_level,
         m_xp,
+        SerializeAchievements(),
+        SerializeStatistics(),
         GetNetID()
     );
     
@@ -1215,6 +1897,8 @@ void GamePlayer::AddGems(int32 amount)
         next = INT32_MAX;
     }
     m_gems = (int32)next;
+
+    AchievementCatalog::ApplyGemAchievements(this, m_gems);
 }
 
 void GamePlayer::SendOnSetBux()
@@ -1248,9 +1932,7 @@ void GamePlayer::AddXP(uint32 amount)
         leveledUp = true;
     }
 
-    if(m_level >= 10) {
-        GiveAchievement("Ding! (Classic)");
-    }
+    AchievementCatalog::ApplyLevelAchievements(this, m_level);
 
     if(!leveledUp) {
         return;

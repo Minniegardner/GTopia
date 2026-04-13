@@ -33,17 +33,12 @@ void News::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         file.Close();
     }
 
-    DialogBuilder db;
-    db.SetDefaultColor('o')
-        ->AddLabelWithIcon("`wNews``", ITEM_ID_NEWSPAPER, true);
-
     if(content.empty()) {
-        db.AddTextBox("`oNo news available.");
-    }
-    else {
-        db.AddTextBox(content);
+        return;
     }
 
+    DialogBuilder db;
+    db.AddCustomLine(content);
     db.EndDialog("command_news", "", "Close");
     pPlayer->SendOnDialogRequest(db.Get());
 }

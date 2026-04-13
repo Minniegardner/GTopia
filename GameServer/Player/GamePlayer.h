@@ -137,6 +137,10 @@ public:
     bool HasAchievement(const std::string& achievement) const;
     void GiveAchievement(const std::string& achievement);
     void SendAchievement(std::string achievementName);
+    std::string SerializeAchievements() const;
+    std::string SerializeStatistics() const;
+    void LoadAchievements(const std::string& data);
+    void LoadStatistics(const std::string& data);
     void IncreaseStat(const std::string& statName, uint64 amount = 1);
     uint64 GetStatCount(const std::string& statName) const;
 

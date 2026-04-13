@@ -25,13 +25,12 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() < 2 || args[1].size() < 3) {
-        pPlayer->SendOnConsoleMessage("`6>> `4Oops: `6Enter at least the `#first three characters `6of the persons name.``");
+        pPlayer->SendOnConsoleMessage("`4Oops:`` You need at least the first three characters of the person's name.");
         return;
     }
 
     if(args.size() < 3) {
-        pPlayer->SendOnConsoleMessage("Command incomplete. Here's the argument list:");
-        pPlayer->SendOnConsoleMessage("-> /warn <name> <reason>");
+        pPlayer->SendOnConsoleMessage("`4Oops:`` Usage: /warn <name> <reason>");
         return;
     }
 
@@ -45,8 +44,7 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     string reason = JoinString(args, " ", 2);
     RemoveExtraWhiteSpaces(reason);
     if(reason.empty()) {
-        pPlayer->SendOnConsoleMessage("Command incomplete. Here's the argument list:");
-        pPlayer->SendOnConsoleMessage("-> /warn <name> <reason>");
+        pPlayer->SendOnConsoleMessage("`4Oops:`` Usage: /warn <name> <reason>");
         return;
     }
 
@@ -68,7 +66,7 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
+        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
         return;
     }
 

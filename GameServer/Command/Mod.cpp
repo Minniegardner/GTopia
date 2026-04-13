@@ -15,7 +15,7 @@ void SendModSearchDialog(GamePlayer* pPlayer)
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wModeration``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oSearch player by nickname prefix (minimum `w3`` chars).")
+        ->AddTextBox("`oSearch a player by nickname prefix.")
         ->AddTextInput("target_name", "Player Name", "First 3 letters", 24)
         ->EndDialog("command_mod_query", "Search", "Cancel");
 

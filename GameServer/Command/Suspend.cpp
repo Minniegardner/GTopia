@@ -39,7 +39,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(query.size() < 3 && !exactMatch) {
-        pPlayer->SendOnConsoleMessage("`6>> `4Oops: `6Enter at least the `#first three characters `6of the persons name.``");
+        pPlayer->SendOnConsoleMessage("`4Oops:`` You need at least the first three characters of the person's name.");
         return;
     }
 
