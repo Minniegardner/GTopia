@@ -74,8 +74,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        const uint64 nowMS = Time::GetSystemTime();
-        const uint64 mutedUntilMS = unmuteCommand ? 0 : (nowMS + (uint64)minutes * 60ull * 1000ull);
+        const uint64 payloadMinutes = unmuteCommand ? 0 : (uint64)minutes;
 
         GetMasterBroadway()->SendCrossServerActionRequest(
             unmuteCommand ? TCP_CROSS_ACTION_UNSUSPEND : TCP_CROSS_ACTION_SUSPEND,
@@ -84,7 +83,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             query,
             exactMatch,
             reason,
-            mutedUntilMS);
+            payloadMinutes);
         return;
     }
 

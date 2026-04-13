@@ -270,7 +270,7 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         const uint32 targetUserID = data[3].GetUINT();
         const string sourceRawName = data[5].GetString();
         const string payloadText = data[6].GetString();
-        const uint64 payloadNumber = data[7].GetUINT64();
+        const uint64 payloadNumber = (uint64)data[7].GetUINT();
 
         GamePlayer* pTarget = GetPlayerByUserID(targetUserID);
         if(!pTarget || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
@@ -290,14 +290,14 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
             }
 
             case TCP_CROSS_ACTION_SUSPEND: {
-                const uint64 mutedUntilMS = payloadNumber;
-                if(mutedUntilMS <= Time::GetSystemTime()) {
+                const uint32 minutes = (uint32)payloadNumber;
+                if(minutes == 0) {
                     break;
                 }
 
+                const uint64 mutedUntilMS = Time::GetSystemTime() + (uint64)minutes * 60ull * 1000ull;
                 pTarget->SetMutedUntilMS(mutedUntilMS, payloadText);
-                const uint64 remainingMinutes = (mutedUntilMS - Time::GetSystemTime() + 59999ull) / 60000ull;
-                pTarget->SendOnConsoleMessage("`4You have been muted for `w" + ToString(remainingMinutes) + "`4 minute(s) by ``" + sourceRawName + "``. Reason: `w" + payloadText + "``");
+                pTarget->SendOnConsoleMessage("`4You have been muted for `w" + ToString(minutes) + "`4 minute(s) by ``" + sourceRawName + "``. Reason: `w" + payloadText + "``");
                 break;
             }
 
