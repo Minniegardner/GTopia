@@ -18,8 +18,14 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     pPlayer->SendInventoryPacket();
     pPlayer->SendOnSetBux();
-    pPlayer->SendOnConsoleMessage("Welcome back, " + pPlayer->GetRawName() + "!");
-    pPlayer->SendOnConsoleMessage("Where would you like to go ? (" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + " online)");
+    pPlayer->SendOnConsoleMessage("Welcome back to `#GTopia``!`o It's going to be a `#BLAST``!");
+
+    const uint32 onlineFriends = pPlayer->CountOnlineFriends();
+    if(onlineFriends > 0) {
+        pPlayer->SendOnConsoleMessage("You have `w" + ToString(onlineFriends) + "`o friend(s) online now.");
+    }
+
+    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`o online)");
 
     const string dailyEventStatus = GetGameServer()->GetDailyEventStatusLine();
     if(!dailyEventStatus.empty()) {
@@ -29,6 +35,8 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     if(pPlayer->CanClaimDailyReward(epochDay)) {
         pPlayer->SendOnConsoleMessage("`3You have a daily reward waiting! Claim it for continued bonuses and a growing streak!``");
     }
+
+    pPlayer->SendOnConsoleMessage("Use `/news` to check the latest server updates.");
 
     pPlayer->SendOnRequestWorldSelectMenu("");
 }

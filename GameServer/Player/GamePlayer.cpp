@@ -984,10 +984,70 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     if(!IsFriendWith(otherPlayer->GetUserID())) {
         db.AddButton("Add", "`wAdd as Friend``");
     }
+    else {
+        db.AddButton("Unfriend", "`4Remove Friend``");
+    }
 
     db.AddButton("Ignore", "`wIgnore Player``")
     ->AddSpacer()
     ->EndDialog("WrenchOthers", "", "Continue");
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendFriendMenu(const string& action)
+{
+    const bool showAll = (action == "FriendAll");
+    const uint32 friendsOnline = CountOnlineFriends();
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+      ->AddLabelWithIcon(ToString(friendsOnline) + " of " + ToString((uint32)m_friendUserIDs.size()) + " `wFriends Online``", ITEM_ID_DUMB_FRIEND, true)
+      ->AddSpacer();
+
+    if(m_friendUserIDs.empty()) {
+        db.AddLabel("You currently have no friends.")
+          ->AddSpacer();
+    }
+    else {
+        std::vector<uint32> friendIDs(m_friendUserIDs.begin(), m_friendUserIDs.end());
+        std::sort(friendIDs.begin(), friendIDs.end(), [&](uint32 lhs, uint32 rhs) {
+            GamePlayer* pLhs = GetGameServer()->GetPlayerByUserID(lhs);
+            GamePlayer* pRhs = GetGameServer()->GetPlayerByUserID(rhs);
+            const bool lhsOnline = pLhs && pLhs->HasState(PLAYER_STATE_IN_GAME);
+            const bool rhsOnline = pRhs && pRhs->HasState(PLAYER_STATE_IN_GAME);
+            if(lhsOnline != rhsOnline) {
+                return lhsOnline;
+            }
+
+            return lhs < rhs;
+        });
+
+        bool addedAny = false;
+        for(uint32 friendUserID : friendIDs) {
+            GamePlayer* pFriend = GetGameServer()->GetPlayerByUserID(friendUserID);
+            const bool isOnline = pFriend && pFriend->HasState(PLAYER_STATE_IN_GAME);
+            if(!showAll && !isOnline) {
+                continue;
+            }
+
+            string label = isOnline ? pFriend->GetDisplayName() : ("`4(Offline)`` User #" + ToString(friendUserID));
+            db.AddLabel("`o- ``" + label);
+            addedAny = true;
+        }
+
+        if(!addedAny) {
+            db.AddLabel("None of your friends are currently online.");
+        }
+
+        db.AddSpacer();
+    }
+
+    db.AddButton("FriendAll", "Show offline and ignored too")
+      ->AddButton("SeeSent", "Sent Friend Requests (`$" + ToString((uint32)m_sentFriendRequestUserIDs.size()) + "``)")
+      ->AddButton("SeeReceived", "Received Friend Requests (`$" + ToString((uint32)m_receivedFriendRequestUserIDs.size()) + "``)")
+      ->AddButton("GotoSocialPortal", "Back")
+      ->EndDialog("FriendMenu", "", "Close");
 
     SendOnDialogRequest(db.Get());
 }
@@ -999,6 +1059,120 @@ bool GamePlayer::IsFriendWith(uint32 userID) const
     }
 
     return m_friendUserIDs.find(userID) != m_friendUserIDs.end();
+}
+
+uint32 GamePlayer::CountOnlineFriends() const
+{
+    uint32 onlineFriends = 0;
+    GameServer* pGameServer = GetGameServer();
+    if(!pGameServer) {
+        return 0;
+    }
+
+    for(uint32 friendUserID : m_friendUserIDs) {
+        GamePlayer* pFriend = pGameServer->GetPlayerByUserID(friendUserID);
+        if(pFriend && pFriend->HasState(PLAYER_STATE_IN_GAME)) {
+            ++onlineFriends;
+        }
+    }
+
+    return onlineFriends;
+}
+
+bool GamePlayer::IsFriendRequestSentTo(uint32 userID) const
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_sentFriendRequestUserIDs.find(userID) != m_sentFriendRequestUserIDs.end();
+}
+
+bool GamePlayer::IsFriendRequestReceivedFrom(uint32 userID) const
+{
+    if(userID == 0) {
+        return false;
+    }
+
+    return m_receivedFriendRequestUserIDs.find(userID) != m_receivedFriendRequestUserIDs.end();
+}
+
+void GamePlayer::SendFriendRequestTo(GamePlayer* otherPlayer)
+{
+    if(!otherPlayer || otherPlayer == this) {
+        return;
+    }
+
+    const uint32 otherUserID = otherPlayer->GetUserID();
+    if(otherUserID == 0 || IsFriendWith(otherUserID)) {
+        return;
+    }
+
+    if(IsFriendRequestReceivedFrom(otherUserID)) {
+        AcceptFriendRequestFrom(otherPlayer);
+        return;
+    }
+
+    if(IsFriendRequestSentTo(otherUserID)) {
+        SendOnConsoleMessage("`oFriend request already sent to ``" + otherPlayer->GetDisplayName() + "``.");
+        return;
+    }
+
+    m_sentFriendRequestUserIDs.insert(otherUserID);
+    otherPlayer->m_receivedFriendRequestUserIDs.insert(GetUserID());
+
+    SendOnTalkBubble("`5[``Friend request sent to `w" + otherPlayer->GetDisplayName() + "`` `5]``", true);
+    otherPlayer->SendOnConsoleMessage("`3FRIEND REQUEST:`` You've received a friend request from `w" + GetDisplayName() + "``. Wrench this player and choose `wAdd as Friend`` to accept.");
+    otherPlayer->PlaySFX("tip_start.wav", 0);
+}
+
+bool GamePlayer::AcceptFriendRequestFrom(GamePlayer* otherPlayer)
+{
+    if(!otherPlayer || otherPlayer == this) {
+        return false;
+    }
+
+    const uint32 otherUserID = otherPlayer->GetUserID();
+    if(otherUserID == 0) {
+        return false;
+    }
+
+    if(!IsFriendRequestReceivedFrom(otherUserID) && !otherPlayer->IsFriendRequestReceivedFrom(GetUserID())) {
+        return false;
+    }
+
+    m_receivedFriendRequestUserIDs.erase(otherUserID);
+    m_sentFriendRequestUserIDs.erase(otherUserID);
+    otherPlayer->m_receivedFriendRequestUserIDs.erase(GetUserID());
+    otherPlayer->m_sentFriendRequestUserIDs.erase(GetUserID());
+
+    const bool addedMine = AddFriendUserID(otherUserID);
+    const bool addedOther = otherPlayer->AddFriendUserID(GetUserID());
+    if(!addedMine && !addedOther) {
+        return false;
+    }
+
+    SendOnConsoleMessage("`3FRIEND ADDED:`` You're now friends with `w" + otherPlayer->GetDisplayName() + "``!");
+    otherPlayer->SendOnConsoleMessage("`3FRIEND ADDED:`` You're now friends with `w" + GetDisplayName() + "``!");
+    PlaySFX("love_in.wav", 0);
+    otherPlayer->PlaySFX("love_in.wav", 0);
+    return true;
+}
+
+void GamePlayer::DenyFriendRequestFrom(uint32 userID)
+{
+    if(userID == 0) {
+        return;
+    }
+
+    m_receivedFriendRequestUserIDs.erase(userID);
+    m_sentFriendRequestUserIDs.erase(userID);
+
+    GamePlayer* pOther = GetGameServer()->GetPlayerByUserID(userID);
+    if(pOther) {
+        pOther->m_sentFriendRequestUserIDs.erase(GetUserID());
+        pOther->m_receivedFriendRequestUserIDs.erase(GetUserID());
+    }
 }
 
 bool GamePlayer::AddFriendUserID(uint32 userID)

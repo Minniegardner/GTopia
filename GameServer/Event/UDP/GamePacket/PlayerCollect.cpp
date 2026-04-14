@@ -30,7 +30,7 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     const uint32 objectID = (uint32)pPacket->worldObjectID;
     WorldObject* pObject = pWorld->GetObjectManager()->GetObjectByID(objectID);
     if(!pObject || pObject->count == 0) {
-        pPlayer->SendFakePingReply();
+        // Object can already be consumed by another player in the same tick.
         return;
     }
 
@@ -64,6 +64,17 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         (pTargetTileItem->id == ITEM_ID_DISPLAY_BOX || pTargetTileItem->id == ITEM_ID_TRANSMATTER_FIELD)
     ) {
         pPlayer->SendFakePingReply();
+        return;
+    }
+
+    const Vector2Float targetPos = {
+        static_cast<float>(pTargetTile->GetPos().x * 32),
+        static_cast<float>(pTargetTile->GetPos().y * 32)
+    };
+
+    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), targetPos)) {
+        pPlayer->SendOnTalkBubble("(too far away)", true);
+        pPlayer->IncrementCollectFailWindow();
         return;
     }
 

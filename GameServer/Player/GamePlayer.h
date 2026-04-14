@@ -149,8 +149,15 @@ public:
 
     void SendWrenchSelf(std::string page = "PlayerInfo");
     void SendWrenchOthers(GamePlayer* otherPlayer);
+    void SendFriendMenu(const string& action = "GotoFriendsMenu");
 
     bool IsFriendWith(uint32 userID) const;
+    uint32 CountOnlineFriends() const;
+    bool IsFriendRequestSentTo(uint32 userID) const;
+    bool IsFriendRequestReceivedFrom(uint32 userID) const;
+    void SendFriendRequestTo(GamePlayer* otherPlayer);
+    bool AcceptFriendRequestFrom(GamePlayer* otherPlayer);
+    void DenyFriendRequestFrom(uint32 userID);
     bool AddFriendUserID(uint32 userID);
     bool RemoveFriendUserID(uint32 userID);
     bool IsIgnoring(uint32 userID) const;
@@ -270,6 +277,8 @@ private:
     std::unordered_set<std::string> m_achievements = {};
     std::unordered_map<std::string, uint64> m_stats = {};
     std::unordered_set<uint32> m_friendUserIDs = {};
+    std::unordered_set<uint32> m_sentFriendRequestUserIDs = {};
+    std::unordered_set<uint32> m_receivedFriendRequestUserIDs = {};
     std::unordered_set<uint32> m_ignoredUserIDs = {};
     uint32 m_lastWhisperUserID = 0;
     uint64 m_lastWhisperAtMS = 0;

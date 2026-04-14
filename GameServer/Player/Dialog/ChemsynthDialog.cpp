@@ -136,7 +136,7 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    if(buttonClicked == "Start") {
+    if(buttonClicked == "Start" || buttonClicked == "OK" || buttonClicked == "Confirm") {
         TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
         if(!pProcessorTile) {
             pPlayer->SendOnConsoleMessage("`4Chemsynth processor not found.``");
@@ -148,7 +148,12 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
+        const bool wasActive = pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
         ChemsynthAlgorithm::StartChemsynth(pPlayer, pWorld, pProcessorTile);
+
+        if(!wasActive && !pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+            pPlayer->SendOnConsoleMessage("`4Failed to start Chemsynth. Check tank layout and required chemicals.``");
+        }
         return;
     }
 

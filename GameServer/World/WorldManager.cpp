@@ -149,27 +149,41 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             uint32 serverID = result[3].GetUINT();
             uint32 worldID = result[4].GetUINT();
 
-            World* pWorld = GetWorldByID(worldID);
+            World* pTargetWorld = GetWorldByID(worldID);
             if(serverID == GetContext()->GetID()) {
-                if(!pWorld) {
+                if(!pTargetWorld) {
                     return;
                 }
 
-                if(!pWorld->PlayerJoinWorld(pPlayer)) {
+                if(pPlayer->GetCurrentWorld() == pTargetWorld->GetID()) {
+                    pPlayer->SetJoinWorld(false);
+                    return;
+                }
+
+                World* pCurrentWorld = GetWorldByID(pPlayer->GetCurrentWorld());
+                if(pCurrentWorld && pCurrentWorld != pTargetWorld) {
+                    pCurrentWorld->PlayerLeaverWorld(pPlayer);
+                }
+
+                if(!pTargetWorld->PlayerJoinWorld(pPlayer)) {
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to join world");
                 }
+
+                pPlayer->SetJoinWorld(false);
             }
             else {
                 const string serverIP = result[5].GetString();
                 const uint16 serverPort = (uint16)result[6].GetUINT();
 
-                if(pWorld) {
-                    pWorld->PlayerLeaverWorld(pPlayer);
-                }
-
+                // Send redirect first so the client can reconnect immediately.
                 pPlayer->SendOnSendToServer(serverPort, pPlayer->GetLoginDetail().token, pPlayer->GetUserID(), serverIP);
                 pPlayer->SetJoinWorld(false);
+
+                World* pCurrentWorld = GetWorldByID(pPlayer->GetCurrentWorld());
+                if(pCurrentWorld) {
+                    pCurrentWorld->PlayerLeaverWorld(pPlayer);
+                }
             }
 
             break;
@@ -187,6 +201,16 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
     World* pWorld = GetWorldByName(worldName);
 
     if(pWorld) {
+        if(pPlayer->GetCurrentWorld() == pWorld->GetID()) {
+            pPlayer->SetJoinWorld(false);
+            return;
+        }
+
+        World* pCurrentWorld = GetWorldByID(pPlayer->GetCurrentWorld());
+        if(pCurrentWorld && pCurrentWorld != pWorld) {
+            pCurrentWorld->PlayerLeaverWorld(pPlayer);
+        }
+
         if(!pWorld->PlayerJoinWorld(pPlayer)) {
             pPlayer->SendOnFailedToEnterWorld();
         }

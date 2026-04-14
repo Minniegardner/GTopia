@@ -94,15 +94,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
             else if(buttonClicked == "Add" || buttonClicked == "friend_add") {
-                const bool addedMine = pPlayer->AddFriendUserID(pTarget->GetUserID());
-                const bool addedOther = pTarget->AddFriendUserID(pPlayer->GetUserID());
-
-                if(addedMine || addedOther) {
-                    pPlayer->SendOnConsoleMessage("`oFriend request accepted with ``" + pTarget->GetDisplayName() + "``.");
-                    pTarget->SendOnConsoleMessage("`oYou are now friends with ``" + pPlayer->GetDisplayName() + "``.");
-                }
-                else {
+                if(pPlayer->IsFriendWith(pTarget->GetUserID())) {
                     pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
+                }
+                else if(!pPlayer->AcceptFriendRequestFrom(pTarget)) {
+                    pPlayer->SendFriendRequestTo(pTarget);
+                }
+            }
+            else if(buttonClicked == "Unfriend") {
+                const bool removedMine = pPlayer->RemoveFriendUserID(pTarget->GetUserID());
+                const bool removedOther = pTarget->RemoveFriendUserID(pPlayer->GetUserID());
+                if(removedMine || removedOther) {
+                    pPlayer->SendOnConsoleMessage("`oYou are no longer friends with ``" + pTarget->GetDisplayName() + "``.");
                 }
             }
             else if(buttonClicked == "Ignore" || buttonClicked == "ignore_player") {
@@ -172,15 +175,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 );
             }
             else if(buttonClicked == "friend_add" || buttonClicked == "Add") {
-                const bool addedMine = pPlayer->AddFriendUserID(pTarget->GetUserID());
-                const bool addedOther = pTarget->AddFriendUserID(pPlayer->GetUserID());
-
-                if(addedMine || addedOther) {
-                    pPlayer->SendOnConsoleMessage("`oFriend request accepted with ``" + pTarget->GetDisplayName() + "``.");
-                    pTarget->SendOnConsoleMessage("`oYou are now friends with ``" + pPlayer->GetDisplayName() + "``.");
-                }
-                else {
+                if(pPlayer->IsFriendWith(pTarget->GetUserID())) {
                     pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
+                }
+                else if(!pPlayer->AcceptFriendRequestFrom(pTarget)) {
+                    pPlayer->SendFriendRequestTo(pTarget);
+                }
+            }
+            else if(buttonClicked == "Unfriend") {
+                const bool removedMine = pPlayer->RemoveFriendUserID(pTarget->GetUserID());
+                const bool removedOther = pTarget->RemoveFriendUserID(pPlayer->GetUserID());
+                if(removedMine || removedOther) {
+                    pPlayer->SendOnConsoleMessage("`oYou are no longer friends with ``" + pTarget->GetDisplayName() + "``.");
                 }
             }
             else if(buttonClicked == "ignore_player" || buttonClicked == "Ignore") {
@@ -497,7 +503,31 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
             if(buttonClicked == "GotoFriendsMenu") {
+                pPlayer->SendFriendMenu("GotoFriendsMenu");
+            }
+            break;
+        }
+
+        case CompileTimeHashString("FriendMenu"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "GotoSocialPortal") {
                 pPlayer->SendWrenchSelf("SocialProfile");
+            }
+            else if(buttonClicked == "FriendAll") {
+                pPlayer->SendFriendMenu("FriendAll");
+            }
+            else if(buttonClicked == "SeeSent") {
+                pPlayer->SendOnConsoleMessage("`oSent requests are shown in wrench interactions.``");
+                pPlayer->SendFriendMenu("GotoFriendsMenu");
+            }
+            else if(buttonClicked == "SeeReceived") {
+                pPlayer->SendOnConsoleMessage("`oReceived requests can be accepted from wrench by choosing Add as Friend.``");
+                pPlayer->SendFriendMenu("GotoFriendsMenu");
             }
             break;
         }

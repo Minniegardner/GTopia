@@ -6,6 +6,7 @@
 #include "Math/Rect.h"
 #include "Math/Math.h"
 #include "Utils/StringUtils.h"
+#include "../Server/MasterBroadway.h"
 #include <array>
 
 #include "IO/File.h"
@@ -57,6 +58,46 @@ bool IsSteamConductor(TileInfo* pTile)
 bool IsItemSucker(uint16 itemID)
 {
     return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
+}
+
+string GetWorldInfoSuffix(World* pWorld)
+{
+    if(!pWorld) {
+        return "";
+    }
+
+    std::vector<string> flags;
+    if(pWorld->HasWorldFlag(WORLD_FLAG_JAMMED)) {
+        flags.push_back("JAMMED");
+    }
+
+    if(pWorld->HasWorldFlag(WORLD_FLAG_PUNCH_JAMMER)) {
+        flags.push_back("PUNCH JAMMER");
+    }
+
+    if(pWorld->HasWorldFlag(WORLD_FLAG_ZOMBIE_JAMMER)) {
+        flags.push_back("ZOMBIE JAMMER");
+    }
+
+    if(pWorld->HasWorldFlag(WORLD_FLAG_ANTI_GRAVITY)) {
+        flags.push_back("ANTI-GRAVITY");
+    }
+
+    if(flags.empty()) {
+        return "";
+    }
+
+    string out = " `6(";
+    for(size_t i = 0; i < flags.size(); ++i) {
+        if(i > 0) {
+            out += ", ";
+        }
+
+        out += flags[i];
+    }
+
+    out += ")``";
+    return out;
 }
 
 bool TrySuckerCheck(World* pWorld, WorldObject& obj)
@@ -249,6 +290,28 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
             pWorldPlayer->SendOnSetClothing(pPlayer);
             pWorldPlayer->SendCharacterState(pPlayer);
         }
+    }
+
+    const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
+    const string worldInfoSuffix = GetWorldInfoSuffix(this);
+    pPlayer->SendOnConsoleMessage(
+        "World `w" + GetWorlName() + worldInfoSuffix + "`o entered. There are `w" + ToString(otherPlayersHere) +
+        "`` other people here, `w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` online."
+    );
+
+    TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    TileExtra_Lock* pLockExtra = pLockTile ? pLockTile->GetExtra<TileExtra_Lock>() : nullptr;
+    if(!pLockExtra || pLockExtra->ownerID <= 0) {
+        pPlayer->SendOnConsoleMessage("This is a world with no World Lock yet.");
+    }
+    else if(pLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
+        pPlayer->SendOnConsoleMessage("This is your world, and as owner, all doors and locks are open to you.");
+    }
+    else if(pLockExtra->HasAccess((int32)pPlayer->GetUserID())) {
+        pPlayer->SendOnConsoleMessage("This world is locked, but you have access here.");
+    }
+    else {
+        pPlayer->SendOnConsoleMessage("This world is locked by another player.");
     }
 
     return true;
