@@ -4,7 +4,7 @@
 #include "Utils/DialogBuilder.h"
 #include "Utils/StringUtils.h"
 #include "World/TileInfo.h"
-#include "../../World/WorldManager.h"
+#include "World/WorldManager.h"
 #include "Item/ChemsynthAlgorithm.h"
 
 namespace {

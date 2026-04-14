@@ -1,12 +1,12 @@
 #include "ChemsynthAlgorithm.h"
 
-#include "ItemInfoManager.h"
-#include "../World/TileInfo.h"
-#include "../World/World.h"
-#include "../World/WorldTileManager.h"
-#include "../Utils/Timer.h"
-#include "../Math/Random.h"
-#include "../../GameServer/Player/GamePlayer.h"
+#include "Item/ItemInfoManager.h"
+#include "World/TileInfo.h"
+#include "World/World.h"
+#include "World/WorldTileManager.h"
+#include "Utils/Timer.h"
+#include "Math/Random.h"
+#include "Player/GamePlayer.h"
 
 #include <algorithm>
 
