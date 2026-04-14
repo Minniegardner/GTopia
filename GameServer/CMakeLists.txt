@@ -63,6 +63,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
     ${GAME_EVENT}/UDP/GameMessage/Drop.cpp
     ${GAME_EVENT}/UDP/GameMessage/SetSkin.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Respawn.cpp
     ${GAME_EVENT}/UDP/GameMessage/MenuClickSocial.cpp
     ${GAME_EVENT}/UDP/GameMessage/MenuClickInfo.cpp
     ${GAME_EVENT}/UDP/GameMessage/MenuClickFavorite.cpp

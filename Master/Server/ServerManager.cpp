@@ -347,6 +347,40 @@ bool ServerManager::SendCrossServerActionExecute(
     return SendPacketRaw(targetServerID, data);
 }
 
+bool ServerManager::SendCrossServerActionExecuteAll(
+    int32 actionType,
+    uint32 sourceUserID,
+    const string& sourceRawName,
+    const string& payloadText,
+    uint64 payloadNumber)
+{
+    bool sentAny = false;
+
+    for(const auto& [serverID, pServer] : m_servers) {
+        if(!pServer || pServer->serverType != CONFIG_SERVER_GAME) {
+            continue;
+        }
+
+        VariantVector data(10);
+        data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+        data[1] = TCP_CROSS_ACTION_EXECUTE;
+        data[2] = actionType;
+        data[3] = (uint32)0;
+        data[4] = sourceUserID;
+        data[5] = sourceRawName;
+        data[6] = payloadText;
+        data[7] = (uint32)payloadNumber;
+        data[8] = (uint32)serverID;
+        data[9] = string();
+
+        if(SendPacketRaw(serverID, data)) {
+            sentAny = true;
+        }
+    }
+
+    return sentAny;
+}
+
 void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)
 {
     if(serverType != CONFIG_SERVER_GAME && serverType != CONFIG_SERVER_RENDERER) {

@@ -38,6 +38,7 @@ string GetDailyEventName(uint32 eventType)
 #include "../Event/UDP/GameMessage/Trash.h"
 #include "../Event/UDP/GameMessage/Drop.h"
 #include "../Event/UDP/GameMessage/SetSkin.h"
+#include "../Event/UDP/GameMessage/Respawn.h"
 #include "../Event/UDP/GameMessage/MenuClickSocial.h"
 #include "../Event/UDP/GameMessage/MenuClickInfo.h"
 #include "../Event/UDP/GameMessage/MenuClickFavorite.h"
@@ -79,6 +80,7 @@ string GetDailyEventName(uint32 eventType)
 #include "../Command/Summon.h"
 #include "../Command/Suspend.h"
 #include "../Command/GrowIDCmd.h"
+#include "../Command/SuperBroadcast.h"
 #include "../World/WorldManager.h"
 
 GameServer::GameServer()
@@ -220,6 +222,8 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
     RegisterMessagePacket<Drop>(CompileTimeHashString("drop"));
     RegisterMessagePacket<SetSkin>(CompileTimeHashString("setSkin"));
+    RegisterMessagePacket<Respawn>(CompileTimeHashString("respawn"));
+    RegisterMessagePacket<Respawn>(CompileTimeHashString("respawn_spike"));
     RegisterMessagePacket<MenuClickSocial>(CompileTimeHashString("friends"));
     RegisterMessagePacket<MenuClickInfo>(CompileTimeHashString("info"));
     RegisterMessagePacket<MenuClickFavorite>(CompileTimeHashString("favorite"));
@@ -261,6 +265,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<Summon>();
     RegisterCommand<Suspend>();
     RegisterCommand<GrowIDCmd>();
+    RegisterCommand<SuperBroadcast>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
@@ -306,6 +311,22 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         const string sourceRawName = data[5].GetString();
         const string payloadText = data[6].GetString();
         const uint64 payloadNumber = (uint64)data[7].GetUINT();
+
+        if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST) {
+            if(payloadText.empty()) {
+                return;
+            }
+
+            for(auto& [_, pWorldPlayer] : m_playerCache) {
+                if(!pWorldPlayer || !pWorldPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+                    continue;
+                }
+
+                pWorldPlayer->SendOnConsoleMessage(payloadText);
+            }
+
+            return;
+        }
 
         GamePlayer* pTarget = GetPlayerByUserID(targetUserID);
         if(!pTarget || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
@@ -396,6 +417,10 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
 
             case TCP_CROSS_ACTION_WARN:
                 pSource->SendOnConsoleMessage("`oWarned ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_SUPER_BROADCAST:
+                pSource->SendOnConsoleMessage("`oSuper-broadcast delivered across subservers.");
                 break;
         }
 

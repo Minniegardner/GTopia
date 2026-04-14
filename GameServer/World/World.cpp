@@ -7,6 +7,7 @@
 #include "Math/Math.h"
 #include "Utils/StringUtils.h"
 #include "../Server/MasterBroadway.h"
+#include "../Server/GameServer.h"
 #include <array>
 
 #include "IO/File.h"
@@ -294,24 +295,29 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
 
     const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
     const string worldInfoSuffix = GetWorldInfoSuffix(this);
+    const string worldLabel = worldInfoSuffix.empty() ? ("`w" + GetWorlName() + "``") : ("`w" + GetWorlName() + worldInfoSuffix);
     pPlayer->SendOnConsoleMessage(
-        "World `w" + GetWorlName() + worldInfoSuffix + "`o entered. There are `w" + ToString(otherPlayersHere) +
+        "World " + worldLabel + " entered. There are `w" + ToString(otherPlayersHere) +
         "`` other people here, `w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` online."
     );
 
     TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
     TileExtra_Lock* pLockExtra = pLockTile ? pLockTile->GetExtra<TileExtra_Lock>() : nullptr;
-    if(!pLockExtra || pLockExtra->ownerID <= 0) {
-        pPlayer->SendOnConsoleMessage("This is a world with no World Lock yet.");
-    }
-    else if(pLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
-        pPlayer->SendOnConsoleMessage("This is your world, and as owner, all doors and locks are open to you.");
-    }
-    else if(pLockExtra->HasAccess((int32)pPlayer->GetUserID())) {
-        pPlayer->SendOnConsoleMessage("This world is locked, but you have access here.");
-    }
-    else {
-        pPlayer->SendOnConsoleMessage("This world is locked by another player.");
+
+    if(pLockExtra && pLockExtra->ownerID > 0) {
+        string ownerUsername = "DeletedUser";
+
+        GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
+        if(pOwner) {
+            ownerUsername = pOwner->GetRawName();
+        }
+
+        const bool hasAccess = pLockExtra->ownerID == (int32)pPlayer->GetUserID();
+        pPlayer->SendOnConsoleMessage(
+            "`5[`w" + GetWorlName() + " World Locked by " + ownerUsername +
+            (hasAccess ? " (ACCESS GRANTED)" : "") +
+            "`5]``"
+        );
     }
 
     return true;

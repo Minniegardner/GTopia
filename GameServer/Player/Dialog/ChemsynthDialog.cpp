@@ -139,21 +139,10 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     if(buttonClicked == "Start" || buttonClicked == "OK" || buttonClicked == "Confirm") {
         TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
         if(!pProcessorTile) {
-            pPlayer->SendOnConsoleMessage("`4Chemsynth processor not found.``");
             return;
         }
 
-        if(!ChemsynthAlgorithm::IsChemsynthReady(pWorld, pProcessorTile)) {
-            pPlayer->SendOnConsoleMessage("`4Chemsynth needs exactly 10 tanks connected in a straight line to the right.``");
-            return;
-        }
-
-        const bool wasActive = pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
         ChemsynthAlgorithm::StartChemsynth(pPlayer, pWorld, pProcessorTile);
-
-        if(!wasActive && !pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-            pPlayer->SendOnConsoleMessage("`4Failed to start Chemsynth. Check tank layout and required chemicals.``");
-        }
         return;
     }
 

@@ -688,6 +688,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pData->itemID = (uint16)selectedItemInt;
                 pData->price = 0;
                 pData->stock = 0;
+                pData->earnings = 0;
 
                 const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
                 if(owned > 0) {
@@ -748,11 +749,17 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         int32 itemID = pData->itemID;
-        int32 price = pData->price;
+        int32 price = 0;
         int32 addStock = 0;
 
-        ParseIntField(packet, CompileTimeHashString("VendItemID"), itemID);
-        ParseIntField(packet, CompileTimeHashString("VendPrice"), price);
+        if(!ParseIntField(packet, CompileTimeHashString("VendItemID"), itemID)) {
+            itemID = pData->itemID;
+        }
+
+        if(!ParseIntField(packet, CompileTimeHashString("VendPrice"), price)) {
+            price = 0;
+        }
+
         ParseIntField(packet, CompileTimeHashString("VendAddStock"), addStock);
 
         auto pPerWL = packet.Find(CompileTimeHashString("PerWL"));
@@ -789,6 +796,10 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pPlayer->ModifyInventoryItem(pData->itemID, (int16)-actualAdd);
                 pData->stock += actualAdd;
             }
+        }
+
+        if(pData->itemID == ITEM_ID_BLANK || pData->stock <= 0) {
+            pData->price = 0;
         }
 
         EmitMachineUpdateEffects(pWorld, pTile);

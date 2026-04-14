@@ -1,6 +1,7 @@
 #include "Stats.h"
 #include "../Server/GameServer.h"
 #include "../World/WorldManager.h"
+#include "../Context.h"
 #include "Utils/StringUtils.h"
 
 const CommandInfo& Stats::GetInfo()
@@ -25,6 +26,7 @@ void Stats::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     pPlayer->SendOnConsoleMessage("`5Server Statistics``");
+    pPlayer->SendOnConsoleMessage("`oServer ID: `w" + ToString((int)GetContext()->GetID()) + "``");
     pPlayer->SendOnConsoleMessage("`oOnline Players: `w" + ToString((int)GetGameServer()->GetOnlineCount()) + "``");
     pPlayer->SendOnConsoleMessage("`oLoaded Worlds: `w" + ToString((int)GetWorldManager()->GetWorldCount()) + "``");
 }

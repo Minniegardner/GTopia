@@ -219,7 +219,7 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
-    GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetNetID(), worldName);
+    GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetNetID(), pPlayer->GetUserID(), worldName);
 }
 
 void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)
