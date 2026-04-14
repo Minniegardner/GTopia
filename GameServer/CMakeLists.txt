@@ -114,6 +114,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/Summon.cpp
     ${GAME_COMMAND}/Suspend.cpp
     ${GAME_COMMAND}/GrowIDCmd.cpp
+    ${GAME_COMMAND}/SuperBroadcast.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp
