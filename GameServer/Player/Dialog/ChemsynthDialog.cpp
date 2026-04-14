@@ -125,18 +125,19 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
     string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+    string buttonLower = ToLower(buttonClicked);
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
     if(!pItem) {
         return;
     }
 
-    if(buttonClicked == "Help") {
+    if(buttonLower == "help") {
         ShowInstructionManual(pPlayer);
         return;
     }
 
-    if(buttonClicked == "Start" || buttonClicked == "OK" || buttonClicked == "Confirm") {
+    if(buttonLower == "start" || buttonLower == "ok" || buttonLower == "confirm" || buttonLower == "yes" || buttonLower == "accept") {
         TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
         if(!pProcessorTile) {
             pPlayer->SendOnTalkBubble("Chemsynth processor not found.", true);
@@ -160,7 +161,7 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    if(buttonClicked == "Shutdown") {
+    if(buttonLower == "shutdown") {
         TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
         if(pProcessorTile) {
             ChemsynthAlgorithm::CancelChemsynth(pWorld, pProcessorTile);
@@ -168,8 +169,12 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    if(buttonClicked == "Exit" || buttonClicked == "No") {
+    if(buttonLower == "exit" || buttonLower == "no" || buttonLower == "cancel" || buttonLower == "close") {
         return;
+    }
+
+    if(!buttonClicked.empty()) {
+        pPlayer->SendOnConsoleMessage("Chemsynth: unknown button action '" + buttonClicked + "'.");
     }
 }
 
