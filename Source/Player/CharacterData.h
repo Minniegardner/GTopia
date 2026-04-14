@@ -63,6 +63,7 @@ public:
     float GetFireDamage() const { return m_fireDamage; }
 
     uint32 GetSkinColor(bool tint = false);
+    void SetSkinColor(const Color& color) { m_skinColor = color; SetNeedSkinUpdate(true); }
 
     bool HasPlayMod(ePlayModType modType);
     PlayerPlayModInfo* GetPlayMod(ePlayModType modType);

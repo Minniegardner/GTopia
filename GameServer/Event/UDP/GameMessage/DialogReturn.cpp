@@ -488,5 +488,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             RegisterDialog::Handle(pPlayer, packet);
             break;
         }
+
+        case CompileTimeHashString("SocialPortal"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked == "GotoFriendsMenu") {
+                pPlayer->SendWrenchSelf("SocialProfile");
+            }
+            break;
+        }
     }
 }

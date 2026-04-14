@@ -62,6 +62,13 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/DialogReturn.cpp
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
     ${GAME_EVENT}/UDP/GameMessage/Drop.cpp
+    ${GAME_EVENT}/UDP/GameMessage/SetSkin.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickSocial.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickInfo.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickFavorite.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickLeaderboards.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickSecure.cpp
+    ${GAME_EVENT}/UDP/GameMessage/MenuClickRecycle.cpp
     ${GAME_EVENT}/UDP/GameMessage/Wrench.cpp
     ${GAME_EVENT}/UDP/GameMessage/Store.cpp
     ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
@@ -69,8 +76,11 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
-    ${GAME_EVENT}/UDP/GamePacket/ItemActivateObjectRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/PlayerCollect.cpp
     ${GAME_EVENT}/UDP/GamePacket/UseDoorRequest.cpp
+    ${GAME_EVENT}/UDP/GamePacket/PlayerSendIconState.cpp
+    ${GAME_EVENT}/UDP/GamePacket/BlockActivate.cpp
+    ${GAME_EVENT}/UDP/GamePacket/PlayerPunched.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/State.cpp
 

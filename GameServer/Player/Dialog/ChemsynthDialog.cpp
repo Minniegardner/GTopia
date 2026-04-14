@@ -19,6 +19,25 @@ bool ParseIntField(ParsedTextPacket<8>& packet, uint32 key, int32& out)
     return ToInt(string(pField->value, pField->size), out) == TO_INT_SUCCESS;
 }
 
+void ShowInstructionManual(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`9GrowTech Chemsynth Manual``", ITEM_ID_CHEMSYNTH_PROCESSOR, true)
+        ->AddSpacer()
+        ->AddTextBox("Place a Chemsynth Processor with exactly 10 Chemsynth Tanks connected in a straight line to its right.")
+        ->AddTextBox("To start synthesis, you need at least 5 of each basic Chemical: R, Y, G, B, and P.")
+        ->AddTextBox("While synthesis is running, the active tank colors move forward until a tank matches its target color.")
+        ->AddTextBox("When all 10 tanks match their targets, the processor rewards 1 Synthetic Chemical.")
+        ->EndDialog("ChemsynthManual", "", "Close");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
 }
 
 namespace ChemsynthDialog {
@@ -112,8 +131,24 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
+    if(buttonClicked == "Help") {
+        ShowInstructionManual(pPlayer);
+        return;
+    }
+
     if(buttonClicked == "Start") {
-        ChemsynthAlgorithm::StartChemsynth(pPlayer, pWorld, pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile));
+        TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
+        if(!pProcessorTile) {
+            pPlayer->SendOnConsoleMessage("`4Chemsynth processor not found.``");
+            return;
+        }
+
+        if(!ChemsynthAlgorithm::IsChemsynthReady(pWorld, pProcessorTile)) {
+            pPlayer->SendOnConsoleMessage("`4Chemsynth needs exactly 10 tanks connected in a straight line to the right.``");
+            return;
+        }
+
+        ChemsynthAlgorithm::StartChemsynth(pPlayer, pWorld, pProcessorTile);
         return;
     }
 

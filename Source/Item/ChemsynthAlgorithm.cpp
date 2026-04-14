@@ -564,6 +564,7 @@ void StartChemsynth(GamePlayer* pPlayer, World* pWorld, TileInfo* pProcessorTile
     pPlayer->ModifyInventoryItem(ITEM_ID_CHEMICAL_Y, -5);
     pPlayer->ModifyInventoryItem(ITEM_ID_CHEMICAL_G, -5);
     pPlayer->ModifyInventoryItem(ITEM_ID_CHEMICAL_P, -5);
+    pPlayer->SendOnTalkBubble("`2Chemical synthesis started!``", true);
     pPlayer->SendOnConsoleMessage("You used up `w5 Chemical R, 5 Chemical Y, 5 Chemical G, 5 Chemical B, and 5 Chemical P`` to begin Chemical Synthesis!");
 
     UpdateTiles(pWorld, tiles);

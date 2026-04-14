@@ -7,10 +7,13 @@
 #include "IO/File.h"
 
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
-#include "../Event/UDP/GamePacket/ItemActivateObjectRequest.h"
+#include "../Event/UDP/GamePacket/PlayerCollect.h"
 #include "../Event/UDP/GamePacket/UseDoorRequest.h"
 #include "../Event/UDP/GamePacket/TileChangeRequest.h"
 #include "../Event/UDP/GamePacket/State.h"
+#include "../Event/UDP/GamePacket/PlayerSendIconState.h"
+#include "../Event/UDP/GamePacket/BlockActivate.h"
+#include "../Event/UDP/GamePacket/PlayerPunched.h"
 
 WorldManager::WorldManager()
 {
@@ -246,10 +249,13 @@ World* WorldManager::GetWorldByName(const string &worldName)
 void WorldManager::RegisterEvents()
 {
     RegisterPacketEvent<ItemActivateRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST);
-    RegisterPacketEvent<ItemActivateObjectRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST);
+    RegisterPacketEvent<PlayerCollect>(NET_GAME_PACKET_ITEM_ACTIVATE_OBJECT_REQUEST);
     RegisterPacketEvent<UseDoorRequest>(NET_GAME_PACKET_USE_DOOR);
     RegisterPacketEvent<TileChangeRequest>(NET_GAME_PACKET_TILE_CHANGE_REQUEST);
     RegisterPacketEvent<State>(NET_GAME_PACKET_STATE);
+    RegisterPacketEvent<PlayerSendIconState>(NET_GAME_PACKET_SET_ICON_STATE);
+    RegisterPacketEvent<BlockActivate>(NET_GAME_PACKET_TILE_ACTIVATE_REQUEST);
+    RegisterPacketEvent<PlayerPunched>(NET_GAME_PACKET_GOT_PUNCHED);
 }
 
 void WorldManager::OnHandleGamePacket(ENetEvent& event)

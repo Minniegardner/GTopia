@@ -37,6 +37,13 @@ string GetDailyEventName(uint32 eventType)
 #include "../Event/UDP/GameMessage/DialogReturn.h"
 #include "../Event/UDP/GameMessage/Trash.h"
 #include "../Event/UDP/GameMessage/Drop.h"
+#include "../Event/UDP/GameMessage/SetSkin.h"
+#include "../Event/UDP/GameMessage/MenuClickSocial.h"
+#include "../Event/UDP/GameMessage/MenuClickInfo.h"
+#include "../Event/UDP/GameMessage/MenuClickFavorite.h"
+#include "../Event/UDP/GameMessage/MenuClickLeaderboards.h"
+#include "../Event/UDP/GameMessage/MenuClickSecure.h"
+#include "../Event/UDP/GameMessage/MenuClickRecycle.h"
 #include "../Event/UDP/GameMessage/Store.h"
 #include "../Event/UDP/GameMessage/StoreNavigate.h"
 #include "../Event/UDP/GameMessage/Buy.h"
@@ -212,6 +219,13 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<DialogReturn>(CompileTimeHashString("dialog_return"));
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
     RegisterMessagePacket<Drop>(CompileTimeHashString("drop"));
+    RegisterMessagePacket<SetSkin>(CompileTimeHashString("setSkin"));
+    RegisterMessagePacket<MenuClickSocial>(CompileTimeHashString("friends"));
+    RegisterMessagePacket<MenuClickInfo>(CompileTimeHashString("info"));
+    RegisterMessagePacket<MenuClickFavorite>(CompileTimeHashString("favorite"));
+    RegisterMessagePacket<MenuClickLeaderboards>(CompileTimeHashString("leaderboards"));
+    RegisterMessagePacket<MenuClickSecure>(CompileTimeHashString("secure"));
+    RegisterMessagePacket<MenuClickRecycle>(CompileTimeHashString("recycle"));
     RegisterMessagePacket<Wrench>(CompileTimeHashString("wrench"));
     RegisterMessagePacket<Store>(CompileTimeHashString("store"));
     RegisterMessagePacket<StoreNavigate>(CompileTimeHashString("storenavigate"));
