@@ -1,5 +1,6 @@
 #include "ChemsynthDialog.h"
 
+#include "IO/Log.h"
 #include "Item/ItemInfoManager.h"
 #include "Utils/DialogBuilder.h"
 #include "Utils/StringUtils.h"
@@ -34,6 +35,42 @@ void ShowInstructionManual(GamePlayer* pPlayer)
         ->AddTextBox("While synthesis is running, the active tank colors move forward until a tank matches its target color.")
         ->AddTextBox("When all 10 tanks match their targets, the processor rewards 1 Synthetic Chemical.")
         ->EndDialog("ChemsynthManual", "", "Close");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowStartConfirmDialog(GamePlayer* pPlayer, TileInfo* pProcessorTile)
+{
+    if(!pPlayer || !pProcessorTile) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`9GrowTech Chemsynth``", ITEM_ID_CHEMSYNTH_PROCESSOR, true)
+        ->AddSpacer()
+        ->AddTextBox("You have " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_R)) + " Chemical R, " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_Y)) + " Chemical Y, " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_G)) + " Chemical G, " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_B)) + " Chemical B, and " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_P)) + " Chemical P.")
+        ->EmbedData("tilex", pProcessorTile->GetPos().x)
+        ->EmbedData("tiley", pProcessorTile->GetPos().y)
+        ->EmbedData("TileItemID", pProcessorTile->GetDisplayedItem());
+
+    if(
+        pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_R) < 5 ||
+        pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_Y) < 5 ||
+        pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_G) < 5 ||
+        pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_B) < 5 ||
+        pPlayer->GetInventory().GetCountOfItem(ITEM_ID_CHEMICAL_P) < 5
+    ) {
+        db.AddLabel("`4Error: You need 5 of each Chemical to start, and we recommend at least 30 of each, as every Chemsynth tool uses up 1 chemical of the selected color.``")
+            ->EndDialog("Chemsynth", "", "Exit");
+    }
+    else {
+        db.AddSpacer()
+            ->AddLabel("Are you sure you want to spend `25 of each Chemical`` to begin Chemical Synthesis?")
+            ->AddSpacer()
+            ->AddButton("Start", "Really Start")
+            ->EndDialog("Chemsynth", "", "No");
+    }
 
     pPlayer->SendOnDialogRequest(db.Get());
 }
@@ -127,8 +164,23 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
     string buttonLower = ToLower(buttonClicked);
 
+    LOGGER_LOG_DEBUG("Chemsynth dialog button='%s' world=%u tile=%d,%d", buttonClicked.c_str(), pPlayer->GetCurrentWorld(), tileX, tileY);
+    pPlayer->SendOnConsoleMessage("ChemsynthDebug: button='" + (buttonClicked.empty() ? string("<empty>") : buttonClicked) + "'");
+
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
     if(!pItem) {
+        return;
+    }
+
+    if(buttonLower.empty()) {
+        TileInfo* pProcessorTile = pTile->GetDisplayedItem() == ITEM_ID_CHEMSYNTH_PROCESSOR ? pTile : ChemsynthAlgorithm::FindProcessorTile(pWorld, pTile);
+        if(!pProcessorTile) {
+            pPlayer->SendOnTalkBubble("Chemsynth processor not found.", true);
+            pPlayer->SendOnConsoleMessage("Chemsynth processor not found.");
+            return;
+        }
+
+        ShowStartConfirmDialog(pPlayer, pProcessorTile);
         return;
     }
 
@@ -142,12 +194,6 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         if(!pProcessorTile) {
             pPlayer->SendOnTalkBubble("Chemsynth processor not found.", true);
             pPlayer->SendOnConsoleMessage("Chemsynth processor not found.");
-            return;
-        }
-
-        if(!ChemsynthAlgorithm::IsChemsynthReady(pWorld, pProcessorTile)) {
-            pPlayer->SendOnTalkBubble("Chemsynth needs exactly 10 tanks in a straight line to the right.", true);
-            pPlayer->SendOnConsoleMessage("Chemsynth needs exactly 10 tanks in a straight line to the right.");
             return;
         }
 
