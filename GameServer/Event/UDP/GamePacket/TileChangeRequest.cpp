@@ -30,10 +30,10 @@ string GetTreeNameFromSeedName(const string& seedName)
     return seedName;
 }
 
-ItemInfo* FindSplicedSeedResult(uint16 firstSeedID, uint16 secondSeedID)
+const ItemInfo* FindSplicedSeedResult(uint16 firstSeedID, uint16 secondSeedID)
 {
     const auto& items = GetItemInfoManager()->GetItems();
-    for(ItemInfo* pCandidate : items) {
+    for(const ItemInfo* pCandidate : items) {
         if(!pCandidate || pCandidate->type != ITEM_TYPE_SEED) {
             continue;
         }
@@ -262,13 +262,13 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         }
 
         if(pItem->type == ITEM_TYPE_SEED && pTile->GetFG() != ITEM_ID_BLANK) {
-            ItemInfo* pSeedOnTile = GetItemInfoManager()->GetItemByID(pTile->GetFG());
+            const ItemInfo* pSeedOnTile = GetItemInfoManager()->GetItemByID(pTile->GetFG());
             if(!pSeedOnTile || pSeedOnTile->type != ITEM_TYPE_SEED) {
                 pPlayer->SendFakePingReply();
                 return;
             }
 
-            ItemInfo* pSplicedSeed = FindSplicedSeedResult(pItem->id, pSeedOnTile->id);
+            const ItemInfo* pSplicedSeed = FindSplicedSeedResult(pItem->id, pSeedOnTile->id);
             if(!pSplicedSeed) {
                 pPlayer->SendFakePingReply();
                 return;
