@@ -267,6 +267,10 @@ void LockDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         bool buildingOnly = ParseCheckboxValue(packet, "BuildingOnly", pTileExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY));
         bool restrictAdmins = ParseCheckboxValue(packet, "RestrictAdmins", pTileExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS));
 
+        if(ignoreAir && airOnly) {
+            airOnly = false;
+        }
+
         if(ignoreAir) pTileExtra->SetFlag(TILE_EXTRA_LOCK_FLAG_IGNORE_AIR);
         else pTileExtra->RemoveFlag(TILE_EXTRA_LOCK_FLAG_IGNORE_AIR);
 

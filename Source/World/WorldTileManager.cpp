@@ -1,6 +1,7 @@
 #include "WorldTileManager.h"
 #include "../Math/Math.h"
 #include "../Item/ItemInfoManager.h"
+#include "../Item/LockAlgorithm.h"
 #include "../Math/Random.h"
 #include "WorldInfo.h"
 
@@ -328,65 +329,7 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
 
 bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock, bool ignoreEmpty, std::vector<TileInfo*>& outTiles, bool airOnly)
 {
-    if(!pLockTile || tileSizeToLock > (m_size.x * m_size.y) || tileSizeToLock == 0) {
-        return false;
-    }
-
-    RemoveTileParentsLockedBy(pLockTile);
-
-    Vector2Int vStartPos = pLockTile->GetPos();
-    std::vector<TileInfo*> lockedTiles;
-
-    int32 radius = 1;
-    int32 totalLocked = 0;
-    uint32 maxRadius = Max(m_size.x, m_size.y);
-
-    if(airOnly) {
-        ignoreEmpty = false;
-    }
-
-    while(totalLocked < tileSizeToLock && radius <= maxRadius) { // :/ is it really ok? is that O(n^3)???
-        int32 minDistance = 111111111;
-        TileInfo* pClosestTile = nullptr;
-        
-        for(int32 x = vStartPos.x - radius; x <= vStartPos.x + radius; ++x) {
-            for(int32 y = vStartPos.y - radius; y <= vStartPos.y + radius; ++y) {
-                TileInfo* pCurrTile = GetTile(x, y);
-                if(!pCurrTile || pCurrTile == pLockTile) {
-                    continue;
-                }
-
-                if(!AbleToLockThisTile(pLockTile, pCurrTile, ignoreEmpty, airOnly)) {
-                    continue;
-                }
-
-                int32 distance = Abs(x - vStartPos.x) + Abs(y - vStartPos.y);
-                if(!pClosestTile || distance < minDistance) {
-                    pClosestTile = pCurrTile;
-                    minDistance = distance;
-                }
-            }
-        }
-
-        if(!pClosestTile) {
-            radius++;
-            continue;
-        }
-
-        pClosestTile->SetParent(vStartPos.x + m_size.x * vStartPos.y);
-        pClosestTile->SetFlag(TILE_FLAG_HAS_PARENT);
-        lockedTiles.push_back(pClosestTile);
-        totalLocked++;
-    }
-
-    if(totalLocked < tileSizeToLock) {
-        RemoveTileParentsLockedBy(pLockTile);
-        outTiles.clear();
-        return false;
-    }
-
-    outTiles = std::move(lockedTiles);
-    return true;
+    return LockAlgorithm::ApplyLockTiles(this, pLockTile, tileSizeToLock, ignoreEmpty, outTiles, airOnly);
 }
 
 void WorldTileManager::FillRectWithThickness(uint16 thickness, RectInt& rect, uint16 fgItem, uint16 bgItem, float chance)

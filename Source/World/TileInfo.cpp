@@ -93,7 +93,7 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
                 pMagplant->remote = false;
             }
             else if(itemID == ITEM_ID_GAIAS_BEACON) {
-                pMagplant->itemLimit = 200;
+                pMagplant->itemLimit = 1500;
                 pMagplant->remote = false;
             }
         }

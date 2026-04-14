@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ItemUtils.h"
+#include <vector>
 
 class WorldTileManager;
 class TileInfo;

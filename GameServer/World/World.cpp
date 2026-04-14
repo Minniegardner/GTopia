@@ -54,6 +54,50 @@ bool IsSteamConductor(TileInfo* pTile)
     return pItem && pItem->type == ITEM_TYPE_STEAMPUNK;
 }
 
+bool IsItemSucker(uint16 itemID)
+{
+    return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
+}
+
+bool TrySuckDroppedObject(World* pWorld, WorldObject& obj)
+{
+    if(!pWorld || obj.itemID == ITEM_ID_GEMS || obj.count == 0) {
+        return false;
+    }
+
+    const Vector2Int size = pWorld->GetTileManager()->GetSize();
+    for(int32 y = 0; y < size.y; ++y) {
+        for(int32 x = 0; x < size.x; ++x) {
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
+            if(!pTile || !IsItemSucker(pTile->GetDisplayedItem())) {
+                continue;
+            }
+
+            TileExtra_Magplant* pData = pTile->GetExtra<TileExtra_Magplant>();
+            if(!pData || !pData->magnetic) {
+                continue;
+            }
+
+            if(pData->itemID != obj.itemID) {
+                continue;
+            }
+
+            if((pData->itemCount + (int32)obj.count) > pData->itemLimit) {
+                continue;
+            }
+
+            pData->itemCount += (int32)obj.count;
+
+            const Vector2Int tilePos = pTile->GetPos();
+            pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
+            pWorld->SendTileUpdate(pTile);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 TileInfo* FindDoorByIDInWorld(World* pWorld, const string& doorID)
 {
     if(!pWorld || doorID.empty()) {
@@ -916,6 +960,10 @@ void World::DropObject(TileInfo* pTile, WorldObject& obj, bool merge)
     vBasePos.y += 16.0f;
 
     obj.pos += vBasePos;
+
+    if(TrySuckDroppedObject(this, obj)) {
+        return;
+    }
 
     if(merge) {
         RectFloat tileRect(vTilePos.x * 32, vTilePos.y * 32, (vTilePos.x + 1) * 32, (vTilePos.y + 1) * 32);
