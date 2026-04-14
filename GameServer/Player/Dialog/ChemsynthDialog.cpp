@@ -54,27 +54,27 @@ void Request(GamePlayer* pPlayer, TileInfo* pTile)
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`9GrowTech Chemsynth``", ITEM_ID_CHEMSYNTH_PROCESSOR, true)
-        ->AddSmallSpacer()
+        ->AddSpacer()
         ->EmbedData("tilex", pProcessorTile->GetPos().x)
         ->EmbedData("tiley", pProcessorTile->GetPos().y)
         ->EmbedData("TileItemID", pProcessorTile->GetDisplayedItem());
 
     if(!ready) {
         db.AddLabel("The Chemsynth can't function without exactly 10 Chemsynth Tanks connected in a straight line to its right.");
-        db.AddSmallSpacer()
+        db.AddSpacer()
             ->AddButton("Help", "Instruction Manual")
             ->EndDialog("Chemsynth", "", "Exit");
     }
     else if(active) {
-        db.AddLabel(fmt::format("Chemical Synthesis System online. Synthesis in progress: {}% complete.", percent))
-            ->AddSmallSpacer()
+        db.AddLabel("Chemical Synthesis System online. Synthesis in progress: " + ToString(percent) + "% complete.")
+            ->AddSpacer()
             ->AddButton("Help", "Instruction Manual")
             ->AddButton("Shutdown", "Shutdown")
             ->EndDialog("Chemsynth", "", "Exit");
     }
     else {
         db.AddLabel("Chemical Synthesis System online. Press Start to begin synthesis.")
-            ->AddSmallSpacer()
+            ->AddSpacer()
             ->AddButton("Help", "Instruction Manual")
             ->EndDialog("Chemsynth", "Start", "Exit");
     }
