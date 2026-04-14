@@ -9,6 +9,7 @@ enum eVariantTypes
     VARIANT_TYPE_NONE,
     VARIANT_TYPE_INT,
     VARIANT_TYPE_UINT,
+    VARIANT_TYPE_UINT64,
     VARIANT_TYPE_FLOAT,
     VARIANT_TYPE_BOOL,
     VARIANT_TYPE_STRING,
@@ -31,6 +32,7 @@ public:
     Variant();
     Variant(const int32 rhs) { *this = rhs; }
     Variant(const uint32 rhs) { *this = rhs; }
+    Variant(const uint64 rhs) { *this = rhs; }
     Variant(const bool rhs) { *this = rhs; }
     Variant(const string& rhs) { *this = rhs; }
     Variant(const Vector2Int& rhs) { *this = rhs; }
@@ -47,6 +49,13 @@ public:
     {
         m_type = VARIANT_TYPE_UINT;
         m_value.u_0 = rhs;
+    }
+
+    void operator=(const uint64 rhs)
+    {
+        m_type = VARIANT_TYPE_UINT64;
+        m_value.u_0 = static_cast<uint32>(rhs & 0xFFFFFFFF);
+        m_value.u_1 = static_cast<uint32>((rhs >> 32) & 0xFFFFFFFF);
     }
 
     void operator=(const float rhs)
@@ -108,6 +117,13 @@ public:
     {
         if(m_type == VARIANT_TYPE_UINT)
             return m_value.u_0;
+        return 0;
+    }
+
+    uint64 GetUINT64() const
+    {
+        if(m_type == VARIANT_TYPE_UINT64)
+            return (static_cast<uint64>(m_value.u_1) << 32) | static_cast<uint64>(m_value.u_0);
         return 0;
     }
 
