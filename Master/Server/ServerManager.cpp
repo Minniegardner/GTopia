@@ -413,9 +413,10 @@ ServerInfo* ServerManager::GetBestGameServer()
             continue;
         }
 
-        float score = pServer->playerCount / (pServer->worldCount + 1);
+        float score = static_cast<float>(pServer->playerCount) / static_cast<float>(pServer->worldCount + 1);
         if(score < bestScore) {
             pBestServer = pServer;
+            bestScore = score;
         }
     }
 

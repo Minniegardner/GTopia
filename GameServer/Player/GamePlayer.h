@@ -124,6 +124,11 @@ public:
     void SetLastChangeTradeDeal(uint64 timeMS) { m_lastChangeTradeDeal = timeMS; }
     uint64 GetLastAcceptedTrade() const { return m_lastAcceptedTrade; }
     void SetLastAcceptedTrade(uint64 timeMS) { m_lastAcceptedTrade = timeMS; }
+    uint32 GetPendingTradeRequesterUserID() const { return m_pendingTradeRequesterUserID; }
+    uint64 GetPendingTradeRequestedAtMS() const { return m_pendingTradeRequestedAtMS; }
+    void SetPendingTradeRequest(uint32 requesterUserID, uint64 requestedAtMS);
+    void ClearPendingTradeRequest();
+    bool HasPendingTradeRequestFrom(uint32 requesterUserID, uint64 nowMS) const;
     const std::vector<TradeOffer>& GetTradeOffers() const { return m_tradeOffers; }
     bool IsTradeOfferExists(uint16 itemID) const;
     void RemoveTradeOffer(uint16 itemID);
@@ -187,7 +192,7 @@ public:
     bool CanProcessGamePacket(eGamePacketType packetType);
     bool CanProcessGameMessage();
     bool CanProcessMovePacket(float nextX, float nextY, uint64 nowMS);
-    bool CanCollectObjectNow() { return Time::GetSystemTime() - m_lastObjectCollectTime >= 60; }
+    bool CanCollectObjectNow() { return Time::GetSystemTime() - m_lastObjectCollectTime >= 25; }
     void ResetCollectObjectTime() { m_lastObjectCollectTime = Time::GetSystemTime(); }
     uint64 GetLastCollectFailCheckTime() const { return m_lastCollectFailCheckTime; }
     uint8 GetCollectFailsInWindow() const { return m_collectFailsInWindow; }
@@ -258,6 +263,8 @@ private:
     uint64 m_lastTradedAt = 0;
     uint64 m_lastChangeTradeDeal = 0;
     uint64 m_lastAcceptedTrade = 0;
+    uint32 m_pendingTradeRequesterUserID = 0;
+    uint64 m_pendingTradeRequestedAtMS = 0;
     std::vector<TradeOffer> m_tradeOffers = {};
     std::vector<std::string> m_tradeHistory = {};
     std::unordered_set<std::string> m_achievements = {};

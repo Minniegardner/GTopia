@@ -75,6 +75,7 @@ namespace {
 
 constexpr uint64 kTradeChangeThrottleMS = 1800;
 constexpr uint8 kTradeMaxOfferItems = 4;
+constexpr uint64 kTradeRequestExpireMS = 15000;
 
 bool IsTradeSystemItem(uint16 itemID)
 {
@@ -192,6 +193,7 @@ void ResetTradeState(GamePlayer* pPlayer)
     pPlayer->SetTradeAcceptedAt(0);
     pPlayer->SetTradeConfirmedAt(0);
     pPlayer->SetLastChangeTradeDeal(0);
+    pPlayer->ClearPendingTradeRequest();
     pPlayer->ClearTradeOffers();
 }
 
@@ -325,6 +327,27 @@ void GamePlayer::ClearTradeOffers()
     m_tradeOffers.clear();
 }
 
+void GamePlayer::SetPendingTradeRequest(uint32 requesterUserID, uint64 requestedAtMS)
+{
+    m_pendingTradeRequesterUserID = requesterUserID;
+    m_pendingTradeRequestedAtMS = requestedAtMS;
+}
+
+void GamePlayer::ClearPendingTradeRequest()
+{
+    m_pendingTradeRequesterUserID = 0;
+    m_pendingTradeRequestedAtMS = 0;
+}
+
+bool GamePlayer::HasPendingTradeRequestFrom(uint32 requesterUserID, uint64 nowMS) const
+{
+    if(requesterUserID == 0 || m_pendingTradeRequesterUserID != requesterUserID || m_pendingTradeRequestedAtMS == 0) {
+        return false;
+    }
+
+    return nowMS >= m_pendingTradeRequestedAtMS && (nowMS - m_pendingTradeRequestedAtMS) <= kTradeRequestExpireMS;
+}
+
 void GamePlayer::StartTrade(GamePlayer* player)
 {
     if(!player || player == this) {
@@ -343,13 +366,37 @@ void GamePlayer::StartTrade(GamePlayer* player)
         return;
     }
 
-    SetTrading(true);
+    if(player->GetTradingWithUserID() != 0 && player->GetTradingWithUserID() != GetNetID()) {
+        SendOnConsoleMessage(fmt::format("`8[`w{} `4is already handling another trade request!`8]``", player->GetRawName()));
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+
+    SetTrading(false);
     SetTradingWithUserID(player->GetNetID());
     SetTradeAccepted(false);
     SetTradeConfirmed(false);
     SetTradeAcceptedAt(0);
     SetTradeConfirmedAt(0);
+    ClearPendingTradeRequest();
     ClearTradeOffers();
+
+    const bool mutualTradeRequest =
+        player->GetTradingWithUserID() == GetNetID() ||
+        player->HasPendingTradeRequestFrom(GetUserID(), nowMS);
+
+    if(!mutualTradeRequest) {
+        player->SetPendingTradeRequest(GetUserID(), nowMS);
+        SendOnConsoleMessage("`6[``Trade request sent. Waiting for the other player to trade back.`6]``");
+        player->SendTradeAlert(this);
+        SendStartTrade(player);
+        return;
+    }
+
+    player->ClearPendingTradeRequest();
+
+    SetTrading(true);
 
     player->SetTrading(true);
     player->SetTradingWithUserID(GetNetID());
@@ -357,12 +404,18 @@ void GamePlayer::StartTrade(GamePlayer* player)
     player->SetTradeConfirmed(false);
     player->SetTradeAcceptedAt(0);
     player->SetTradeConfirmedAt(0);
+    player->ClearPendingTradeRequest();
     player->ClearTradeOffers();
 
     SendTradeAlert(player);
     player->SendTradeAlert(this);
     SendStartTrade(player);
     player->SendStartTrade(this);
+
+    SendTradeStatus(this);
+    SendTradeStatus(player);
+    player->SendTradeStatus(this);
+    player->SendTradeStatus(player);
 }
 
 void GamePlayer::CancelTrade(bool busy, std::string customMessage)
@@ -901,8 +954,13 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     ->AddLabelWithIcon("`w" + otherPlayer->GetDisplayName() + "``", ITEM_ID_WRENCH, true)
     ->AddLabel("`oCurrent level: `w" + ToString(otherPlayer->GetLevel()) + "``")
     ->AddLabel("`oCurrent world: `w" + ToString(otherPlayer->GetCurrentWorld()) + "``")
+    ->AddLabel("`oRole: `w" + string(otherPlayer->GetRole() ? otherPlayer->GetRole()->GetName() : "Player") + "``")
     ->AddSpacer()
     ->AddButton("Trade", "`wTrade``");
+
+    db.AddLabel("(No Battle Leash equipped)")
+    ->AddLabel("(Not enough Superpower Cards to battle)")
+    ->AddSpacer();
 
     Role* pRole = GetRole();
     bool hasWorldAdminAccess = false;
@@ -923,8 +981,11 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
         db.AddButton("Ban", "`4World Ban``");
     }
 
-    db.AddButton("Add", "`wAdd as Friend``")
-    ->AddButton("Ignore", "`wIgnore Player``")
+    if(!IsFriendWith(otherPlayer->GetUserID())) {
+        db.AddButton("Add", "`wAdd as Friend``");
+    }
+
+    db.AddButton("Ignore", "`wIgnore Player``")
     ->AddSpacer()
     ->EndDialog("WrenchOthers", "", "Continue");
 

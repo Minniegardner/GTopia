@@ -703,7 +703,9 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-        if(pButtonClicked && string(pButtonClicked->value, pButtonClicked->size) == "PutStock") {
+        string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+
+        if(buttonClicked == "PutStock") {
             if(pData->itemID == ITEM_ID_BLANK) {
                 return;
             }
@@ -723,7 +725,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
-        if(pButtonClicked && string(pButtonClicked->value, pButtonClicked->size) == "TakeStock") {
+        if(buttonClicked == "TakeStock") {
             if(pData->itemID != ITEM_ID_BLANK && pData->stock > 0) {
                 if(!pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)std::min<int32>(pData->stock, 200))) {
                     pPlayer->SendOnTalkBubble("That won't fit into your inventory", true);
@@ -738,6 +740,10 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             pData->price = 0;
             EmitMachineUpdateEffects(pWorld, pTile);
             pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        if(buttonClicked != "Update") {
             return;
         }
 

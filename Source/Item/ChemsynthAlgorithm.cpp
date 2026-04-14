@@ -9,6 +9,7 @@
 #include "Player/GamePlayer.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 namespace {
 
@@ -576,8 +577,11 @@ void UpdateWorldChemsynth(World* pWorld)
         return;
     }
 
-    static uint64 lastUpdateMS = 0;
+    static std::unordered_map<uint32, uint64> lastUpdateByWorld;
+
+    const uint32 worldID = pWorld->GetID();
     uint64 nowMS = Time::GetSystemTime();
+    uint64& lastUpdateMS = lastUpdateByWorld[worldID];
     if(nowMS - lastUpdateMS < 1500) {
         return;
     }

@@ -10,6 +10,8 @@ void Wrench::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
+    pPlayer->CancelTrade(false);
+
     auto pNetIDField = packet.Find(CompileTimeHashString("netid"));
     if(!pNetIDField) {
         pNetIDField = packet.Find(CompileTimeHashString("netID"));

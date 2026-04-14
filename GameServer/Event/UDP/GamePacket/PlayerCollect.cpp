@@ -19,21 +19,16 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     }
 
     if(!pPlayer->CanCollectObjectNow()) {
-        pPlayer->IncrementCollectFailWindow();
         return;
     }
 
-    if(pPlayer->GetCollectFailsInWindow() >= 5) {
+    if(pPlayer->GetCollectFailsInWindow() >= 12) {
         pPlayer->SendFakePingReply();
         return;
     }
 
-    if(pPacket->worldObjectID < 0) {
-        pPlayer->SendFakePingReply();
-        return;
-    }
-
-    WorldObject* pObject = pWorld->GetObjectManager()->GetObjectByID((uint32)pPacket->worldObjectID);
+    const uint32 objectID = (uint32)pPacket->worldObjectID;
+    WorldObject* pObject = pWorld->GetObjectManager()->GetObjectByID(objectID);
     if(!pObject || pObject->count == 0) {
         pPlayer->SendFakePingReply();
         return;
@@ -72,19 +67,8 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         return;
     }
 
-    const Vector2Float targetPos = {
-        static_cast<float>(pTargetTile->GetPos().x * 32),
-        static_cast<float>(pTargetTile->GetPos().y * 32)
-    };
-
-    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), targetPos)) {
-        pPlayer->SendOnTalkBubble("(too far away)", true);
-        pPlayer->SendFakePingReply();
-        pPlayer->IncrementCollectFailWindow();
-        return;
-    }
-
     pPlayer->ResetCollectObjectTime();
+    pPlayer->ResetCollectFailWindow(nowMS);
 
     if(pObject->itemID == ITEM_ID_GEMS) {
         GameUpdatePacket pickupAnim;
