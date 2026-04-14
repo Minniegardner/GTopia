@@ -37,7 +37,10 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
         return;
     }
 
-    if(pItem->type == ITEM_TYPE_CHEMSYNTH || pItem->type == ITEM_TYPE_CHEMTANK) {
+    if(
+        pItem->type == ITEM_TYPE_CHEMSYNTH || pItem->type == ITEM_TYPE_CHEMTANK ||
+        pItem->id == ITEM_ID_CHEMSYNTH_PROCESSOR || pItem->id == ITEM_ID_CHEMSYNTH_TANK
+    ) {
         ChemsynthDialog::Request(pPlayer, pTile);
         return;
     }

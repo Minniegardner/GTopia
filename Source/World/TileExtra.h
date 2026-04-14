@@ -332,3 +332,191 @@ public:
 protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
+
+struct TileExtra_DonatedItem {
+    int32 itemID = 0;
+    uint8 amount = 0;
+    uint32 userID = 0;
+    string username;
+    string comment;
+    uint32 donateID = 0;
+    uint64 donatedAt = 0;
+};
+
+class TileExtra_DonationBox : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_DONATION_BOX;
+
+    TileExtra_DonationBox() : TileExtra(TYPE) {}
+
+    std::vector<TileExtra_DonatedItem> donatedItems;
+    uint32 currentDonateID = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+struct TileExtra_MailItem {
+    uint32 userID = 0;
+    string username;
+    string comment;
+    uint32 mailID = 0;
+    uint64 postedAt = 0;
+};
+
+class TileExtra_Mailbox : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_MAILBOX;
+
+    TileExtra_Mailbox() : TileExtra(TYPE) {}
+
+    std::vector<TileExtra_MailItem> mailItems;
+    uint32 currentMailID = 0;
+    bool isPublic = false;
+    bool hideNames = false;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Bulletin : public TileExtra_Mailbox {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_BULLETIN;
+
+    TileExtra_Bulletin()
+    {
+        type = TYPE;
+    }
+};
+
+class TileExtra_Mannequin : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_MANNEQUIN;
+
+    TileExtra_Mannequin() : TileExtra(TYPE) {}
+
+    string label;
+    uint8 hairA = 0;
+    uint8 hairR = 0;
+    uint8 hairG = 0;
+    uint8 hairB = 0;
+    uint8 unk = 223;
+
+    uint16 hair = ITEM_ID_BLANK;
+    uint16 shirt = ITEM_ID_BLANK;
+    uint16 pants = ITEM_ID_BLANK;
+    uint16 shoes = ITEM_ID_BLANK;
+    uint16 face = ITEM_ID_BLANK;
+    uint16 hand = ITEM_ID_BLANK;
+    uint16 back = ITEM_ID_BLANK;
+    uint16 hat = ITEM_ID_BLANK;
+    uint16 necklace = ITEM_ID_BLANK;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_DisplayBlock : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_DISPLAY_BLOCK;
+
+    TileExtra_DisplayBlock() : TileExtra(TYPE) {}
+
+    int32 itemID = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_DisplayShelf : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_DISPLAY_SHELF;
+
+    TileExtra_DisplayShelf() : TileExtra(TYPE) {}
+
+    int32 item1 = 0;
+    int32 item2 = 0;
+    int32 item3 = 0;
+    int32 item4 = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_WeatherSpecial : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_WEATHER_SPECIAL;
+
+    TileExtra_WeatherSpecial() : TileExtra(TYPE) {}
+
+    int32 itemOrColor = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_WeatherSpecial2 : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_WEATHER_SPECIAL2;
+
+    TileExtra_WeatherSpecial2() : TileExtra(TYPE) {}
+
+    int32 itemID = 0;
+    int32 gravity = 50;
+    uint8 stuffFlagsOrCycle = 0;
+    uint8 epochFlags = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_WeatherInfinity : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_WEATHER_INFINITY;
+
+    TileExtra_WeatherInfinity() : TileExtra(TYPE) {}
+
+    int32 cycleTimer = 600;
+    std::vector<int32> weathers;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_SuperMusic : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_SUPER_MUSIC;
+
+    TileExtra_SuperMusic() : TileExtra(TYPE) {}
+
+    string notes;
+    uint32 volume = 100;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Flag : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_FLAG;
+
+    TileExtra_Flag() : TileExtra(TYPE) {}
+
+    string country = "us";
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_ArtCanvas : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_ARTCANVAS;
+
+    TileExtra_ArtCanvas() : TileExtra(TYPE) {}
+
+    int32 itemID = 0;
+    string label;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};

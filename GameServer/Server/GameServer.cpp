@@ -71,6 +71,7 @@ string GetDailyEventName(uint32 eventType)
 #include "../Command/KickAll.h"
 #include "../Command/Summon.h"
 #include "../Command/Suspend.h"
+#include "../Command/GrowIDCmd.h"
 #include "../World/WorldManager.h"
 
 GameServer::GameServer()
@@ -245,6 +246,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<KickAll>();
     RegisterCommand<Summon>();
     RegisterCommand<Suspend>();
+    RegisterCommand<GrowIDCmd>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)

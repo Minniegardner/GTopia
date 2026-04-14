@@ -102,6 +102,25 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
                 pMagplant->remote = false;
             }
         }
+
+        if(TileExtra_Mannequin* pMannequin = GetExtra<TileExtra_Mannequin>()) {
+            pMannequin->unk = 223;
+        }
+
+        if(TileExtra_WeatherSpecial2* pWeather2 = GetExtra<TileExtra_WeatherSpecial2>()) {
+            pWeather2->itemID = ITEM_ID_DIRT;
+            pWeather2->gravity = 50;
+            pWeather2->stuffFlagsOrCycle = 0;
+            pWeather2->epochFlags = 0;
+        }
+
+        if(TileExtra_Flag* pFlag = GetExtra<TileExtra_Flag>()) {
+            pFlag->country = "us";
+        }
+
+        if(TileExtra_SuperMusic* pAudio = GetExtra<TileExtra_SuperMusic>()) {
+            pAudio->volume = 100;
+        }
     }
 
     m_fg = itemID;
