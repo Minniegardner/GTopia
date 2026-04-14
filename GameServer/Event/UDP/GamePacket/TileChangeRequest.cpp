@@ -1,6 +1,6 @@
 #include "TileChangeRequest.h"
 #include "Item/ItemInfoManager.h"
-#include "Item/ChemsynthAlgorithm.h"
+#include "Algorithm/ChemsynthAlgorithm.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
 

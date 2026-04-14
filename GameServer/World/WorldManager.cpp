@@ -1,5 +1,5 @@
 #include "WorldManager.h"
-#include "Item/ChemsynthAlgorithm.h"
+#include "Algorithm/ChemsynthAlgorithm.h"
 #include "../Context.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/GameServer.h"

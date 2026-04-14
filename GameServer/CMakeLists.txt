@@ -39,7 +39,7 @@ set(GAME_FILES PRIVATE
 
     ${SOURCE_ITEM}/ItemInfo.cpp
     ${SOURCE_ITEM}/LockAlgorithm.cpp
-    ${SOURCE_ITEM}/ChemsynthAlgorithm.cpp
+    ${SOURCE_ALGORITHM}/ChemsynthAlgorithm.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
 

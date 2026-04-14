@@ -366,7 +366,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
         return;
     }
 
-    if(player->GetTradingWithUserID() != 0 && player->GetTradingWithUserID() != GetNetID()) {
+    if(player->GetTradingWithUserID() != 0 && player->GetTradingWithUserID() != GetUserID()) {
         SendOnConsoleMessage(fmt::format("`8[`w{} `4is already handling another trade request!`8]``", player->GetRawName()));
         return;
     }
@@ -374,7 +374,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     const uint64 nowMS = Time::GetSystemTime();
 
     SetTrading(false);
-    SetTradingWithUserID(player->GetNetID());
+    SetTradingWithUserID(player->GetUserID());
     SetTradeAccepted(false);
     SetTradeConfirmed(false);
     SetTradeAcceptedAt(0);
@@ -383,7 +383,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     ClearTradeOffers();
 
     const bool mutualTradeRequest =
-        player->GetTradingWithUserID() == GetNetID() ||
+        player->GetTradingWithUserID() == GetUserID() ||
         player->HasPendingTradeRequestFrom(GetUserID(), nowMS);
 
     if(!mutualTradeRequest) {
@@ -399,7 +399,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     SetTrading(true);
 
     player->SetTrading(true);
-    player->SetTradingWithUserID(GetNetID());
+    player->SetTradingWithUserID(GetUserID());
     player->SetTradeAccepted(false);
     player->SetTradeConfirmed(false);
     player->SetTradeAcceptedAt(0);
@@ -420,8 +420,8 @@ void GamePlayer::StartTrade(GamePlayer* player)
 
 void GamePlayer::CancelTrade(bool busy, std::string customMessage)
 {
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
-    const bool isTradingWithMe = pTarget && pTarget != this && pTarget->GetTradingWithUserID() == GetNetID();
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(GetTradingWithUserID());
+    const bool isTradingWithMe = pTarget && pTarget != this && pTarget->GetTradingWithUserID() == GetUserID();
 
     if(isTradingWithMe) {
         if(!customMessage.empty()) {
@@ -468,7 +468,7 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(GetTradingWithUserID());
     if(!IsValidTradePair(this, pTarget)) {
         CancelTrade(false);
         return;
@@ -549,7 +549,7 @@ void GamePlayer::RemoveOffer(uint16 itemID)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(GetTradingWithUserID());
     if(!IsValidTradePair(this, pTarget)) {
         CancelTrade(false);
         return;
@@ -620,7 +620,7 @@ void GamePlayer::AcceptOffer(bool status)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(GetTradingWithUserID());
     if(!IsValidTradePair(this, pTarget)) {
         CancelTrade(false);
         return;
@@ -651,11 +651,11 @@ void GamePlayer::AcceptOffer(bool status)
     SetTradeAccepted(true);
     SetTradeAcceptedAt(Time::GetSystemTime());
 
-    if(pTarget && pTarget->GetTradingWithUserID() == GetNetID()) {
+    if(pTarget && pTarget->GetTradingWithUserID() == GetUserID()) {
         pTarget->SendTradeStatus(this);
     }
 
-    if(!pTarget || !pTarget->IsTradeAccepted() || !IsTradeAccepted() || pTarget->GetTradingWithUserID() != GetNetID()) {
+    if(!pTarget || !pTarget->IsTradeAccepted() || !IsTradeAccepted() || pTarget->GetTradingWithUserID() != GetUserID()) {
         SendOnConsoleMessage("`6[``Trade accepted, waiting for other player to accept`6]``");
         SendOnTextOverlay("`6[``Trade accepted, waiting for other player to accept`6]``");
 
@@ -757,7 +757,7 @@ void GamePlayer::ConfirmOffer()
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(GetTradingWithUserID());
+    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(GetTradingWithUserID());
     if(!IsValidTradePair(this, pTarget) || !pTarget->IsTrading()) {
         CancelTrade(false);
         return;

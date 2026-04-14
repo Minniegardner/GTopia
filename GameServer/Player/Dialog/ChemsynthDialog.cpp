@@ -6,7 +6,7 @@
 #include "Utils/StringUtils.h"
 #include "World/TileInfo.h"
 #include "World/WorldManager.h"
-#include "Item/ChemsynthAlgorithm.h"
+#include "Algorithm/ChemsynthAlgorithm.h"
 
 namespace {
 
