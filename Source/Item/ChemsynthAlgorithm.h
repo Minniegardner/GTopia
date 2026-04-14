@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ItemUtils.h"
+#include "World/TileExtra.h"
 #include <utility>
 
 class GamePlayer;

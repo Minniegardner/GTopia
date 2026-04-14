@@ -100,7 +100,7 @@ ChemsynthColor GetNextColor(ChemsynthColor color)
 
 ChemsynthColor GetRandomColor()
 {
-    switch(Random::Gen(0, 4)) {
+    switch(RandomRangeInt(0, 4)) {
         case 0: return ChemsynthColor::RED;
         case 1: return ChemsynthColor::YELLOW;
         case 2: return ChemsynthColor::GREEN;
