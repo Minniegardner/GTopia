@@ -23,21 +23,17 @@ void SendFindDialog(GamePlayer* pPlayer, const string& query)
     uint32 foundItems = 0;
     const uint32 maxItems = 128;
 
-    for(ItemInfo* pItem : GetItemInfoManager()->GetItems()) {
-        if(!pItem) {
-            continue;
-        }
-
+    for(const ItemInfo& item : GetItemInfoManager()->GetItems()) {
         if(loweredQuery.empty()) {
             continue;
         }
 
-        string loweredName = ToLower(pItem->name);
+        string loweredName = ToLower(item.name);
         if(loweredName.find(loweredQuery) == string::npos) {
             continue;
         }
 
-        db.AddTextBox("`wID: `o" + ToString((int)pItem->id) + "`` - `w" + pItem->name + "``");
+        db.AddTextBox("`wID: `o" + ToString((int)item.id) + "`` - `w" + item.name + "``");
 
         ++foundItems;
         if(foundItems >= maxItems) {
