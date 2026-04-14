@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../../Player/GamePlayer.h"
+#include "../../../World/World.h"
 
 class PlayerPunched {
 public:
