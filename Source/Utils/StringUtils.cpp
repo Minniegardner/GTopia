@@ -343,7 +343,23 @@ int32 ToInt(const char* str)
         return 0;
     }
 
-    return (int32)std::stol(str);
+    if(*str == '\0') {
+        return 0;
+    }
+
+    char* end;
+    errno = 0;
+    long val = std::strtol(str, &end, 10);
+
+    if(errno == ERANGE) {
+        return (val < 0) ? INT32_MIN : INT32_MAX;
+    }
+
+    if(end == str || *end != '\0') {
+        return 0;
+    }
+
+    return (int32)val;
 }
 
 uint32 ToUInt(const string& str)
@@ -357,7 +373,27 @@ uint32 ToUInt(const char* str)
         return 0;
     }
 
-    return (uint32)std::stoul(str);
+    if(*str == '\0') {
+        return 0;
+    }
+
+    if(*str == '-') {
+        return 0;
+    }
+
+    char* end;
+    errno = 0;
+    unsigned long val = std::strtoul(str, &end, 10);
+
+    if(errno == ERANGE || val > UINT32_MAX) {
+        return UINT32_MAX;
+    }
+
+    if(end == str || *end != '\0') {
+        return 0;
+    }
+
+    return (uint32)val;
 }
 
 uint32 CountCharacter(const string& str, char character)
