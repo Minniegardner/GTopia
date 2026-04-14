@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "../Packet/NetPacket.h"
 #include "Proton/ProtonUtils.h"
+
 Player::Player(ENetPeer* pPeer)
 : m_pPeer(pPeer)
 {
@@ -9,45 +10,37 @@ Player::Player(ENetPeer* pPeer)
 
 Player::~Player()
 {
-    SendCallFunctionPacket(data);
 }
-
-void Player::SendOnStartTrade(const string& playerName, int32 netID)
-{
-    VariantVector data(3);
-    data[0] = "OnStartTrade";
-    data[1] = playerName;
-    data[2] = netID;
-
-    SendCallFunctionPacket(data);
-}
-
-void Player::SendOnForceTradeEnd()
-{
-    VariantVector data(1);
-    data[0] = "OnForceTradeEnd";
-
-    SendCallFunctionPacket(data);
-}
-
-void Player::SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass)
-{
-    VariantVector data(4);
-    data[0] = "SetHasGrowID";
-    data[1] = active ? 1 : 0;
-    data[2] = tankIDName;
-    data[3] = tankIDPass;
-
 
 void Player::SendHelloPacket()
+{
+    if(!m_pPeer) {
+        return;
+    }
+
+    SendENetPacket(NET_MESSAGE_SERVER_HELLO, "", m_pPeer);
+}
+
+void Player::SendLogonFailWithLog(const string& message)
+{
+    if(!message.empty()) {
+        string logAction = "action|log\nmsg|" + message + "\n";
+        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, logAction.c_str(), m_pPeer);
+    }
+
+    SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|logon_fail\n", m_pPeer);
+}
+
+void Player::SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, const string& cdnPath, const string& settings, uint32 tributeHash)
 {
     VariantVector data;
     if(m_loginDetail.protocol < 93) {
         data = VariantVector(6);
+    }
     else {
         data = VariantVector(7);
     }
-    
+
     string osmHeader;
     if(m_loginDetail.gameVersion <= 2.982) {
         if(m_loginDetail.gameVersion <= 2.479) {
@@ -74,7 +67,7 @@ void Player::SendHelloPacket()
     data[3] = cdnPath;
     data[4] = "";
     data[5] = settings;
-    
+
     if(m_loginDetail.protocol > 93) {
         data[6] = tributeHash;
     }
@@ -141,16 +134,11 @@ void Player::SendOnChangeSkin(uint32 skinColor, Player* pPlayer)
 
 void Player::SendOnTalkBubble(const string& message, bool stackMessages, Player* pPlayer)
 {
-
-    /**
-     * check growmojis, player_chat= in here
-     */
-
     VariantVector data(5);
     data[0] = "OnTalkBubble";
     data[1] = pPlayer ? (uint32)pPlayer->GetNetID() : (uint32)GetNetID();
     data[2] = message;
-    data[3] = (uint32)0; // 2 for green box
+    data[3] = (uint32)0;
     data[4] = stackMessages ? (uint32)1 : (uint32)0;
 
     SendCallFunctionPacket(data);
@@ -260,27 +248,9 @@ void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_PING_REPLY;
-    SendCallFunctionPacket(data);
+
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, m_pPeer);
 }
-void Player::SendOnStartTrade(const string& playerName, int32 netID)
-{
-    VariantVector data(3);
-    data[0] = "OnStartTrade";
-    data[1] = playerName;
-    data[2] = netID;
-
-    SendCallFunctionPacket(data);
-}
-
-void Player::SendOnForceTradeEnd()
-{
-    VariantVector data(1);
-    data[0] = "OnForceTradeEnd";
-
-    SendCallFunctionPacket(data);
-}
-
 
 void Player::PlaySFX(const string& fileName, int32 delay)
 {
@@ -337,7 +307,7 @@ void Player::SendOnSetClothing(Player* pPlayer)
 
     VariantVector data(6);
     data[0] = "OnSetClothing";
-    data[1] = Vector3Float(clothes[BODY_PART_HAIR], clothes[BODY_PART_SHIRT], clothes[BODY_PART_PANT] );
+    data[1] = Vector3Float(clothes[BODY_PART_HAIR], clothes[BODY_PART_SHIRT], clothes[BODY_PART_PANT]);
     data[2] = Vector3Float(clothes[BODY_PART_SHOE], clothes[BODY_PART_FACEITEM], clothes[BODY_PART_HAND]);
     data[3] = Vector3Float(clothes[BODY_PART_BACK], clothes[BODY_PART_HAT], clothes[BODY_PART_CHESTITEM]);
 
@@ -349,11 +319,11 @@ void Player::SendOnSetClothing(Player* pPlayer)
         data[5] = uint32(isInvis ? 1 : 0);
     }
     else if(m_loginDetail.protocol < 32) {
-        data[5] = Vector3Float(isInvis ? 1.0 : 0.0, 0, 0);
+        data[5] = Vector3Float(isInvis ? 1.0f : 0.0f, 0, 0);
     }
     else {
         float artifact = 0;
-        data[5] = Vector3Float(artifact, isInvis ? 1.0 : 0.0, 0);
+        data[5] = Vector3Float(artifact, isInvis ? 1.0f : 0.0f, 0);
     }
 
     int32 netID = pPlayer ? pPlayer->GetNetID() : GetNetID();
