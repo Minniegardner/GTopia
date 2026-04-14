@@ -142,18 +142,17 @@ void MasterBroadway::SendWorldInitResult(bool succeed, uint32 worldID)
     m_pNetClient->Send(data);
 }
 
-void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, uint32 userID, const string& worldName)
+void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, const string& worldName)
 {
     if(!m_connected || !m_pNetClient) {
         return;
     }
 
-    VariantVector data(5);
+    VariantVector data(4);
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
     data[1] = (uint32)GetContext()->GetID();
     data[2] = playerNetID;
     data[3] = worldName;
-    data[4] = userID;
 
     m_pNetClient->Send(data);
 }

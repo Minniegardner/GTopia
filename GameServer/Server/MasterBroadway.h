@@ -27,7 +27,7 @@ public:
     void SendCheckSessionPacket(int32 netID, uint32 userID, uint32 token, uint16 serverID);
     void SendRenderWorldRequest(uint32 userID, uint32 worldID);
     void SendWorldInitResult(bool succeed, uint32 worldID);
-    void SendPlayerWorldJoin(int32 playerNetID, uint32 userID, const string& worldName);
+    void SendPlayerWorldJoin(int32 playerNetID, const string& worldName);
     void SendCrossServerActionRequest(int32 actionType, uint32 sourceUserID, const string& sourceRawName, const string& targetQuery, bool exactMatch, const string& payloadText, uint64 payloadNumber = 0);
     void SendHeartBeat();
     void SendEndPlayerSession(uint32 userID);
