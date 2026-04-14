@@ -3,7 +3,8 @@
 #include "../Utils/StringUtils.h"
 #include "../IO/Log.h"
 
-RoleManager::RoleManager()
+RoleManager::RoleManager() :
+m_defaultRoleID(-1)
 {
 }
 
@@ -41,6 +42,10 @@ bool RoleManager::Load(const string& filePath)
             for(uint16 i = 1; i < args.size(); ++i) {
                 m_permList[args[i]] = (eRolePerm)(m_permList.size() + 1);
             }
+        }
+
+        if(args[0] == "set_default_role") {
+            m_defaultRoleID = ToUInt(args[1]);
         }
 
         if(args[0] == "add_role") {
@@ -104,11 +109,18 @@ bool RoleManager::Load(const string& filePath)
         }
     }
 
+    if(m_defaultRoleID < 1) {
+        LOGGER_LOG_ERROR("Did you forgot to set default role in roles.txt? it should bigger than 0");
+        return false;
+    }
+
+
     for(auto& [_, pRole] : m_roles) {
         if(pRole->m_state == ROLE_RESOLVE_NONE) {
             ResolveRole(pRole);
         }
     }
+
     return true;
 }
 

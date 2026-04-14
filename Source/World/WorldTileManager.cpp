@@ -11,6 +11,11 @@ WorldTileManager::WorldTileManager()
     m_keyTiles.resize(KEY_TILE_SIZE, nullptr);
 }
 
+WorldTileManager::~WorldTileManager()
+{
+    Clear();
+}
+
 bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld)
 {
     memBuffer.ReadWrite(m_size, write);

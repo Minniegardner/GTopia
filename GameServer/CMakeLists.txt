@@ -65,6 +65,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/Store.cpp
     ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
     ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
+    ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateObjectRequest.cpp
@@ -118,6 +119,7 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/DoorDialog.cpp
     ${GAME_DIALOG}/MachineDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
+    ${GAME_DIALOG}/RegisterDialog.cpp
 
     ${GAME_STORE}/StoreCatalog.cpp
 

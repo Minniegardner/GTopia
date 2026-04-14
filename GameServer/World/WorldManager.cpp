@@ -18,6 +18,7 @@ WorldManager::WorldManager()
 
 WorldManager::~WorldManager()
 {
+    Kill();
 }
 
 void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
@@ -38,6 +39,7 @@ void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
         File file;
         if(!file.Open(path)) {
             pMasterBroadway->SendWorldInitResult(false, worldID);
+            result.Destroy();
             return;
         }
 
@@ -48,6 +50,7 @@ void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
             pMasterBroadway->SendWorldInitResult(false, worldID);
             file.Close();
             SAFE_DELETE_ARRAY(pData);
+            result.Destroy();
             return;
         }
 
@@ -84,6 +87,8 @@ void WorldManager::OnHandleDatabase(QueryTaskResult&& result)
             SAFE_DELETE_ARRAY(pWorldData);
         }
     }
+
+    result.Destroy();
 
     pWorld->SetID(worldID);
     m_worlds.insert_or_assign(worldID, pWorld);
@@ -206,6 +211,13 @@ void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)
     }
 
     pWorld->PlayerLeaverWorld(pPlayer);
+}
+
+void WorldManager::Kill()
+{
+    for(auto& [_, pWorld] : m_worlds) {
+        SAFE_DELETE(pWorld);
+    }
 }
 
 World* WorldManager::GetWorldByID(uint32 worldID)
@@ -331,8 +343,12 @@ void WorldManager::SaveWorldToDatabase(World* pWorld, bool closeWorld)
     pWorld->Serialize(memBuffer, true, true);
 
     if(file.Write(pWorldData, worldMemSize) != worldMemSize) {
+        SAFE_DELETE_ARRAY(pWorldData);
         return;
     }
+
+    file.Close();
+    SAFE_DELETE_ARRAY(pWorldData);
 
     QueryRequest req = MakeSaveWorld(pWorld->GetWorlName(), pWorld->GetID(), NET_ID_WORLD_MANAGER);
     DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_SAVE, req);

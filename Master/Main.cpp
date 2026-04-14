@@ -184,13 +184,14 @@ int main(int argc, char const* argv[])
 
     LOGGER_LOG_INFO("Killing Master server");
 
+    GetLog()->Flush();
+
     if(dbThread.joinable()) dbThread.join();
     if(eventThread.joinable()) eventThread.join();
 
     GetGameServer()->Kill();
     GetServerManager()->Kill();
 
-    GetLog()->Flush();
     GetLog()->Kill();
     GetContext()->Kill();
 

@@ -41,6 +41,7 @@ string GetDailyEventName(uint32 eventType)
 #include "../Event/UDP/GameMessage/StoreNavigate.h"
 #include "../Event/UDP/GameMessage/Buy.h"
 #include "../Event/UDP/GameMessage/Wrench.h"
+#include "../Event/UDP/GameMessage/GrowID.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
@@ -214,6 +215,7 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<Store>(CompileTimeHashString("store"));
     RegisterMessagePacket<StoreNavigate>(CompileTimeHashString("storenavigate"));
     RegisterMessagePacket<Buy>(CompileTimeHashString("buy"));
+    RegisterMessagePacket<GrowID>(CompileTimeHashString("growid"));
 
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();
@@ -554,6 +556,7 @@ void GameServer::Kill()
 
     GetItemInfoManager()->Kill();
     GetRoleManager()->Kill();
+    GetWorldManager()->Kill();
 
     for(auto& [_, pPlayer] : m_playerCache) {
         SAFE_DELETE(pPlayer);

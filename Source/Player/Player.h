@@ -32,6 +32,8 @@ public:
     void SendOnTradeStatus(int32 netID, const string& headerText, const string& statusData);
     void SendOnStartTrade(const string& playerName, int32 netID);
     void SendOnForceTradeEnd();
+    void SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass);
+    void SendSetHasGrowID(bool active);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);

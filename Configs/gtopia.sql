@@ -21,12 +21,15 @@ CREATE TABLE `Players` (
   `RoleID` int DEFAULT NULL,
   `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Hash` int NOT NULL DEFAULT '0',
+  `SID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   PRIMARY KEY (`ID`),
   KEY `idx_gid` (`GID`),
   KEY `idx_rid` (`RID`),
   KEY `idx_ip` (`IP`),
   KEY `idx_vid` (`VID`),
-  KEY `idx_hash` (`Hash`)
+  KEY `idx_hash` (`Hash`),
+  KEY `idx_sid` (`SID`),
+  KEY `idx_name` (`Name`),
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `Worlds` (

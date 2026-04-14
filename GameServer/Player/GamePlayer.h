@@ -22,7 +22,15 @@ enum ePlayerState
     PLAYER_STATE_LOADING_ACCOUNT = 1 << 3,
     PLAYER_STATE_ENTERING_GAME = 1 << 4,
     PLAYER_STATE_IN_GAME = 1 << 5,
-    PLAYER_STATE_RENDERING_WORLD = 1 << 6
+    PLAYER_STATE_RENDERING_WORLD = 1 << 6,
+    PLAYER_STATE_CREATING_GROWID = 1 << 7
+};
+
+enum ePlayerSubState
+{
+    PLAYER_SUB_GROWID_CHECK_IDENTIFIERS,
+    PLAYER_SUB_GROWID_CHECK_NAME,
+    PLAYER_SUB_GROWID_SUCCESS
 };
 
 class TileInfo;
@@ -46,10 +54,10 @@ public:
     void TransferingPlayerToGame();
 
     void HandleRenderWorld(VariantVector&& result);
+    void HandleCreateGrowID(QueryTaskResult&& result);
 
     void SaveToDatabase();
     void LogOff();
-    
 
     void Update();
 
@@ -186,6 +194,8 @@ public:
     void ResetCollectFailWindow(uint64 nowMS) { m_lastCollectFailCheckTime = nowMS; m_collectFailsInWindow = 0; }
     void IncrementCollectFailWindow() { ++m_collectFailsInWindow; }
     bool CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS);
+    bool HasGrowID() { return !m_loginDetail.tankIDPass.empty(); }
+    void ExecGrowIDIdentifierCheck(bool fromDialog, const VariantVector& extraData = VariantVector{});
 
     void SendPositionToWorldPlayers();
 

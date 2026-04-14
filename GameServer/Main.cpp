@@ -117,6 +117,10 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
     while(pDatabasePool->GetResult(taskRes)) {
         switch(taskRes.ownerID) {
             case NET_ID_FALLBACK: {
+                if(taskRes.result) {
+                    taskRes.Destroy();
+                }
+
                 break;
             }
 
@@ -185,9 +189,11 @@ bool LoadItemData()
     string fileData(fileSize, '\0');
 
     if(fileHashes.Read(fileData.data(), fileSize) != fileSize) {
+        fileHashes.Close();
         return false;
     }
     auto lines = Split(fileData, '\n');
+    fileHashes.Close();
 
     std::unordered_map<string, uint32> hashData;
     for(auto& line : lines) {
@@ -351,6 +357,8 @@ int main(int argc, char const* argv[])
 
     LOGGER_LOG_ERROR("Killing Game server %d", GetContext()->GetID());
 
+    GetLog()->Flush();
+
     if(dbThread.joinable()) dbThread.join();
     if(eventThread.joinable()) eventThread.join();
 
@@ -358,7 +366,6 @@ int main(int argc, char const* argv[])
     GetMasterBroadway()->Kill();
     GetContext()->Kill();
 
-    GetLog()->Flush();
     GetLog()->Kill();
 
     mysql_library_end();

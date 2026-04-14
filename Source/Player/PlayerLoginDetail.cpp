@@ -32,13 +32,26 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
     }
 
     auto pTankIDName = packet.Find(CompileTimeHashString("tankIDName"));
-    if(pTankIDName) {
-        tankIDName = string(pTankIDName->value, pTankIDName->size);
+    auto pTankIDPass = packet.Find(CompileTimeHashString("tankIDPass"));
+
+    if((pTankIDName && !pTankIDPass) || (!pTankIDName && pTankIDPass)) {
+        return false;
     }
 
-    auto pTankIDPass = packet.Find(CompileTimeHashString("tankIDPass"));
+    if(pTankIDName) {
+        tankIDName = string(pTankIDName->value, pTankIDName->size);
+
+        if(tankIDName.empty()) {
+            return false;
+        }
+    }
+
     if(pTankIDPass) {
         tankIDPass = string(pTankIDPass->value, pTankIDPass->size);
+
+        if(tankIDPass.empty()) {
+            return false;
+        }
     }
 
     auto pRid = packet.Find(CompileTimeHashString("rid"));
@@ -112,7 +125,7 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
         if(pWk) {
             sid = string(pWk->value, pWk->size);
     
-            if(sid == "NONE0" || sid == "NONE1" || sid == "NONE3") {
+            if(sid == "NONE0" || sid == "NONE1" || sid == "NONE2") {
                 return false;
             }
         }

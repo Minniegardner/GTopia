@@ -1,7 +1,6 @@
 #include "Player.h"
 #include "../Packet/NetPacket.h"
 #include "Proton/ProtonUtils.h"
-
 Player::Player(ENetPeer* pPeer)
 : m_pPeer(pPeer)
 {
@@ -10,32 +9,41 @@ Player::Player(ENetPeer* pPeer)
 
 Player::~Player()
 {
+    SendCallFunctionPacket(data);
 }
+
+void Player::SendOnStartTrade(const string& playerName, int32 netID)
+{
+    VariantVector data(3);
+    data[0] = "OnStartTrade";
+    data[1] = playerName;
+    data[2] = netID;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendOnForceTradeEnd()
+{
+    VariantVector data(1);
+    data[0] = "OnForceTradeEnd";
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass)
+{
+    VariantVector data(4);
+    data[0] = "SetHasGrowID";
+    data[1] = active ? 1 : 0;
+    data[2] = tankIDName;
+    data[3] = tankIDPass;
+
 
 void Player::SendHelloPacket()
-{
-    if(!m_pPeer) {
-        return;
-    }
-
-    SendENetPacket(NET_MESSAGE_SERVER_HELLO, "", m_pPeer);
-}
-
-void Player::SendLogonFailWithLog(const string& message)
-{
-    if(!message.empty()) {
-        string logAction = "action|log\nmsg|" + message + "\n";
-        SendENetPacket(NET_MESSAGE_GAME_MESSAGE, logAction.c_str(), m_pPeer);
-    }
-    SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|logon_fail\n", m_pPeer);
-}
-
-void Player::SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, const string& cdnPath, const string& settings, uint32 tributeHash)
 {
     VariantVector data;
     if(m_loginDetail.protocol < 93) {
         data = VariantVector(6);
-    }
     else {
         data = VariantVector(7);
     }
@@ -232,13 +240,47 @@ void Player::SendOnForceTradeEnd()
     SendCallFunctionPacket(data);
 }
 
+void Player::SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass)
+{
+    VariantVector data(4);
+    data[0] = "SetHasGrowID";
+    data[1] = active ? 1 : 0;
+    data[2] = tankIDName;
+    data[3] = tankIDPass;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendSetHasGrowID(bool active)
+{
+    SendSetHasGrowID(active, m_loginDetail.tankIDName, m_loginDetail.tankIDPass);
+}
+
 void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_PING_REPLY;
-
+    SendCallFunctionPacket(data);
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, m_pPeer);
 }
+void Player::SendOnStartTrade(const string& playerName, int32 netID)
+{
+    VariantVector data(3);
+    data[0] = "OnStartTrade";
+    data[1] = playerName;
+    data[2] = netID;
+
+    SendCallFunctionPacket(data);
+}
+
+void Player::SendOnForceTradeEnd()
+{
+    VariantVector data(1);
+    data[0] = "OnForceTradeEnd";
+
+    SendCallFunctionPacket(data);
+}
+
 
 void Player::PlaySFX(const string& fileName, int32 delay)
 {
@@ -337,8 +379,6 @@ void Player::SendCharacterState(Player* pPlayer)
     packet.characterAccel = charData.GetAccel();
     packet.characterGravity = charData.GetGravity();
     packet.characterFireDamage = charData.GetFireDamage();
-
-    packet.Print();
 
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, m_pPeer);
 }

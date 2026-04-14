@@ -63,6 +63,22 @@ bool GameConfig::LoadConfig(const string& filePath)
         if(args[0] == "max_accounts_per_ip") {
             maxAccountsPerIP = (uint16)ToUInt(args[1]);
         }
+
+        if(args[0] == "max_accounts_per_gid") {
+            maxAccountsPerGid = (uint16)ToUInt(args[1]);
+        }
+
+        if(args[0] == "max_accounts_per_vid") {
+            maxAccountsPerVid = (uint16)ToUInt(args[1]);
+        }
+
+        if(args[0] == "max_accounts_per_sid") {
+            maxAccountsPerSid = (uint16)ToUInt(args[1]);
+        }
+
+        if(args[0] == "max_accounts_per_mac") {
+            maxAccountsPerMac = (uint16)ToUInt(args[1]);
+        }
     }
 
     return true;

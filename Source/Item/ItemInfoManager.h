@@ -41,7 +41,7 @@ public:
 
     ItemsClientData& GetClientData(uint8 platformType);
 
-    const std::vector<ItemInfo*>& GetItems() const { return m_items; } 
+    const std::vector<ItemInfo>& GetItems() const { return m_items; } 
 
 private:
     void SetupItemExtras();
@@ -54,7 +54,7 @@ private:
     ItemsClientData m_itemDataMp3;
     ItemsClientData m_itemDataOgg;
 
-    std::vector<ItemInfo*> m_items;
+    std::vector<ItemInfo> m_items;
 };
 
 ItemInfoManager* GetItemInfoManager();

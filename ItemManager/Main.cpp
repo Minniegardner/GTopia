@@ -312,7 +312,8 @@ void GenerateItemTxtFromDat(uint32 serializeUntil = 0)
             itemStr += pItem->name + "|";
             itemStr += ItemMaterialToStr(pItem->material) + "|";
             itemStr += pItem->textureFile + "|";
-            itemStr += ToString(pItem->textureX) + "," + ToString(pItem->textureY) + "|";
+            itemStr += ToString(pItem->textureX) + "|"; 
+            itemStr += ToString(pItem->textureY) + "|";
             itemStr += ItemVisualEffectToStr(pItem->visualEffect) + "|";
             itemStr += ItemStorageTypeToStr(pItem->storage) + "|";
             itemStr += ItemBodyPartToStr(pItem->bodyPart) + "|\n";
@@ -335,7 +336,8 @@ void GenerateItemTxtFromDat(uint32 serializeUntil = 0)
             itemStr += ItemTypeToStr(pItem->type) + "|";
             itemStr += ItemMaterialToStr(pItem->material) + "|";
             itemStr += pItem->textureFile + "|";
-            itemStr += ToString(pItem->textureX) + "," + ToString(pItem->textureY) + "|";
+            itemStr += ToString(pItem->textureX) + "|";
+            itemStr += ToString(pItem->textureY) + "|";
             itemStr += ItemVisualEffectToStr(pItem->visualEffect) + "|";
             itemStr += ItemStorageTypeToStr(pItem->storage) + "|";
             itemStr += ItemCollisionTypeToStr(pItem->collisionType) + "|";
@@ -349,7 +351,7 @@ void GenerateItemTxtFromDat(uint32 serializeUntil = 0)
             for(uint8 i = 0; i < 16; ++i) {
                 if(pItem->flags & (1 << i)) {
                     if(!itemFlagStr.empty()) {
-                        itemFlagStr += ",";
+                        itemFlagStr += "|";
                     }
 
                     itemFlagStr += ItemFlagToStr(1 << i);
@@ -365,7 +367,7 @@ void GenerateItemTxtFromDat(uint32 serializeUntil = 0)
             for(uint8 i = 0; i < 26; ++i) {
                 if(pItem->flags2 & (1 << i)) {
                     if(!itemFlagStr.empty()) {
-                        itemFlagStr += ",";
+                        itemFlagStr += "|";
                     }
 
                     itemFlagStr += Flag2ToStr(1 << i);
@@ -501,10 +503,13 @@ int main(int argc, char const* argv[])
                 return 0;
             }
             GenerateItemTxtFromDat(untilID);
+            break;
         }
         
         default:
             LOGGER_LOG_ERROR("Unknown operation");
             return 0;
     }
+
+    return 0;
 }

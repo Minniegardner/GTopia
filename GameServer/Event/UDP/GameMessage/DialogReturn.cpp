@@ -10,6 +10,7 @@
 #include "../../../Player/Dialog/RenderWorldDialog.h"
 #include "../../../Player/GamePlayer.h"
 #include "../../../Server/GameServer.h"
+#include "../../../Player/Dialog/RegisterDialog.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 
@@ -474,6 +475,11 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
+            break;
+        }
+
+        case CompileTimeHashString("growid_apply"): {
+            RegisterDialog::Handle(pPlayer, packet);
             break;
         }
     }

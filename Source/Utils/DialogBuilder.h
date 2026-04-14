@@ -18,6 +18,7 @@ public:
     DialogBuilder* AddLabelWithIcon(const string& str, uint16 itemID, bool big = false, bool center = false);
     DialogBuilder* AddButton(const string& buttonID, const string& text, const string& flags = "NOFLAGS");
     DialogBuilder* AddTextInput(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength = 10);
+    DialogBuilder* AddTextInputPassword(const string&buttonID, const string& text, const string& placeholder, uint32 inputMaxLength = 10);
     DialogBuilder* EndDialog(const string& dialogID, const string& acceptText, const string& cancelText);
     DialogBuilder* AddQuickExit();
     DialogBuilder* AddItemPicker(const string& pickerID, const string& label, const string& description);

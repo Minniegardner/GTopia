@@ -14,6 +14,7 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     const uint32 epochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
     pPlayer->ResetDailyRewardProgressIfNewDay(epochDay);
+    pPlayer->SendSetHasGrowID(pPlayer->HasGrowID() ? true : false);
 
     pPlayer->SendInventoryPacket();
     pPlayer->SendOnSetBux();

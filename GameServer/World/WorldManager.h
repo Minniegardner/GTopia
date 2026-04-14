@@ -27,6 +27,8 @@ public:
     void PlayerJoinRequest(GamePlayer* pPlayer, const string& worldName);
     void PlayerLeaveWorld(GamePlayer* pPlayer);
 
+    void Kill();
+
     World* GetWorldByID(uint32 worldID);
     World* GetWorldByName(const string& worldName);
 

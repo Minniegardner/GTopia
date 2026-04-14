@@ -9,6 +9,8 @@ WorldInfo::WorldInfo()
 
 WorldInfo::~WorldInfo()
 {
+    SAFE_DELETE(m_pTileMgr);
+    SAFE_DELETE(m_pObjMgr);
 }
 
 bool WorldInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database)

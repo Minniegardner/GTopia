@@ -25,240 +25,245 @@ bool ItemInfoManager::Load(const string& filePath)
     string fileData(fileSize, '\0');
 
     if(file.Read(fileData.data(), fileSize) != fileSize) {
+        file.Close();
         return false;
     }
 
     auto lines = Split(fileData, '\n');
-
-    ItemInfo* pLastItem = nullptr;
+    uint32 lastItemID = 0;
 
     for(auto& line : lines) {
         if(line.empty() || line[0] == '#') {
             continue;
         }
 
-        auto args = Split(line, '|');
+        auto args = Split(line.data(), line.size(), '|');
 
         if(args[0] == "make_null") {
             int32 nullItemCount = ToInt(args[2]) - ToInt(args[1]);
 
             for(int32 i = 0; i < nullItemCount; i += 2) {
-                ItemInfo* pItem = new ItemInfo();
-                pItem->id = ToInt(args[1]) + i;
-                pItem->name = "null_item" + ToString(pItem->id + 1);
-                pItem->textureFile = "tiles_page1.rttex";
+                ItemInfo item;
+                item.id = ToInt(args[1]) + i;
+                item.name = "null_item" + ToString(item.id + 1);
+                item.textureFile = "tiles_page1.rttex";
 
-                m_items.push_back(pItem);
-                CreateDefaultSeedForItem(pItem);
+                m_items.push_back(std::move(item));
+                CreateDefaultSeedForItem(&m_items.back());
             }
             continue;
         }
 
         if(args[0] == "add_item") {
-            ItemInfo* pItem = new ItemInfo();
+            ItemInfo item;
 
-            pItem->id = ToUInt(args[1]);
-            pItem->name = args[2];
-            pItem->type = StrToItemType(args[3]);
-            pItem->material = StrToItemMaterial(args[4]);
-            pItem->textureFile = args[5];
+            item.id = ToUInt(args[1]);
+            item.name = args[2];
+            item.type = StrToItemType(args[3]);
+            item.material = StrToItemMaterial(args[4]);
+            item.textureFile = args[5];
 
-            auto coords = Split(args[6], ',');
-            pItem->textureX = (uint8)ToUInt(coords[0]);
-            pItem->textureY = (uint8)ToUInt(coords[1]);
+            item.textureX = (uint8)ToUInt(args[6]);
+            item.textureY = (uint8)ToUInt(args[7]);
 
-            pItem->visualEffect = StrToItemVisualEffect(args[7]);
-            pItem->storage = StrToStorageType(args[8]);
-            pItem->collisionType = StrToCollisionType(args[9]);
-            pItem->hp = (uint8)ToUInt(args[10]) * 6;
-            pItem->restoreTime = ToInt(args[11]);
+            item.visualEffect = StrToItemVisualEffect(args[8]);
+            item.storage = StrToStorageType(args[9]);
+            item.collisionType = StrToCollisionType(args[10]);
+            item.hp = (uint8)ToUInt(args[11]) * 6;
+            item.restoreTime = ToInt(args[12]);
 
-            m_items.push_back(pItem);
-            pLastItem = pItem;
-            CreateDefaultSeedForItem(pItem);
+            lastItemID = item.id;
+            m_items.push_back(std::move(item));
+            CreateDefaultSeedForItem(&m_items[lastItemID]);
         }
 
         if(args[0] == "add_cloth") {
-            ItemInfo* pItem = new ItemInfo();
+            ItemInfo item;
 
-            pItem->id = ToUInt(args[1]);
-            pItem->name = args[2];
-            pItem->material = StrToItemMaterial(args[3]);
-            pItem->textureFile = args[4];
+            item.id = ToUInt(args[1]);
+            item.name = args[2];
+            item.material = StrToItemMaterial(args[3]);
+            item.textureFile = args[4];
 
-            auto coords = Split(args[5], ',');
-            pItem->textureX = (uint8)ToUInt(coords[0]);
-            pItem->textureY = (uint8)ToUInt(coords[1]);
+            item.textureX = (uint8)ToUInt(args[5]);
+            item.textureY = (uint8)ToUInt(args[6]);
 
-            pItem->visualEffect = StrToItemVisualEffect(args[6]);
-            pItem->storage = StrToStorageType(args[7]);
-            pItem->bodyPart = StrToBodyPartType(args[8]);
+            item.visualEffect = StrToItemVisualEffect(args[7]);
+            item.storage = StrToStorageType(args[8]);
+            item.bodyPart = StrToBodyPartType(args[9]);
 
-            pItem->type = ITEM_TYPE_CLOTHES;
+            item.type = ITEM_TYPE_CLOTHES;
         
-            m_items.push_back(pItem);
-            pLastItem = pItem;
-            CreateDefaultSeedForItem(pItem);
+            lastItemID = item.id;
+            m_items.push_back(std::move(item));
+            CreateDefaultSeedForItem(&m_items[lastItemID]);
         }
 
         if(args[0] == "set_seed") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID + 1) {
                 continue;
             }
 
-            ItemInfo* pSeed = m_items[pLastItem->id + 1];
-            if(!pSeed) {
-                continue;
-            }
+            ItemInfo& seed = m_items[lastItemID + 1];
 
-            pSeed->seed1 = (uint16)ToUInt(args[1]);
-            pSeed->seed2 = (uint16)ToUInt(args[2]);
+            seed.seed1 = (uint16)ToUInt(args[1]);
+            seed.seed2 = (uint16)ToUInt(args[2]);
 
-            pSeed->seedBgColor = ToColor(args[3], ',');
-            pSeed->seedFgColor = ToColor(args[4], ',');
+            seed.seedBgColor = ToColor(args[3], ',');
+            seed.seedFgColor = ToColor(args[4], ',');
         }
 
         if(args[0] == "description") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->description = args[1];
+            m_items[lastItemID].description = args[1];
         }
 
         if(args[0] == "set_element") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->element = StrToItemElement(args[1]);
+            m_items[lastItemID].element = StrToItemElement(args[1]);
         }
 
         if(args[0] == "set_flags") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            auto flags = Split(args[1], ',');
-            for(auto& flag : flags) {
-                pLastItem->flags |= StrToItemFlag(flag);
+            for(uint16 i = 1; i < args.size(); ++i) {
+                m_items[lastItemID].flags |= StrToItemFlag(args[i]);
             }
         }
 
         if(args[0] == "set_flags2") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            auto flags = Split(args[1], ',');
-            for(auto& flag : flags) {
-                pLastItem->flags2 |= StrToFlags2(flag);
+            for(uint16 i = 1; i < args.size(); ++i) {
+                m_items[lastItemID].flags2 |= StrToFlags2(args[i]);
             }
         }
 
         if(args[0] == "set_fx_flags") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            auto flags = Split(args[1], '|');
-            for(uint16 i = 1; i < flags.size(); ++i) {
-                uint32 convFlag = StrToFxFlag(args[i]);
-                pLastItem->fxFlags |= convFlag;
-
-                if(convFlag == ITEM_FX_FLAG_MULTI_ANIM) {
-                    ++i;
-                    
-                    while(flags[i] != "MULTI_ANIM_END") {
-                        pLastItem->multiAnim1 += flags[i] + "|";
+            uint32 i = 1;
+            while (i < args.size())
+            {
+                uint32 convFlag = StrToFxFlag(args[i++]);
+                m_items[lastItemID].fxFlags |= convFlag;
+            
+                if (convFlag == ITEM_FX_FLAG_MULTI_ANIM)
+                {
+                    while (i < args.size() && args[i] != "MULTI_ANIM_END")
+                    {
+                        m_items[lastItemID].multiAnim1 += args[i] + "|";
                         ++i;
                     }
-
+                    ++i;
                     continue;
                 }
-
-                if(convFlag == ITEM_FX_FLAG_MULTI_ANIM2) {
-                    ++i;
-                    
-                    while(flags[i] != "MULTI_ANIM2_END") {
-                        pLastItem->multiAnim2 += flags[i] + "|";
+            
+                if (convFlag == ITEM_FX_FLAG_MULTI_ANIM2)
+                {
+                    while (i < args.size() && args[i] != "MULTI_ANIM2_END")
+                    {
+                        m_items[lastItemID].multiAnim2 += args[i] + "|";
                         ++i;
                     }
-
+                    ++i;
                     continue;
                 }
-
-                if(convFlag == ITEM_FX_FLAG_DUAL_LAYER) {
-                    ++i;
-
-                    auto dualLayer = Split(flags[i], ',');
-                    pLastItem->dualAnimLayer.x = ToInt(dualLayer[0]);
-                    pLastItem->dualAnimLayer.y = ToInt(dualLayer[1]);
+            
+                if (convFlag == ITEM_FX_FLAG_DUAL_LAYER)
+                {
+                    if (i >= args.size()) {
+                        break;
+                    }
+            
+                    auto dualLayer = Split(args[i++], ',');
+                    m_items[lastItemID].dualAnimLayer.x = ToInt(dualLayer[0]);
+                    m_items[lastItemID].dualAnimLayer.y = ToInt(dualLayer[1]);
                     continue;
                 }
+            
+                if (convFlag == ITEM_FX_FLAG_OVERLAY_OBJECT)
+                {
+                    if (i >= args.size()) {
+                        break;
+                    }
 
-                if(convFlag == ITEM_FX_FLAG_OVERLAY_OBJECT) {
-                    ++i;
-
-                    pLastItem->overlayTextureFile = flags[i];
+                    m_items[lastItemID].overlayTextureFile = args[i++];
                     continue;
                 }
+            
+                if (convFlag == ITEM_FX_FLAG_RENDER_FX_VARIANT_VERSION)
+                {
+                    if (i >= args.size()) {
+                        break;
+                    }
 
-                if(convFlag == ITEM_FX_FLAG_RENDER_FX_VARIANT_VERSION) {
-                    ++i;
-
-                    pLastItem->variantVersionItem = ToInt(flags[i]);
+                    m_items[lastItemID].variantVersionItem = ToInt(args[i++]);
                     continue;
                 }
             }
         }
 
         if(args[0] == "set_extra") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
             if(!args[1].empty()) {
-                pLastItem->extraString = args[1];
+                m_items[lastItemID].extraString = args[1];
             }
 
             if(!args[2].empty()) {
-                pLastItem->animMS = ToInt(args[2]);
+                m_items[lastItemID].animMS = ToInt(args[2]);
             }
         }
 
         if(args[0] == "set_max_hold") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->maxCanHold = ToUInt(args[1]);
+            m_items[lastItemID].maxCanHold = ToUInt(args[1]);
         }
 
         if(args[0] == "set_custom_punch") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->customizedPunchParameters = args[1];
+            m_items[lastItemID].customizedPunchParameters = args[1];
         }
 
         if(args[0] == "set_config_name") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->configName = args[1];
+            m_items[lastItemID].configName = args[1];
         }
 
         if(args[0] == "set_rarity") {
-            if(!pLastItem) {
+            if(m_items.size() < lastItemID) {
                 continue;
             }
 
-            pLastItem->rarity = (int16)ToInt(args[1]);
+            m_items[lastItemID].rarity = (int16)ToInt(args[1]);
         }
     }
+
+    file.Close();
 
     m_itemCount = m_items.size();
     SetupItemExtras();
@@ -273,26 +278,26 @@ bool ItemInfoManager::LoadByItemsDat(const string& filePath)
     }
 
     uint32 fileSize = file.GetSize();
-    uint8* data = new uint8[fileSize];
+    uint8* pData = new uint8[fileSize];
 
-    if(file.Read(data, fileSize) != fileSize) {
+    if(file.Read(pData, fileSize) != fileSize) {
+        file.Close();
+        SAFE_DELETE_ARRAY(pData);
         return false;
     }
 
-    MemoryBuffer memBuffer(data, fileSize);
+    MemoryBuffer memBuffer(pData, fileSize);
     memBuffer.Read(m_version);
     memBuffer.Read(m_itemCount);
 
-    m_items.reserve(m_itemCount);
+    m_items.resize(m_itemCount);
 
     for(uint32 i = 0; i < m_itemCount; ++i) {
-        ItemInfo* pItem = new ItemInfo();
-        pItem->Serialize(memBuffer, false, m_version);
-
-        m_items.push_back(pItem);
+        m_items[i].Serialize(memBuffer, false, m_version);
     }
 
-    SAFE_DELETE_ARRAY(data);
+    file.Close();
+    SAFE_DELETE_ARRAY(pData);
     return true;
 }
 
@@ -348,10 +353,6 @@ bool ItemInfoManager::LoadWikiData(const string& filePath)
 
 void ItemInfoManager::Kill()
 {
-    for(auto& pItem : m_items) {
-        SAFE_DELETE(pItem);
-    }
-
     SAFE_DELETE_ARRAY(m_itemDataMp3.pItemData);
     SAFE_DELETE_ARRAY(m_itemDataOgg.pItemData);
 
@@ -370,23 +371,23 @@ void ItemInfoManager::LoadFileHashes(const std::unordered_map<string, uint32>& h
         return 0;
     };
 
-    for(auto& pItem : m_items) {
-        uint32 textureFileHash = FindHash("game/" + pItem->textureFile);
+    for(auto& item : m_items) {
+        uint32 textureFileHash = FindHash("game/" + item.textureFile);
 
-        if(pItem->textureHash == 0) {
-            pItem->textureHash = textureFileHash;
+        if(item.textureHash == 0) {
+            item.textureHash = textureFileHash;
         }
 
-        if(!pItem->extraString.empty()) {
-            string filePath = pItem->extraString;
+        if(!item.extraString.empty()) {
+            string filePath = item.extraString;
             if(forOgg) {
                 ReplaceString(filePath, "mp3", "ogg");
             }
 
             uint32 extraStringHash = FindHash(filePath);
 
-            if(pItem->extraStringHash == 0) {
-                pItem->extraStringHash = extraStringHash;
+            if(item.extraStringHash == 0) {
+                item.extraStringHash = extraStringHash;
             }
         }
     }
@@ -397,8 +398,8 @@ void ItemInfoManager::SaveToClientData(bool forOgg)
     MemoryBuffer memSizeBuffer;
     memSizeBuffer.Seek(sizeof(m_version) + sizeof(m_itemCount));
 
-    for(auto& pItem : m_items) {
-        pItem->Serialize(memSizeBuffer, true, m_version);
+    for(auto& item : m_items) {
+        item.Serialize(memSizeBuffer, true, m_version);
     }
 
     uint32 memSize = memSizeBuffer.GetOffset();
@@ -408,8 +409,8 @@ void ItemInfoManager::SaveToClientData(bool forOgg)
     memBuffer.Write(m_version);
     memBuffer.Write(m_itemCount);
 
-    for(auto& pItem : m_items) {
-        pItem->Serialize(memBuffer, true, m_version);
+    for(auto& item : m_items) {
+        item.Serialize(memBuffer, true, m_version);
     }
 
     if(forOgg) {
@@ -430,7 +431,7 @@ ItemInfo* ItemInfoManager::GetItemByID(uint32 itemID)
         return nullptr;
     }
 
-    return m_items[itemID];
+    return &m_items[itemID];
 }
 
 ItemInfo* ItemInfoManager::GetItemByName(const string& name)
@@ -441,9 +442,9 @@ ItemInfo* ItemInfoManager::GetItemByName(const string& name)
 
     string searchName = ToLower(name);
 
-    for(auto& pItem : m_items) {
-        if(ToLower(pItem->name) == searchName) {
-            return pItem;
+    for(auto& item : m_items) {
+        if(ToLower(item.name) == searchName) {
+            return &item;
         }
     }
 
@@ -461,8 +462,12 @@ ItemsClientData& ItemInfoManager::GetClientData(uint8 platformType)
 void ItemInfoManager::SetupItemExtras()
 {
     for(uint32 i = 0; i < m_items.size(); i += 2) {
-        ItemInfo* pItem = m_items[i];
-        ItemInfo* pSeed = m_items[i + 1];
+        ItemInfo* pItem = GetItemByID(i);
+        ItemInfo* pSeed = GetItemByID(i + 1);
+
+        if(!pItem || !pSeed) {
+            continue;
+        }
 
         pSeed->rarity = pItem->rarity;
 
@@ -483,8 +488,12 @@ void ItemInfoManager::SetupItemExtras()
             continue;
         }
 
-        ItemInfo* pSeed1 = m_items[pSeed->seed1];
-        ItemInfo* pSeed2 = m_items[pSeed->seed2];
+        ItemInfo* pSeed1 = GetItemByID(pSeed->seed1);
+        ItemInfo* pSeed2 = &m_items[pSeed->seed2];
+
+        if(!pSeed || !pSeed2) {
+            continue;
+        }
 
         uint16 rarity = pSeed1->rarity + pSeed2->rarity;
         if(rarity > 999) {
@@ -509,36 +518,36 @@ void ItemInfoManager::CreateDefaultSeedForItem(ItemInfo* pItem)
         return;
     }
 
-    ItemInfo* pSeed = new ItemInfo();
-    if(pItem->HasFlag(ITEM_FLAG_RANDGROW)) { pSeed->flags |= ITEM_FLAG_RANDGROW; }
-    if(pItem->HasFlag(ITEM_FLAG_MOD)) { pSeed->flags |= ITEM_FLAG_MOD; }
-    if(pItem->HasFlag(ITEM_FLAG_SEEDLESS)) { pSeed->flags |= ITEM_FLAG_SEEDLESS; }
-    if(pItem->HasFlag(ITEM_FLAG_BETA)) { pSeed->flags |= ITEM_FLAG_BETA; }
-    if(pItem->HasFlag(ITEM_FLAG_HOLIDAY)) { pSeed->flags |= ITEM_FLAG_HOLIDAY; }
+    ItemInfo seed;
+    if(pItem->HasFlag(ITEM_FLAG_RANDGROW)) { seed.flags |= ITEM_FLAG_RANDGROW; }
+    if(pItem->HasFlag(ITEM_FLAG_MOD)) { seed.flags |= ITEM_FLAG_MOD; }
+    if(pItem->HasFlag(ITEM_FLAG_SEEDLESS)) { seed.flags |= ITEM_FLAG_SEEDLESS; }
+    if(pItem->HasFlag(ITEM_FLAG_BETA)) { seed.flags |= ITEM_FLAG_BETA; }
+    if(pItem->HasFlag(ITEM_FLAG_HOLIDAY)) { seed.flags |= ITEM_FLAG_HOLIDAY; }
 
-    pSeed->seedBg = (uint8)((pItem->id / 2) % 16);
-    pSeed->seedFg = (uint8)(pItem->id % 16);
-    pSeed->treeBg = (uint8)((pItem->id / 2) % 8);
-    pSeed->treeFg = (uint8)(pItem->id % 8);
+    seed.seedBg = (uint8)((pItem->id / 2) % 16);
+    seed.seedFg = (uint8)(pItem->id % 16);
+    seed.treeBg = (uint8)((pItem->id / 2) % 8);
+    seed.treeFg = (uint8)(pItem->id % 8);
 
-    pSeed->id = pItem->id + 1;
+    seed.id = pItem->id + 1;
 
     switch(pItem->id) {
-        case ITEM_ID_MAGIC_EGG: pSeed->name = "Magic Egg"; break;
-        case ITEM_ID_COMET_DUST: pSeed->name = "Starseed"; break;
-        case ITEM_ID_ANTIMATTER_DUST: pSeed->name = "Galactic Starseed"; break;
-        case ITEM_ID_MUTATED_SEED_CORE: pSeed->name = "Mutated Seed"; break;
-        default: pSeed->name = pItem->name + " Seed";
+        case ITEM_ID_MAGIC_EGG: seed.name = "Magic Egg"; break;
+        case ITEM_ID_COMET_DUST: seed.name = "Starseed"; break;
+        case ITEM_ID_ANTIMATTER_DUST: seed.name = "Galactic Starseed"; break;
+        case ITEM_ID_MUTATED_SEED_CORE: seed.name = "Mutated Seed"; break;
+        default: seed.name = pItem->name + " Seed";
     }
 
-    pSeed->restoreTime = 2;
-    pSeed->hp = 120;
-    pSeed->type = ITEM_TYPE_SEED;
-    pSeed->collisionType = COLLISION_NONE;
-    pSeed->textureFile = pItem->textureFile;
+    seed.restoreTime = 2;
+    seed.hp = 120;
+    seed.type = ITEM_TYPE_SEED;
+    seed.collisionType = COLLISION_NONE;
+    seed.textureFile = pItem->textureFile;
 
-    pSeed->description = "``Plant this to grow a `3" + pItem->name + " ``Tree";
-    m_items.push_back(pSeed);
+    seed.description = "``Plant this to grow a `3" + pItem->name + " ``Tree";
+    m_items.push_back(seed);
 }
 
 ItemInfoManager* GetItemInfoManager() { return ItemInfoManager::GetInstance(); }

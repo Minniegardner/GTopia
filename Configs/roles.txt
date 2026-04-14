@@ -6,6 +6,8 @@
 #set_perms|perms...|
 
 init_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_giveitem|command_toggleplaymod|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
+# always add new perms to end or make a new line
+# perms must be in order
 
 # command_* used to access the slash command
 # compatibility commands mapped to existing perms:
@@ -20,6 +22,9 @@ init_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_m
 # can_wear_any | able to wear any items beside clothes
 # bypass_illegal_item | bypass IsIllegalItem()
 # command_mod | access moderation dialog (/mod)
+
+# default given role needs set up by id
+set_default_role|3|
 
 add_role|Developer|1|@||
 set_name_color|6|

@@ -65,6 +65,12 @@ DialogBuilder* DialogBuilder::AddTextInput(const string& buttonID, const string&
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddTextInputPassword(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength)
+{
+    m_str += "add_text_input_password|" + buttonID + "|" + text + "|" + placeholder + "|" + ToString(inputMaxLength) + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::EndDialog(const string& dialogID, const string& acceptText, const string& cancelText)
 {
     m_str += "end_dialog|" + dialogID + "|" + cancelText + "|" + acceptText + "|\n";

@@ -436,6 +436,42 @@ std::vector<string> Split(const char* str, uint32 size, char delim)
     return token;
 }
 
+std::vector<std::string_view> SplitView(const string& str, char delim)
+{
+    return SplitView(str.c_str(), str.size(), delim);
+}
+
+std::vector<std::string_view> SplitView(const char* str, uint32 size, char delim)
+{
+    std::vector<std::string_view> token;
+
+    const char* strEnd = str + size;
+    const char* lastDelim = str;
+
+    for(const char* c = str; c != strEnd; ++c)
+    {
+        if(*c == delim)
+        {
+            token.emplace_back(
+                lastDelim,
+                c - lastDelim
+            );
+
+            lastDelim = c + 1;
+        }
+    }
+
+    if(lastDelim <= strEnd)
+    {
+        token.emplace_back(
+            lastDelim,
+            strEnd - lastDelim
+        );
+    }
+
+    return token;
+}
+
 string JoinString(const std::vector<string>& strs, const string& delim, uint32 startIdx, uint32 endIdx)
 {
     if(strs.empty()) {

@@ -12,6 +12,13 @@ static TableQuery sQueryTable[] =
     {"SELECT ID FROM Players WHERE Name = '' AND VID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND GID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND Hash = ? AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE GID = ?) AS gid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE VID = ?) AS vid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE SID = ?) AS sid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID FROM Players WHERE Name = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET Name = ?, Password = UNHEX(MD5(?)) WHERE ID = ?;"},
+    {"SELECT ID FROM Players WHERE Name = ? AND Password = UNHEX(MD5(?));", QUERY_FLAG_RETURN_RESULT}
 };
 
 enum ePlayerDBQuery
@@ -24,6 +31,13 @@ enum ePlayerDBQuery
     DB_PLAYER_GET_BY_VID,
     DB_PLAYER_GET_BY_GID,
     DB_PLAYER_GET_BY_HASH,
+    DB_PLAYER_COUNT_GID_MAC_IP,
+    DB_PLAYER_COUNT_VID_MAC_IP,
+    DB_PLAYER_COUNT_SID_MAC_IP,
+    DB_PLAYER_COUNT_MAC_IP,
+    DB_PLAYER_GROWID_EXISTS,
+    DB_PLAYER_GROWID_CREATE,
+    DB_PLAYER_GET_BY_NAME_AND_PASS
 };
 
 void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred = false);
@@ -37,5 +51,12 @@ QueryRequest MakeCountCreatedAccByIP(const string& ip, int32 ownerID);
 QueryRequest MakePlayerByVIDReq(const string& vid, uint8 platformType, int32 ownerID);
 QueryRequest MakePlayerByGIDReq(const string& gid, uint8 platformType, int32 ownerID);
 QueryRequest MakePlayerByHashReq(int32 hash, uint8 platformType, int32 ownerID);
+QueryRequest MakeCountPlayerByGidMacIP(const string& gid, const string& mac, const string& ip, int32 ownerID);
+QueryRequest MakeCountPlayerByVidMacIP(const string& vid, const string& mac, const string& ip, int32 ownerID);
+QueryRequest MakeCountPlayerBySidMacIP(const string& sid, const string& mac, const string& ip, int32 ownerID);
+QueryRequest MakeCountPlayerByMacIP(const string& mac, const string& ip, int32 ownerID);
+QueryRequest MakePlayerGrowIDExists(const string& growID, int32 ownerID);
+QueryRequest MakePlayerGrowIDCreate(uint32 userID, const string& name, const string& pass, int32 ownerID);
+QueryRequest MakeGetPlayerByNameAndPass(const string& name, const string& pass, int32 ownerID);
 
-void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& rid, const string& gid, int32 hash, int32 ownerID);
+void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& sid, const string& rid, const string& gid, int32 hash, int32 ownerID);
