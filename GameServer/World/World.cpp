@@ -59,16 +59,16 @@ bool IsItemSucker(uint16 itemID)
     return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
 }
 
-bool World::SuckerCheck(WorldObject& obj)
+bool TrySuckerCheck(World* pWorld, WorldObject& obj)
 {
-    if(obj.itemID == ITEM_ID_GEMS || obj.count == 0) {
+    if(!pWorld || obj.itemID == ITEM_ID_GEMS || obj.count == 0) {
         return false;
     }
 
-    const Vector2Int size = GetTileManager()->GetSize();
+    const Vector2Int size = pWorld->GetTileManager()->GetSize();
     for(int32 y = 0; y < size.y; ++y) {
         for(int32 x = 0; x < size.x; ++x) {
-            TileInfo* pTile = GetTileManager()->GetTile(x, y);
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
             if(!pTile || !IsItemSucker(pTile->GetDisplayedItem())) {
                 continue;
             }
@@ -89,8 +89,8 @@ bool World::SuckerCheck(WorldObject& obj)
             pData->itemCount += (int32)obj.count;
 
             const Vector2Int tilePos = pTile->GetPos();
-            SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
-            SendTileUpdate(pTile);
+            pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
+            pWorld->SendTileUpdate(pTile);
             return true;
         }
     }
@@ -149,6 +149,11 @@ bool ActivateFunctionalSteamTile(World* pWorld, TileInfo* pTile, uint32 connecto
     }
 }
 
+}
+
+bool World::SuckerCheck(WorldObject& obj)
+{
+    return TrySuckerCheck(this, obj);
 }
 
 World::World()
