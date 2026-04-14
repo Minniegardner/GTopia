@@ -1,4 +1,5 @@
 #include "GameServer.h"
+#include "MasterBroadway.h"
 #include "Packet/NetPacket.h"
 #include "Packet/GamePacket.h"
 #include "../Player/GamePlayer.h"
@@ -10,6 +11,22 @@
 #include "../Context.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
+
+namespace {
+string GetDailyEventName(uint32 eventType)
+{
+    switch(eventType) {
+        case TCP_DAILY_EVENT_ROLE_JACK: return "Jack of all Trades Day";
+        case TCP_DAILY_EVENT_ROLE_FARMER: return "Farmer Day";
+        case TCP_DAILY_EVENT_ROLE_BUILDER: return "Builder Day";
+        case TCP_DAILY_EVENT_ROLE_SURGEON: return "Surgeon Day";
+        case TCP_DAILY_EVENT_ROLE_FISHER: return "Fishing Day";
+        case TCP_DAILY_EVENT_ROLE_CHEF: return "Chef Day";
+        case TCP_DAILY_EVENT_ROLE_STAR_CAPTAIN: return "Star Captain's Day";
+        default: return "";
+    }
+}
+}
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
 #include "../Event/UDP/GameMessage/EnterGame.h"
@@ -497,6 +514,38 @@ void GameServer::ForceSaveAllPlayers()
 
         pPlayer->SaveToDatabase();
     }
+}
+
+void GameServer::OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 eventSeed, bool announceToPlayers)
+{
+    if(!announceToPlayers) {
+        return;
+    }
+
+    const string eventName = GetDailyEventName(eventType);
+    if(eventName.empty()) {
+        return;
+    }
+
+    const string msg = "`3Daily event synchronized across subservers: `#" + eventName + "`` (`9day=" + ToString(epochDay) + " seed=" + ToString(eventSeed) + "``)";
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(!pPlayer || !pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+            continue;
+        }
+
+        pPlayer->SendOnConsoleMessage(msg);
+    }
+}
+
+string GameServer::GetDailyEventStatusLine() const
+{
+    const uint32 eventType = GetMasterBroadway()->GetDailyEventType();
+    const string eventName = GetDailyEventName(eventType);
+    if(eventName.empty()) {
+        return "";
+    }
+
+    return "`3Today is `#" + eventName + "``.";
 }
 
 void GameServer::Kill()

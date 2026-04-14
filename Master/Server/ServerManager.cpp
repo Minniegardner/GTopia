@@ -3,6 +3,33 @@
 #include "IO/Log.h"
 #include "../Context.h"
 
+namespace {
+const uint32 kDailyRoleEventTypes[] = {
+    TCP_DAILY_EVENT_ROLE_JACK,
+    TCP_DAILY_EVENT_ROLE_FARMER,
+    TCP_DAILY_EVENT_ROLE_BUILDER,
+    TCP_DAILY_EVENT_ROLE_SURGEON,
+    TCP_DAILY_EVENT_ROLE_FISHER,
+    TCP_DAILY_EVENT_ROLE_CHEF,
+    TCP_DAILY_EVENT_ROLE_STAR_CAPTAIN
+};
+
+const char* GetDailyEventName(uint32 eventType)
+{
+    switch(eventType) {
+        case TCP_DAILY_EVENT_ROLE_JACK: return "Jack of all Trades Day";
+        case TCP_DAILY_EVENT_ROLE_FARMER: return "Farmer Day";
+        case TCP_DAILY_EVENT_ROLE_BUILDER: return "Builder Day";
+        case TCP_DAILY_EVENT_ROLE_SURGEON: return "Surgeon Day";
+        case TCP_DAILY_EVENT_ROLE_FISHER: return "Fishing Day";
+        case TCP_DAILY_EVENT_ROLE_CHEF: return "Chef Day";
+        case TCP_DAILY_EVENT_ROLE_STAR_CAPTAIN: return "Star Captain's Day";
+        default: return "None";
+    }
+}
+}
+
+
 #include "../Event/TCP/TCPEventHello.h"
 #include "../Event/TCP/TCPEventAuth.h"
 #include "../Event/TCP/TCPEventPlayerSession.h"
@@ -47,6 +74,8 @@ void ServerManager::OnClientDisconnect(NetClient* pClient)
 
 void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
 {
+    UpdateDailyEventState();
+
     uint64 startTime = Time::GetSystemTime();
     TCPPacketEvent event;
 
@@ -417,6 +446,25 @@ bool ServerManager::HasAnyGameServer()
     }
 
     return false;
+}
+
+void ServerManager::UpdateDailyEventState()
+{
+    const uint64 epochSec = Time::GetTimeSinceEpoch();
+    const uint32 epochDay = (uint32)(epochSec / 86400ull);
+
+    if(epochDay == 0 || epochDay == m_dailyEpochDay) {
+        return;
+    }
+
+    m_dailyEpochDay = epochDay;
+    m_dailyEventSeed = (epochDay * 1103515245u) + 12345u;
+
+    const size_t eventCount = sizeof(kDailyRoleEventTypes) / sizeof(kDailyRoleEventTypes[0]);
+    const uint32 eventIndex = m_dailyEventSeed % (uint32)eventCount;
+    m_dailyEventType = kDailyRoleEventTypes[eventIndex];
+
+    LOGGER_LOG_INFO("Daily event updated: epoch_day=%u event=%u (%s) seed=%u", m_dailyEpochDay, m_dailyEventType, GetDailyEventName(m_dailyEventType), m_dailyEventSeed);
 }
 
 ServerManager* GetServerManager() { return ServerManager::GetInstance(); }

@@ -41,9 +41,12 @@ void TCPEventHeartBeat::Execute(NetClient* pClient, VariantVector& data)
 		pClientInfo->lastHeartbeatTime.Reset();
 	}
 
-	VariantVector response(2);
+	VariantVector response(5);
 	response[0] = TCP_PACKET_HEARTBEAT;
 	response[1] = GetServerManager()->GetTotalOnlineCount();
+	response[2] = GetServerManager()->GetDailyEpochDay();
+	response[3] = GetServerManager()->GetDailyEventType();
+	response[4] = GetServerManager()->GetDailyEventSeed();
 
 	pClient->Send(response);
 }

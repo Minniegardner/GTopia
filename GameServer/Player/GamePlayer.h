@@ -71,6 +71,20 @@ public:
 
     Vector2Int GetMagplantPos() const { return m_magplantPos; }
     void SetMagplantPos(Vector2Int pos);
+    void SetPendingDoorWarpID(const string& doorID) { m_pendingDoorWarpID = doorID; }
+    string ConsumePendingDoorWarpID() { string doorID = m_pendingDoorWarpID; m_pendingDoorWarpID.clear(); return doorID; }
+
+    uint32 GetDailyRewardStreak() const { return m_dailyRewardStreak; }
+    void SetDailyRewardStreak(uint32 streak) { m_dailyRewardStreak = streak; }
+
+    uint32 GetDailyRewardClaimDay() const { return m_dailyRewardClaimDay; }
+    void SetDailyRewardClaimDay(uint32 day) { m_dailyRewardClaimDay = day; }
+
+    uint64 GetLastClaimDailyReward() const { return m_lastClaimDailyRewardMs; }
+    void SetLastClaimDailyReward(uint64 timeMs) { m_lastClaimDailyRewardMs = timeMs; }
+
+    bool CanClaimDailyReward(uint32 currentEpochDay) const;
+    void ResetDailyRewardProgressIfNewDay(uint32 currentEpochDay);
 
     int32 GetGems() const { return m_gems; }
     void SetGems(int32 gems) { m_gems = std::max(0, gems); }
@@ -217,6 +231,7 @@ private:
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;
     Vector2Int m_magplantPos = { -1, -1 };
+    string m_pendingDoorWarpID = "";
 
     Timer m_lastDbSaveTime;
 
@@ -243,6 +258,10 @@ private:
     uint64 m_lastWhisperAtMS = 0;
     uint64 m_mutedUntilMS = 0;
     string m_muteReason = "";
+
+    uint32 m_dailyRewardStreak = 0;
+    uint32 m_dailyRewardClaimDay = 0;
+    uint64 m_lastClaimDailyRewardMs = 0;
 
     Role* m_pRole;
 };

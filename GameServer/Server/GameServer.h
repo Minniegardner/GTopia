@@ -37,6 +37,8 @@ public:
 
     void UpdatePlayers();
     void ForceSaveAllPlayers();
+    void OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 eventSeed, bool announceToPlayers);
+    string GetDailyEventStatusLine() const;
 
     uint32 GetOnlineCount() { return m_playerCache.size(); }
 

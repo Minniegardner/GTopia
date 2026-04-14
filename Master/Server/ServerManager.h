@@ -67,6 +67,10 @@ public:
     void SendCrossServerActionResult(uint16 serverID, int32 actionType, uint32 sourceUserID, int32 resultCode, const string& targetName);
     bool SendCrossServerActionExecute(uint16 targetServerID, int32 actionType, uint32 targetUserID, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber, const string& targetRawName);
 
+    uint32 GetDailyEpochDay() const { return m_dailyEpochDay; }
+    uint32 GetDailyEventType() const { return m_dailyEventType; }
+    uint32 GetDailyEventSeed() const { return m_dailyEventSeed; }
+
 private:
     template<class T>
     void RegisterEvent(eTCPPacketType packet)
@@ -78,8 +82,14 @@ private:
     }
 
 private:
+    void UpdateDailyEventState();
+
+private:
     std::unordered_map<uint16, ServerInfo*> m_servers;
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
+    uint32 m_dailyEpochDay = 0;
+    uint32 m_dailyEventType = TCP_DAILY_EVENT_NONE;
+    uint32 m_dailyEventSeed = 0;
 };
 
 ServerManager* GetServerManager();

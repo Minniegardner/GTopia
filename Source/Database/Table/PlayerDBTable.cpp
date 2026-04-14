@@ -51,12 +51,12 @@ QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID)
     return req;
 }
 
-QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, int32 ownerID)
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, uint32 dailyRewardStreak, uint32 dailyRewardClaimDay, uint64 lastClaimDailyRewardMs, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
 
-    req.data.resize(8);
+    req.data.resize(11);
     req.data[0] = roleID;
     req.data[1] = inventoryData,
     req.data[2] = gems,
@@ -64,7 +64,10 @@ QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inven
     req.data[4] = xp,
     req.data[5] = achievementData;
     req.data[6] = statisticData;
-    req.data[7] = userID;
+    req.data[7] = dailyRewardStreak;
+    req.data[8] = dailyRewardClaimDay;
+    req.data[9] = (uint32)lastClaimDailyRewardMs;
+    req.data[10] = userID;
     return req;
 }
 

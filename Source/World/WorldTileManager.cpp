@@ -379,6 +379,12 @@ bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock,
         totalLocked++;
     }
 
+    if(totalLocked < tileSizeToLock) {
+        RemoveTileParentsLockedBy(pLockTile);
+        outTiles.clear();
+        return false;
+    }
+
     outTiles = std::move(lockedTiles);
     return true;
 }

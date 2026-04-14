@@ -1277,6 +1277,10 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
 
     m_xp = result.result->GetField("XP", 0).GetUINT();
 
+    m_dailyRewardStreak = result.result->GetField("DailyRewardStreak", 0).GetUINT();
+    m_dailyRewardClaimDay = result.result->GetField("DailyRewardClaimDay", 0).GetUINT();
+    m_lastClaimDailyRewardMs = (uint64)result.result->GetField("LastClaimDailyReward", 0).GetUINT();
+
     m_pRole = GetRoleManager()->GetRole(roleID);
 
     if(!m_pRole) {
@@ -1386,11 +1390,43 @@ void GamePlayer::SaveToDatabase()
         m_xp,
         SerializeAchievements(),
         SerializeStatistics(),
+        m_dailyRewardStreak,
+        m_dailyRewardClaimDay,
+        m_lastClaimDailyRewardMs,
         GetNetID()
     );
     
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_SAVE, req);
     SAFE_DELETE_ARRAY(pInvData);
+}
+
+bool GamePlayer::CanClaimDailyReward(uint32 currentEpochDay) const
+{
+    if(currentEpochDay == 0) {
+        return false;
+    }
+
+    if(m_dailyRewardClaimDay == currentEpochDay) {
+        return false;
+    }
+
+    return true;
+}
+
+void GamePlayer::ResetDailyRewardProgressIfNewDay(uint32 currentEpochDay)
+{
+    if(currentEpochDay == 0 || m_dailyRewardClaimDay == currentEpochDay) {
+        return;
+    }
+
+    const uint32 previousClaimDay = m_dailyRewardClaimDay;
+    const bool isConsecutiveDay = (currentEpochDay == previousClaimDay + 1);
+
+    if(!isConsecutiveDay) {
+        m_dailyRewardStreak = 0;
+    }
+
+    m_dailyRewardClaimDay = currentEpochDay;
 }
 
 void GamePlayer::LogOff()

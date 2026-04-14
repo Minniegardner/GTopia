@@ -40,6 +40,11 @@ public:
         m_lastHearthBeatRecvTime.Reset();
     }
 
+    bool SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed);
+    uint32 GetDailyEpochDay() const { return m_dailyEpochDay; }
+    uint32 GetDailyEventType() const { return m_dailyEventType; }
+    uint32 GetDailyEventSeed() const { return m_dailyEventSeed; }
+
 private:
     template<class T>
     void RegisterEvent(eTCPPacketType packet)
@@ -55,6 +60,9 @@ private:
     Timer m_lastHearthBeatSentTime;
     Timer m_lastHearthBeatRecvTime;
     uint32 m_globalOnlineCount = 0;
+    uint32 m_dailyEpochDay = 0;
+    uint32 m_dailyEventType = TCP_DAILY_EVENT_NONE;
+    uint32 m_dailyEventSeed = 0;
 };
 
 MasterBroadway* GetMasterBroadway();

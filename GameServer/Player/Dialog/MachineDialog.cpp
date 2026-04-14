@@ -127,6 +127,17 @@ bool IsCompatibleMagplantItem(uint16 machineID, ItemInfo* pItem)
     return true;
 }
 
+void EmitMachineUpdateEffects(World* pWorld, TileInfo* pTile)
+{
+    if(!pWorld || !pTile) {
+        return;
+    }
+
+    const Vector2Int tilePos = pTile->GetPos();
+    pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
+    pWorld->PlaySFXForEveryone("terraform.wav", 0);
+}
+
 void ShowVendingPurchaseDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* pData, int32 buyCount, int32 totalItemsGive, int32 totalPriceWLS)
 {
     if(!pPlayer || !pTile || !pData) {
@@ -685,6 +696,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     pPlayer->SendOnTalkBubble("Added `9" + ToString(owned) + " " + string(pSelectedItem->name) + "`` into the machine.", true);
                 }
 
+                EmitMachineUpdateEffects(pWorld, pTile);
                 pWorld->SendTileUpdate(pTile);
                 return;
             }
@@ -706,6 +718,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             pPlayer->ModifyInventoryItem(pData->itemID, (int16)-owned);
             pPlayer->SendOnTalkBubble("Added `9" + ToString(owned) + " " + string(pStockItem ? pStockItem->name : "item") + "`` into the machine.", true);
             pPlayer->SendOnConsoleMessage("Added `9" + ToString(owned) + " " + string(pStockItem ? pStockItem->name : "item") + "`` into the machine.");
+            EmitMachineUpdateEffects(pWorld, pTile);
             pWorld->SendTileUpdate(pTile);
             return;
         }
@@ -723,6 +736,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             pData->itemID = ITEM_ID_BLANK;
             pData->stock = 0;
             pData->price = 0;
+            EmitMachineUpdateEffects(pWorld, pTile);
             pWorld->SendTileUpdate(pTile);
             return;
         }
@@ -771,6 +785,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
         }
 
+        EmitMachineUpdateEffects(pWorld, pTile);
         pWorld->SendTileUpdate(pTile);
         return;
     }
@@ -787,6 +802,12 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         if(buttonClicked == "GetRemote") {
             if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000 && pData->remote && pPlayer->GetMagplantPos() != pTile->GetPos()) {
                 pPlayer->SetMagplantPos(pTile->GetPos());
+
+                const uint8 remotes = pPlayer->GetInventory().GetCountOfItem(ITEM_ID_MAGPLANT_5000_REMOTE);
+                if(remotes > 0) {
+                    pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, (int16)-remotes);
+                }
+
                 pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, 1);
                 pPlayer->SendOnTalkBubble("`wYou received a `2Magplant 5000 `wRemote!", true);
             }
@@ -818,6 +839,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
                 pData->itemID = (uint16)selectedItemInt;
                 pData->itemCount = 0;
+                EmitMachineUpdateEffects(pWorld, pTile);
                 pWorld->SendTileUpdate(pTile);
                 return;
             }
@@ -857,6 +879,10 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 addAmount = 200;
             }
 
+            if(addAmount < 1) {
+                return;
+            }
+
             if(addAmount > 0 && pData->itemID != ITEM_ID_BLANK) {
                 ItemInfo* pStock = GetItemInfoManager()->GetItemByID(pData->itemID);
                 if(pStock) {
@@ -875,6 +901,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                         pData->itemCount += addAmount;
                         pPlayer->SendOnConsoleMessage("Added " + ToString(addAmount) + " " + string(pStock->name) + " to the " + string(pMachine ? pMachine->name : "machine"));
                         pPlayer->SendOnTalkBubble("Added " + ToString(addAmount) + " " + string(pStock->name) + " to the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                        EmitMachineUpdateEffects(pWorld, pTile);
                     }
                 }
             }
@@ -902,13 +929,13 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     pData->itemCount -= takeAmount;
                     pPlayer->SendOnConsoleMessage("Took " + ToString(takeAmount) + " " + string(pStock->name) + " from the " + string(pMachine ? pMachine->name : "machine"));
                     pPlayer->SendOnTalkBubble("Took " + ToString(takeAmount) + " " + string(pStock->name) + " from the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                    EmitMachineUpdateEffects(pWorld, pTile);
                 }
             }
         }
 
         if(pData->itemCount <= 0) {
             pData->itemCount = 0;
-            pData->itemID = ITEM_ID_BLANK;
         }
 
         pWorld->SendTileUpdate(pTile);

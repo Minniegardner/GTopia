@@ -121,10 +121,22 @@ void TileExtra_Sign::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
 void TileExtra_Vending::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
+
+    if(database) {
+        memBuffer.ReadWrite(itemID, write);
+        memBuffer.ReadWrite(price, write);
+        memBuffer.ReadWrite(stock, write);
+        memBuffer.ReadWrite(earnings, write);
+        return;
+    }
+
+    int32 packetPrice = price;
+    if((packetPrice < 0 && stock < std::abs(packetPrice)) || stock < 1) {
+        packetPrice = 0;
+    }
+
     memBuffer.ReadWrite(itemID, write);
-    memBuffer.ReadWrite(price, write);
-    memBuffer.ReadWrite(stock, write);
-    memBuffer.ReadWrite(earnings, write);
+    memBuffer.ReadWrite(packetPrice, write);
 }
 
 void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)

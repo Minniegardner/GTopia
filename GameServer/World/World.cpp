@@ -5,6 +5,7 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Math/Math.h"
+#include "Utils/StringUtils.h"
 #include <array>
 
 #include "IO/File.h"
@@ -51,6 +52,35 @@ bool IsSteamConductor(TileInfo* pTile)
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
     return pItem && pItem->type == ITEM_TYPE_STEAMPUNK;
+}
+
+TileInfo* FindDoorByIDInWorld(World* pWorld, const string& doorID)
+{
+    if(!pWorld || doorID.empty()) {
+        return nullptr;
+    }
+
+    const Vector2Int size = pWorld->GetTileManager()->GetSize();
+    for(int32 y = 0; y < size.y; ++y) {
+        for(int32 x = 0; x < size.x; ++x) {
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
+            if(!pTile) {
+                continue;
+            }
+
+            ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+            if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
+                continue;
+            }
+
+            TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
+            if(pDoor && ToUpper(pDoor->id) == doorID) {
+                return pTile;
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 bool ActivateFunctionalSteamTile(World* pWorld, TileInfo* pTile, uint32 connectorCount)
@@ -119,14 +149,24 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     }
 
     TileInfo* pMainDoorTile = GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
-    if(!pMainDoorTile) {
+    TileInfo* pSpawnDoorTile = pMainDoorTile;
+
+    string pendingDoorID = ToUpper(pPlayer->ConsumePendingDoorWarpID());
+    if(!pendingDoorID.empty()) {
+        TileInfo* pTargetDoor = FindDoorByIDInWorld(this, pendingDoorID);
+        if(pTargetDoor) {
+            pSpawnDoorTile = pTargetDoor;
+        }
+    }
+
+    if(!pSpawnDoorTile) {
         pPlayer->SetWorldPos(0, 0);
         pPlayer->SetRespawnPos(0, 0);
     }
     else {
-        Vector2Int mainDoorPos = pMainDoorTile->GetPos();
-        pPlayer->SetWorldPos(mainDoorPos.x * 32, mainDoorPos.y * 32);
-        pPlayer->SetRespawnPos(mainDoorPos.x * 32, mainDoorPos.y * 32);
+        Vector2Int spawnPos = pSpawnDoorTile->GetPos();
+        pPlayer->SetWorldPos(spawnPos.x * 32, spawnPos.y * 32);
+        pPlayer->SetRespawnPos(spawnPos.x * 32, spawnPos.y * 32);
     }
 
     MemoryBuffer memSize;
@@ -279,9 +319,7 @@ void World::SendParticleEffectToAll(float coordX, float coordY, uint32 particleT
     packet.particleEffectSize = particleSize;
     packet.delay = delay;
 
-    for(auto& pWorldPlayer : m_players) {
-        SendGamePacketToAll(&packet);
-    }
+    SendGamePacketToAll(&packet);
 }
 
 void World::SendTileUpdate(TileInfo* pTile)
@@ -615,7 +653,7 @@ void World::OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID)
 
     std::vector<TileInfo*> lockedTiles;
 
-    if(!IsWorldLock(lockID)) {
+    if(IsAreaLock(lockID)) {
         bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles, false);
         if(!lockSuccsess) {
             pPlayer->SendOnTalkBubble("Something went wrong, unable to place lock in here", true);

@@ -38,6 +38,7 @@ set(GAME_FILES PRIVATE
     ${SOURCE_PACKET}/NetPacket.cpp
 
     ${SOURCE_ITEM}/ItemInfo.cpp
+    ${SOURCE_ITEM}/LockAlgorithm.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
 

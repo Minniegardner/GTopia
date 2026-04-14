@@ -6,6 +6,7 @@
 #include "../Memory/MemoryBuffer.h"
 #include "ItemUtils.h"
 #include "../Player/PlayMod.h"
+#include "LockAlgorithm.h"
 
 struct ItemChairInfo
 {
@@ -121,6 +122,4 @@ public:
 };
 
 bool IsIllegalItem(uint16 itemID);
-bool IsWorldLock(uint16 itemID);
 bool IsMainDoor(uint16 itemID);
-uint16 GetMaxTilesToLock(uint16 itemID);
