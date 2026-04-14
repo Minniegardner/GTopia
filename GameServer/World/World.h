@@ -57,6 +57,7 @@ public:
     bool CanBreak(GamePlayer* pPlayer, TileInfo* pTile);
 
     void DropObject(TileInfo* pTile, WorldObject& obj, bool merge);
+    bool SuckerCheck(WorldObject& obj);
 
     void DropObject(const WorldObject& obj);
     void RemoveObject(uint32 objectID);
