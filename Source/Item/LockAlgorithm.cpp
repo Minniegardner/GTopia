@@ -1,6 +1,7 @@
 #include "LockAlgorithm.h"
 #include "../World/WorldTileManager.h"
 #include "../Item/ItemInfoManager.h"
+#include "../Math/Math.h"
 #include <algorithm>
 
 namespace {
