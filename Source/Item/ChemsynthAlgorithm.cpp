@@ -526,9 +526,17 @@ void StartChemsynth(GamePlayer* pPlayer, World* pWorld, TileInfo* pProcessorTile
         return;
     }
 
+    if(pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        pPlayer->SendOnTalkBubble("Chemical synthesis is already running.", true);
+        pPlayer->SendOnConsoleMessage("Chemical synthesis is already running.");
+        return;
+    }
+
     std::vector<TileInfo*> tiles;
     std::vector<TileInfo*> tanks;
     if(!GetTankTiles(pWorld, pProcessorTile, tanks)) {
+        pPlayer->SendOnTalkBubble("Chemsynth setup is invalid. Place exactly 10 tanks to the right of the processor.", true);
+        pPlayer->SendOnConsoleMessage("Chemsynth setup is invalid. Place exactly 10 tanks to the right of the processor.");
         CancelChemsynth(pWorld, pProcessorTile);
         return;
     }
