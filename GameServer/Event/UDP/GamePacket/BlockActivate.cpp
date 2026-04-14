@@ -3,6 +3,7 @@
 #include "Item/ItemInfoManager.h"
 #include "Utils/StringUtils.h"
 #include "../../../World/WorldPathfinding.h"
+#include "../../../World/WorldManager.h"
 #include "World/World.h"
 #include "World/TileInfo.h"
 
@@ -118,7 +119,7 @@ void BlockActivate::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         }
         case ITEM_TYPE_CHECKPOINT:
         {
-            pPlayer->SetRespawnPos({static_cast<float>((pTile->GetPos().x * 32) + 2), static_cast<float>(pTile->GetPos().y * 32)});
+            pPlayer->SetRespawnPos(static_cast<float>((pTile->GetPos().x * 32) + 2), static_cast<float>(pTile->GetPos().y * 32));
             pPlayer->SendOnSetPos((float)pTile->GetPos().x * 32.0f, (float)pTile->GetPos().y * 32.0f);
             return;
         }
