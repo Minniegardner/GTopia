@@ -83,6 +83,11 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
 
         m_pExtraData = TileExtra::Create(tileExtraType);
 
+        if(TileExtra_Chemsynth* pChemsynth = GetExtra<TileExtra_Chemsynth>()) {
+            pChemsynth->color = ChemsynthColor::NONE;
+            pChemsynth->targetColor = ChemsynthColor::NONE;
+        }
+
         if(TileExtra_Magplant* pMagplant = GetExtra<TileExtra_Magplant>()) {
             if(itemID == ITEM_ID_MAGPLANT_5000) {
                 pMagplant->itemLimit = 5000;

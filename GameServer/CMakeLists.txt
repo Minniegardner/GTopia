@@ -39,6 +39,7 @@ set(GAME_FILES PRIVATE
 
     ${SOURCE_ITEM}/ItemInfo.cpp
     ${SOURCE_ITEM}/LockAlgorithm.cpp
+    ${SOURCE_ITEM}/ChemsynthAlgorithm.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
 
@@ -118,6 +119,7 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/LockDialog.cpp
     ${GAME_DIALOG}/DoorDialog.cpp
     ${GAME_DIALOG}/MachineDialog.cpp
+    ${GAME_DIALOG}/ChemsynthDialog.cpp
     ${GAME_DIALOG}/RenderWorldDialog.cpp
     ${GAME_DIALOG}/RegisterDialog.cpp
 

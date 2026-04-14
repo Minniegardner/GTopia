@@ -18,6 +18,9 @@ CREATE TABLE `Players` (
   `XP` int NOT NULL DEFAULT '0',
   `AchievementData` longtext DEFAULT NULL,
   `StatisticData` longtext DEFAULT NULL,
+  `DailyRewardStreak` int NOT NULL DEFAULT '0',
+  `DailyRewardClaimDay` int NOT NULL DEFAULT '0',
+  `LastClaimDailyReward` bigint NOT NULL DEFAULT '0',
   `RoleID` int DEFAULT NULL,
   `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Hash` int NOT NULL DEFAULT '0',
@@ -29,7 +32,7 @@ CREATE TABLE `Players` (
   KEY `idx_vid` (`VID`),
   KEY `idx_hash` (`Hash`),
   KEY `idx_sid` (`SID`),
-  KEY `idx_name` (`Name`),
+  KEY `idx_name` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `Worlds` (

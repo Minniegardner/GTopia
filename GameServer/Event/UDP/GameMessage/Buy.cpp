@@ -95,13 +95,9 @@ void AppendRandomRewards(const string& button, std::vector<StoreProductReward>& 
     const auto& items = GetItemInfoManager()->GetItems();
 
     if(button == "rare_seed") {
-        for(const auto* pItem : items) {
-            if(!pItem) {
-                continue;
-            }
-
-            if(pItem->type == ITEM_TYPE_SEED && pItem->rarity >= 13 && pItem->rarity <= 60) {
-                pool.push_back((uint16)pItem->id);
+        for(const auto& item : items) {
+            if(item.type == ITEM_TYPE_SEED && item.rarity >= 13 && item.rarity <= 60) {
+                pool.push_back((uint16)item.id);
             }
         }
 
@@ -113,23 +109,19 @@ void AppendRandomRewards(const string& button, std::vector<StoreProductReward>& 
     }
 
     if(button == "clothes_pack" || button == "rare_clothes_pack") {
-        for(const auto* pItem : items) {
-            if(!pItem) {
-                continue;
-            }
-
-            if(pItem->type != ITEM_TYPE_CLOTHES) {
+        for(const auto& item : items) {
+            if(item.type != ITEM_TYPE_CLOTHES) {
                 continue;
             }
 
             if(button == "clothes_pack") {
-                if(pItem->rarity <= 10) {
-                    pool.push_back((uint16)pItem->id);
+                if(item.rarity <= 10) {
+                    pool.push_back((uint16)item.id);
                 }
             }
             else {
-                if(pItem->rarity >= 11 && pItem->rarity <= 60) {
-                    pool.push_back((uint16)pItem->id);
+                if(item.rarity >= 11 && item.rarity <= 60) {
+                    pool.push_back((uint16)item.id);
                 }
             }
         }

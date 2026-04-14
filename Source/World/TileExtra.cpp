@@ -10,6 +10,11 @@ bool IsMagplantFamily(uint16 itemID)
     return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
 }
 
+bool IsChemsynthTank(uint16 itemID, uint8 itemType)
+{
+    return itemID == ITEM_ID_CHEMSYNTH_TANK || itemType == ITEM_TYPE_CHEMTANK;
+}
+
 }
 
 uint8 GetTileExtraType(uint8 itemType)
@@ -51,6 +56,10 @@ uint8 GetTileExtraTypeByItem(uint16 itemID, uint8 itemType)
         return TILE_EXTRA_TYPE_MAGPLANT;
     }
 
+    if(IsChemsynthTank(itemID, itemType)) {
+        return TILE_EXTRA_TYPE_CHEMTANK;
+    }
+
     return GetTileExtraType(itemType);
 }
 
@@ -68,6 +77,9 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_MAGPLANT:
             return new TileExtra_Magplant();
+
+        case TILE_EXTRA_TYPE_CHEMTANK:
+            return new TileExtra_Chemsynth();
 
         case TILE_EXTRA_TYPE_LOCK:
             return new TileExtra_Lock(); 
@@ -154,6 +166,21 @@ void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool dat
     if(!write) {
         magnetic = magneticFlag != 0;
         remote = remoteFlag != 0;
+    }
+}
+
+void TileExtra_Chemsynth::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    int32 currentColor = static_cast<int32>(color);
+    int32 currentTargetColor = static_cast<int32>(targetColor);
+    memBuffer.ReadWrite(currentColor, write);
+    memBuffer.ReadWrite(currentTargetColor, write);
+
+    if(!write) {
+        color = static_cast<ChemsynthColor>(currentColor);
+        targetColor = static_cast<ChemsynthColor>(currentTargetColor);
     }
 }
 

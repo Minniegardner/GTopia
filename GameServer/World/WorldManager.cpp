@@ -1,4 +1,5 @@
 #include "WorldManager.h"
+#include "Item/ChemsynthAlgorithm.h"
 #include "../Context.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/GameServer.h"
@@ -302,6 +303,7 @@ void WorldManager::UpdateWorlds()
         }
 
         pWorld->UpdateSteamActivations();
+        ChemsynthAlgorithm::UpdateWorldChemsynth(pWorld);
         
         if(pWorld->GetPlayerCount() == 0 && (pWorld->GetOfflineTime().GetElapsedTime() >= 10 * 60 * 1000)) {
             pWorld->SetWaitingForClose(true);

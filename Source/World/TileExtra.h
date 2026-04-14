@@ -150,6 +150,29 @@ protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
 
+enum class ChemsynthColor : int32
+{
+    NONE = 0,
+    RED = ITEM_ID_CHEMICAL_R,
+    YELLOW = ITEM_ID_CHEMICAL_Y,
+    GREEN = ITEM_ID_CHEMICAL_G,
+    BLUE = ITEM_ID_CHEMICAL_B,
+    PINK = ITEM_ID_CHEMICAL_P
+};
+
+class TileExtra_Chemsynth : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_CHEMTANK;
+
+    TileExtra_Chemsynth() : TileExtra(TYPE) {}
+
+    ChemsynthColor color = ChemsynthColor::NONE;
+    ChemsynthColor targetColor = ChemsynthColor::NONE;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
 enum eTileExtraLockFlag
 {
     TILE_EXTRA_LOCK_FLAG_IGNORE_AIR = 1 << 0,

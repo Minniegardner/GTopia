@@ -7,6 +7,7 @@
 #include "LockDialog.h"
 #include "DoorDialog.h"
 #include "MachineDialog.h"
+#include "ChemsynthDialog.h"
 
 void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
 {
@@ -33,6 +34,11 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
 
     if(pItem->type == ITEM_TYPE_VENDING || pItem->id == ITEM_ID_MAGPLANT_5000 || pItem->id == ITEM_ID_UNSTABLE_TESSERACT || pItem->id == ITEM_ID_GAIAS_BEACON) {
         MachineDialog::Request(pPlayer, pTile);
+        return;
+    }
+
+    if(pItem->type == ITEM_TYPE_CHEMSYNTH || pItem->type == ITEM_TYPE_CHEMTANK) {
+        ChemsynthDialog::Request(pPlayer, pTile);
         return;
     }
 }

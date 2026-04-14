@@ -1,5 +1,6 @@
 #include "TileChangeRequest.h"
 #include "Item/ItemInfoManager.h"
+#include "Item/ChemsynthAlgorithm.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
 
@@ -189,6 +190,17 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
     if(pItem->type == ITEM_TYPE_WRENCH) {
         PlayerDialog::Handle(pPlayer, pTile);
+        return;
+    }
+
+    if(
+        pItem->id == ITEM_ID_CHEMSYNTH_SOLVENT ||
+        pItem->id == ITEM_ID_CHEMSYNTH_CATALYST ||
+        pItem->id == ITEM_ID_CHEMSYNTH_REPLICATOR ||
+        pItem->id == ITEM_ID_CHEMSYNTH_CENTRIFUGE ||
+        pItem->id == ITEM_ID_CHEMSYNTH_STIRRER
+    ) {
+        ChemsynthAlgorithm::UseTool(pPlayer, pWorld, pTile, pItem->id);
         return;
     }
 
