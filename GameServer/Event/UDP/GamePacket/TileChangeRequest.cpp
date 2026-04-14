@@ -33,15 +33,15 @@ string GetTreeNameFromSeedName(const string& seedName)
 const ItemInfo* FindSplicedSeedResult(uint16 firstSeedID, uint16 secondSeedID)
 {
     const auto& items = GetItemInfoManager()->GetItems();
-    for(const ItemInfo* pCandidate : items) {
-        if(!pCandidate || pCandidate->type != ITEM_TYPE_SEED) {
+    for(const ItemInfo& candidate : items) {
+        if(candidate.type != ITEM_TYPE_SEED) {
             continue;
         }
 
-        if((pCandidate->seed1 == firstSeedID && pCandidate->seed2 == secondSeedID) ||
-            (pCandidate->seed1 == secondSeedID && pCandidate->seed2 == firstSeedID))
+        if((candidate.seed1 == firstSeedID && candidate.seed2 == secondSeedID) ||
+            (candidate.seed1 == secondSeedID && candidate.seed2 == firstSeedID))
         {
-            return pCandidate;
+            return &candidate;
         }
     }
 
