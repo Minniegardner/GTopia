@@ -169,8 +169,28 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 }
 
                 const string targetServerIP = result[5].GetString();
-                const uint16 targetServerPort = (uint16)result[6].GetUINT();
+                uint16 targetServerPort = (uint16)result[6].GetUINT();
                 const string worldName = (result.size() >= 8) ? result[7].GetString() : "";
+
+                if(targetServerPort == 0) {
+                    for(const auto& serverCfg : GetContext()->GetGameConfig()->servers) {
+                        if(serverCfg.id != (uint16)serverID || serverCfg.serverType != CONFIG_SERVER_GAME) {
+                            continue;
+                        }
+
+                        targetServerPort = serverCfg.udpPort;
+                        break;
+                    }
+
+                    LOGGER_LOG_WARN("WORLD_ROUTE remote port fallback userID=%u targetServer=%u fallbackPort=%u", pPlayer->GetUserID(), serverID, targetServerPort);
+                }
+
+                if(targetServerPort == 0) {
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to switch you to another server, invalid target port");
+                    pPlayer->SetJoinWorld(false);
+                    return;
+                }
 
                 LOGGER_LOG_INFO("WORLD_ROUTE remote redirect userID=%u worldID=%u worldName=%s fromServer=%u toServer=%u target=%s:%u", pPlayer->GetUserID(), worldID, worldName.c_str(), GetContext()->GetID(), serverID, targetServerIP.c_str(), targetServerPort);
 

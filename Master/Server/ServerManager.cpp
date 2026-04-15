@@ -230,7 +230,7 @@ void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serve
     data[3] = serverID;
     data[4] = worldID;
     data[5] = serverIP;
-    data[6] = serverPort;
+    data[6] = (uint32)serverPort;
     data[7] = worldName;
 
     LOGGER_LOG_INFO("WORLD_ROUTE success playerNetID=%d routeToServer=%u worldID=%u worldName=%s target=%s:%u viaServer=%u", playerNetID, serverID, worldID, worldName.c_str(), serverIP.c_str(), serverPort, serverIDForPacket);
