@@ -209,7 +209,10 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
             SetTankActive(pNextTank, true);
             tiles.push_back(pNextTank);
         }
-        break;
+
+        if(i + 1 < tanks.size()) {
+            ++i;
+        }
     }
 
     if(!foundActive && !tanks.empty()) {

@@ -120,7 +120,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
         }
 
         case TCP_PACKET_WORLD_SEND_PLAYER: {
-            if(result.size() < 3) {
+            if(result.size() < 5) {
                 return;
             }
 
@@ -141,39 +141,47 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             uint32 serverID = result[3].GetUINT();
             uint32 worldID = result[4].GetUINT();
 
-            World* pWorld = GetWorldByID(worldID);
-            if(!pWorld) {
-                return;
-            }
-
             if(serverID == GetContext()->GetID()) {
+                World* pWorld = GetWorldByID(worldID);
+                if(!pWorld) {
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to join world");
+                    pPlayer->SetJoinWorld(false);
+                    return;
+                }
+
                 if(!pWorld->PlayerJoinWorld(pPlayer)) {
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to join world");
                 }
             }
             else {
-                ServerInfo* pTargetServer = GetServerManager()->GetServerByID(serverID);
-                if(!pTargetServer) {
+                if(result.size() < 7) {
                     pPlayer->SendOnFailedToEnterWorld();
-                    pPlayer->SendOnConsoleMessage("Unable to join world");
+                    pPlayer->SendOnConsoleMessage("Unable to switch you to another server, please try again later");
+                    pPlayer->SetJoinWorld(false);
                     return;
                 }
+
+                const string targetServerIP = result[5].GetString();
+                const uint16 targetServerPort = (uint16)result[6].GetUINT();
+                const string worldName = GetWorldByID(worldID) ? GetWorldByID(worldID)->GetWorlName() : "";
 
                 if(!GetMasterBroadway()->SendPlayerServerSwitch(pPlayer->GetUserID(), (uint16)serverID)) {
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to switch you to another server, please try again later");
+                    pPlayer->SetJoinWorld(false);
                     return;
                 }
 
                 const string doorID = pPlayer->ConsumePendingDoorWarpID();
                 pPlayer->SetRedirectingSubServer(true);
                 pPlayer->SendOnSendToServer(
-                    pTargetServer->port,
+                    targetServerPort,
                     pPlayer->GetLoginDetail().token,
                     pPlayer->GetUserID(),
-                    pTargetServer->wanIP,
-                    pWorld->GetWorlName(),
+                    targetServerIP,
+                    worldName,
                     doorID,
                     LoginMode::REDIRECT_SUBSERVER_SILENT
                 );
