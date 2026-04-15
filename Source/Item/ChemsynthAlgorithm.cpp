@@ -348,11 +348,21 @@ void UseTool(GamePlayer* pPlayer, World* pWorld, TileInfo* pTankTile, uint16 ite
 
     TileExtra_Chemsynth* pClickedData = GetTankData(pTankTile);
     if(!pClickedData) {
+        pPlayer->SendOnTalkBubble("Chemsynth tank data is invalid.", true);
+        return;
+    }
+
+    TileInfo* pProcessorTile = FindProcessorTile(pWorld, pTankTile);
+    if(!pProcessorTile) {
+        pPlayer->SendOnTalkBubble("Chemsynth processor not found for this tank line.", true);
+        pPlayer->SendOnConsoleMessage("Chemsynth processor not found for this tank line.");
         return;
     }
 
     uint16 chemicalID = ColorToChemicalID(pClickedData->color);
     if(chemicalID == ITEM_ID_BLANK || pPlayer->GetInventory().GetCountOfItem(chemicalID) < 1) {
+        pPlayer->SendOnTalkBubble("You do not have the required Chemical for this tank color.", true);
+        pPlayer->SendOnConsoleMessage("You do not have the required Chemical for this tank color.");
         return;
     }
 
@@ -360,7 +370,9 @@ void UseTool(GamePlayer* pPlayer, World* pWorld, TileInfo* pTankTile, uint16 ite
     const int32 clickedIndex = std::clamp<int32>(pTankTile->GetPos().x - range.first, 0, 9);
 
     std::vector<TileInfo*> tanks;
-    if(!GetTankTiles(pWorld, FindProcessorTile(pWorld, pTankTile), tanks)) {
+    if(!GetTankTiles(pWorld, pProcessorTile, tanks)) {
+        pPlayer->SendOnTalkBubble("Chemsynth setup is invalid.", true);
+        pPlayer->SendOnConsoleMessage("Chemsynth setup is invalid.");
         return;
     }
 

@@ -156,6 +156,13 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         return;
     }
 
+    const bool isChemsynthTool =
+        pItem->id == ITEM_ID_CHEMSYNTH_SOLVENT ||
+        pItem->id == ITEM_ID_CHEMSYNTH_CATALYST ||
+        pItem->id == ITEM_ID_CHEMSYNTH_REPLICATOR ||
+        pItem->id == ITEM_ID_CHEMSYNTH_CENTRIFUGE ||
+        pItem->id == ITEM_ID_CHEMSYNTH_STIRRER;
+
     if(pItem->type == ITEM_TYPE_CLOTHES) {
 
         return;
@@ -167,13 +174,25 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         return;
     }
 
-    if(pItem->type == ITEM_TYPE_CONSUMABLE) {
+    if(pItem->type == ITEM_TYPE_CONSUMABLE && !isChemsynthTool) {
         pPlayer->IncreaseStat("CONSUMABLES_USED");
         return;
     }
 
     if(pPacket->itemID != ITEM_ID_FIST && pPlayer->GetInventory().GetCountOfItem(pItem->id) == 0) {
         pPlayer->SendFakePingReply();
+        return;
+    }
+
+    if(isChemsynthTool) {
+        if(!pWorld->CanBreak(pPlayer, pTile)) {
+            pPlayer->SendFakePingReply();
+            pPlayer->PlaySFX("punch_locked.wav");
+            pPlayer->SendOnTalkBubble("`wThat area is owned by " + GetOwnerDisplayName(pWorld, pTile), true);
+            return;
+        }
+
+        ChemsynthAlgorithm::UseTool(pPlayer, pWorld, pTile, pItem->id);
         return;
     }
 
@@ -190,17 +209,6 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
     if(pItem->type == ITEM_TYPE_WRENCH) {
         PlayerDialog::Handle(pPlayer, pTile);
-        return;
-    }
-
-    if(
-        pItem->id == ITEM_ID_CHEMSYNTH_SOLVENT ||
-        pItem->id == ITEM_ID_CHEMSYNTH_CATALYST ||
-        pItem->id == ITEM_ID_CHEMSYNTH_REPLICATOR ||
-        pItem->id == ITEM_ID_CHEMSYNTH_CENTRIFUGE ||
-        pItem->id == ITEM_ID_CHEMSYNTH_STIRRER
-    ) {
-        ChemsynthAlgorithm::UseTool(pPlayer, pWorld, pTile, pItem->id);
         return;
     }
 
