@@ -127,12 +127,15 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             int32 oprResult = result[1].GetINT();
             int32 playerNetID = result[2].GetINT();
 
+            LOGGER_LOG_INFO("WORLD_ROUTE recv result=%d playerNetID=%d payloadSize=%d onServer=%u", oprResult, playerNetID, (int32)result.size(), GetContext()->GetID());
+
             GamePlayer* pPlayer = GetGameServer()->GetPlayerByNetID(playerNetID);
             if(!pPlayer) {
                 return;
             }
 
             if(oprResult != TCP_RESULT_OK) {
+                LOGGER_LOG_WARN("WORLD_ROUTE fail playerUserID=%u playerNetID=%d", pPlayer->GetUserID(), playerNetID);
                 pPlayer->SendOnFailedToEnterWorld();
                 pPlayer->SendOnConsoleMessage("Unable to move you to this world, please try again later");
                 return;
@@ -142,6 +145,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             uint32 worldID = result[4].GetUINT();
 
             if(serverID == GetContext()->GetID()) {
+                LOGGER_LOG_INFO("WORLD_ROUTE local join userID=%u worldID=%u serverID=%u", pPlayer->GetUserID(), worldID, serverID);
                 World* pWorld = GetWorldByID(worldID);
                 if(!pWorld) {
                     pPlayer->SendOnFailedToEnterWorld();
@@ -157,6 +161,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             }
             else {
                 if(result.size() < 7) {
+                    LOGGER_LOG_WARN("WORLD_ROUTE remote invalid payload userID=%u payloadSize=%d", pPlayer->GetUserID(), (int32)result.size());
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to switch you to another server, please try again later");
                     pPlayer->SetJoinWorld(false);
@@ -165,9 +170,12 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
 
                 const string targetServerIP = result[5].GetString();
                 const uint16 targetServerPort = (uint16)result[6].GetUINT();
-                const string worldName = GetWorldByID(worldID) ? GetWorldByID(worldID)->GetWorlName() : "";
+                const string worldName = (result.size() >= 8) ? result[7].GetString() : "";
+
+                LOGGER_LOG_INFO("WORLD_ROUTE remote redirect userID=%u worldID=%u worldName=%s fromServer=%u toServer=%u target=%s:%u", pPlayer->GetUserID(), worldID, worldName.c_str(), GetContext()->GetID(), serverID, targetServerIP.c_str(), targetServerPort);
 
                 if(!GetMasterBroadway()->SendPlayerServerSwitch(pPlayer->GetUserID(), (uint16)serverID)) {
+                    LOGGER_LOG_WARN("WORLD_ROUTE switch packet failed userID=%u targetServer=%u", pPlayer->GetUserID(), serverID);
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to switch you to another server, please try again later");
                     pPlayer->SetJoinWorld(false);
@@ -200,6 +208,8 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
     if(!pPlayer || pPlayer->IsJoiningWorld()) {
         return;
     }
+
+    LOGGER_LOG_INFO("WORLD_JOIN request userID=%u world=%s serverID=%u", pPlayer->GetUserID(), worldName.c_str(), GetContext()->GetID());
 
     pPlayer->SetJoinWorld(true);
     World* pWorld = GetWorldByName(worldName);

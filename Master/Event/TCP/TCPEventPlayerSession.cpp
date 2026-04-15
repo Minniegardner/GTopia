@@ -22,13 +22,16 @@ void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
     PlayerSession* pPlayer = GetGameServer()->GetPlayerSessionByUserID(eventData.userID);
     bool hasSession = true;
 
-    if(
-        !pPlayer ||
-        pPlayer->serverID != eventData.serverID ||
-        pPlayer->loginToken != eventData.token
-    ) {
+    if(!pPlayer) {
         hasSession = false;
     }
+    else if(pPlayer->loginToken != eventData.token) {
+        hasSession = false;
+    }
+    else if(pPlayer->serverID != eventData.serverID) {
+        LOGGER_LOG_WARN("SESSION_CHECK server mismatch accepted userID=%u token=%u expectedServer=%u requestServer=%u", eventData.userID, eventData.token, pPlayer->serverID, eventData.serverID);
+    }
 
+    LOGGER_LOG_INFO("SESSION_CHECK userID=%u netID=%d requestServer=%u result=%d", eventData.userID, eventData.netID, eventData.serverID, hasSession ? 1 : 0);
     GetServerManager()->SendPlayerSessionCheck(hasSession, eventData.netID, pClient->connectionID);
 }

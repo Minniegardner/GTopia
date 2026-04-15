@@ -197,9 +197,15 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
     }
 
     GamePlayer* pPlayer = (GamePlayer*)event.peer->data;
+    if(!pPlayer) {
+        return;
+    }
+
     if(event.peer != pPlayer->GetPeer()) {
         return;
     }
+
+    LOGGER_LOG_INFO("PLAYER_DISCONNECT userID=%u netID=%d serverID=%u redirected=%d", pPlayer->GetUserID(), pPlayer->GetNetID(), GetContext()->GetID(), pPlayer->IsRedirectingSubServer() ? 1 : 0);
 
     if(!pPlayer->IsRedirectingSubServer()) {
         pPlayer->LogOff();

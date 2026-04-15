@@ -174,7 +174,11 @@ void CancelChemsynth(World* pWorld, TileInfo* pProcessorTile)
 
 void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
 {
-    if(!pWorld || !pProcessorTile || !IsChemsynthProcessorItem(pProcessorTile->GetDisplayedItem()) || !pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+    if(!pWorld || !pProcessorTile || !IsChemsynthProcessorItem(pProcessorTile->GetDisplayedItem())) {
+        return;
+    }
+
+    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON) && !pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
         return;
     }
 

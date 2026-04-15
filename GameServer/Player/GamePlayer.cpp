@@ -1481,7 +1481,14 @@ void GamePlayer::CheckingLoginSession(VariantVector&& result)
 {
     RemoveState(PLAYER_STATE_CHECKING_SESSION);
 
+    if(result.size() < 3) {
+        LOGGER_LOG_WARN("SESSION_CHECK invalid payload userID=%u netID=%d payloadSize=%d", m_userID, GetNetID(), (int32)result.size());
+        SendLogonFailWithLog("`4OOPS! ``Please re-connect");
+        return;
+    }
+
     bool sessionAgreed = result[2].GetBool();
+    LOGGER_LOG_INFO("SESSION_CHECK result userID=%u netID=%d serverID=%u agree=%d", m_userID, GetNetID(), GetContext()->GetID(), sessionAgreed ? 1 : 0);
     if(!sessionAgreed) {
         SendLogonFailWithLog("`4OOPS! ``Please re-connect server says you're not belong to this server");
         return;
