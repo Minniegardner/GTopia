@@ -157,6 +157,20 @@ void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, const string& worldN
     m_pNetClient->Send(data);
 }
 
+bool MasterBroadway::SendPlayerServerSwitch(uint32 userID, uint16 targetServerID)
+{
+    if(!m_connected || !m_pNetClient) {
+        return false;
+    }
+
+    VariantVector data(3);
+    data[0] = TCP_PACKET_PLAYER_SERVER_SWITCH;
+    data[1] = userID;
+    data[2] = (uint32)targetServerID;
+
+    return m_pNetClient->Send(data);
+}
+
 void MasterBroadway::SendCrossServerActionRequest(
     int32 actionType,
     uint32 sourceUserID,

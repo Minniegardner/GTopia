@@ -201,7 +201,9 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
         return;
     }
 
-    pPlayer->LogOff();
+    if(!pPlayer->IsRedirectingSubServer()) {
+        pPlayer->LogOff();
+    }
     
     auto it = m_playerCache.find(pPlayer->GetNetID());
     if(it != m_playerCache.end()) {

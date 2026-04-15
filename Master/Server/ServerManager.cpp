@@ -33,6 +33,7 @@ const char* GetDailyEventName(uint32 eventType)
 #include "../Event/TCP/TCPEventHello.h"
 #include "../Event/TCP/TCPEventAuth.h"
 #include "../Event/TCP/TCPEventPlayerSession.h"
+#include "../Event/TCP/TCPEventPlayerServerSwitch.h"
 #include "../Event/TCP/TCPEventWorldInit.h"
 #include "../Event/TCP/TCPEventRenderWorld.h"
 #include "../Event/TCP/TCPEventHeartBeat.h"
@@ -154,6 +155,7 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEventHello>(TCP_PACKET_HELLO);
     RegisterEvent<TCPEventAuth>(TCP_PACKET_AUTH);
     RegisterEvent<TCPEventPlayerSession>(TCP_PACKET_PLAYER_CHECK_SESSION);
+    RegisterEvent<TCPEventPlayerServerSwitch>(TCP_PACKET_PLAYER_SERVER_SWITCH);
     RegisterEvent<TCPEventWorldInit>(TCP_PACKET_WORLD_INIT);
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
     RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);

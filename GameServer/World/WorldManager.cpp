@@ -153,7 +153,33 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 }
             }
             else {
-                // onsendtoserver
+                ServerInfo* pTargetServer = GetServerManager()->GetServerByID(serverID);
+                if(!pTargetServer) {
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to join world");
+                    return;
+                }
+
+                if(!GetMasterBroadway()->SendPlayerServerSwitch(pPlayer->GetUserID(), (uint16)serverID)) {
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to switch you to another server, please try again later");
+                    return;
+                }
+
+                const string doorID = pPlayer->ConsumePendingDoorWarpID();
+                pPlayer->SetRedirectingSubServer(true);
+                pPlayer->SendOnSendToServer(
+                    pTargetServer->port,
+                    pPlayer->GetLoginDetail().token,
+                    pPlayer->GetUserID(),
+                    pTargetServer->wanIP,
+                    pWorld->GetWorlName(),
+                    doorID,
+                    LoginMode::REDIRECT_SUBSERVER_SILENT
+                );
+
+                PlayerLeaveWorld(pPlayer);
+                pPlayer->SetJoinWorld(false);
             }
 
             break;
