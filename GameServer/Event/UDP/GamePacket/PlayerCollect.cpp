@@ -22,7 +22,7 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         return;
     }
 
-    if(pPlayer->GetCollectFailsInWindow() >= 12) {
+    if(pPlayer->GetCollectFailsInWindow() >= 20) {
         pPlayer->SendFakePingReply();
         return;
     }
@@ -67,12 +67,10 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         return;
     }
 
-    const Vector2Float targetPos = {
-        static_cast<float>(pTargetTile->GetPos().x * 32),
-        static_cast<float>(pTargetTile->GetPos().y * 32)
-    };
+    const bool veryCloseToObject = xDist <= (32.0f * 2.0f) && yDist <= (32.0f * 2.0f);
+    const Vector2Float objectPos = pObject->pos;
 
-    if(!WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), targetPos)) {
+    if(!veryCloseToObject && !WorldPathfinding::HasPath(pWorld, pPlayer, pPlayer->GetWorldPos(), objectPos)) {
         pPlayer->SendOnTalkBubble("(too far away)", true);
         pPlayer->IncrementCollectFailWindow();
         return;
@@ -93,6 +91,7 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
 
         pPlayer->AddGems(pObject->count);
         pPlayer->SendOnSetBux();
+        pPlayer->SendOnConsoleMessage("Collected `w" + std::to_string((int32)pObject->count) + " Gems``.");
         pWorld->RemoveObject(pObject->objectID);
         return;
     }

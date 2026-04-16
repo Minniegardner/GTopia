@@ -115,6 +115,13 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/Suspend.cpp
     ${GAME_COMMAND}/GrowIDCmd.cpp
     ${GAME_COMMAND}/SuperBroadcast.cpp
+    ${GAME_COMMAND}/Weather.cpp
+    ${GAME_COMMAND}/Effect.cpp
+    ${GAME_COMMAND}/SetGems.cpp
+    ${GAME_COMMAND}/PInfo.cpp
+    ${GAME_COMMAND}/InvSee.cpp
+    ${GAME_COMMAND}/ItemInfo.cpp
+    ${GAME_COMMAND}/ReplaceBlocks.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp

@@ -36,6 +36,12 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_PROVIDER:
             return TILE_EXTRA_TYPE_PROVIDER;
 
+        case ITEM_TYPE_LAB:
+            return TILE_EXTRA_TYPE_LAB;
+
+        case ITEM_TYPE_HEART_MONITOR:
+            return TILE_EXTRA_TYPE_HEART_MONITOR;
+
         case ITEM_TYPE_COMPONENT:
             return TILE_EXTRA_TYPE_COMPONENT;
 
@@ -92,6 +98,12 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_PROVIDER:
             return new TileExtra_Provider();
+
+        case TILE_EXTRA_TYPE_LAB:
+            return new TileExtra_Lab();
+
+        case TILE_EXTRA_TYPE_HEART_MONITOR:
+            return new TileExtra_HeartMonitor();
 
         case TILE_EXTRA_TYPE_SPIRIT_STORAGE:
             return new TileExtra_SpiritStorage();
@@ -292,5 +304,5 @@ void TileExtra_HeartMonitor::Serialize(MemoryBuffer& memBuffer, bool write, bool
 {
     TileExtra::Serialize(memBuffer, write);
     memBuffer.ReadWrite(userID, write);
-    memBuffer.ReadWrite(playerDisplayName, write);
+    memBuffer.ReadWriteString(playerDisplayName, write);
 }

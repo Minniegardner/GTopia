@@ -214,6 +214,23 @@ std::string BuildTradeStatusDialog(GamePlayer* pViewer, GamePlayer* pOfferOwner)
     return dialog;
 }
 
+void SyncTradeStatus(GamePlayer* pA, GamePlayer* pB)
+{
+    if(!pA) {
+        return;
+    }
+
+    pA->SendTradeStatus(pA);
+
+    if(!pB) {
+        return;
+    }
+
+    pA->SendTradeStatus(pB);
+    pB->SendTradeStatus(pA);
+    pB->SendTradeStatus(pB);
+}
+
 DialogBuilder BuildTradeConfirmationDialog(GamePlayer* pViewer, GamePlayer* pOfferOwner, World* pWorld)
 {
     DialogBuilder db;
@@ -412,10 +429,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     SendStartTrade(player);
     player->SendStartTrade(this);
 
-    SendTradeStatus(this);
-    SendTradeStatus(player);
-    player->SendTradeStatus(this);
-    player->SendTradeStatus(player);
+    SyncTradeStatus(this, player);
 }
 
 void GamePlayer::CancelTrade(bool busy, std::string customMessage)
@@ -498,6 +512,9 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
     }
 
     if(!IsTradeOfferExists(itemID) && m_tradeOffers.size() >= kTradeMaxOfferItems) {
+        SendOnConsoleMessage("`4You can only offer up to 4 different item stacks in one trade.``");
+        SendOnTextOverlay("`4You can only offer up to 4 different item stacks in one trade.``");
+        PlaySFX("cant_place_tile.wav");
         return;
     }
 
@@ -521,11 +538,7 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
         pTarget->SetTradeConfirmedAt(0);
     }
 
-    SendTradeStatus(this);
-    if(pTarget) {
-        pTarget->SendTradeStatus(this);
-        pTarget->SendTradeStatus(pTarget);
-    }
+    SyncTradeStatus(this, pTarget);
 
     const std::string itemName = GetTradeItemName(itemID);
     SendOnConsoleMessage("`#The trade deal has been updated.");
@@ -592,11 +605,7 @@ void GamePlayer::RemoveOffer(uint16 itemID)
         pTarget->SetTradeConfirmedAt(0);
     }
 
-    SendTradeStatus(this);
-    if(pTarget) {
-        pTarget->SendTradeStatus(this);
-        pTarget->SendTradeStatus(pTarget);
-    }
+    SyncTradeStatus(this, pTarget);
 
     const std::string itemName = GetTradeItemName(itemID);
     SendOnConsoleMessage("`#The trade deal has been updated.");
@@ -637,23 +646,16 @@ void GamePlayer::AcceptOffer(bool status)
             pTarget->SetTradeConfirmed(false);
             pTarget->SetTradeAcceptedAt(0);
             pTarget->SetTradeConfirmedAt(0);
-            pTarget->SendTradeStatus(this);
-            pTarget->SendTradeStatus(pTarget);
         }
 
-        SendTradeStatus(this);
-        if(pTarget) {
-            SendTradeStatus(pTarget);
-        }
+        SyncTradeStatus(this, pTarget);
         return;
     }
 
     SetTradeAccepted(true);
     SetTradeAcceptedAt(Time::GetSystemTime());
 
-    if(pTarget && pTarget->GetTradingWithUserID() == GetUserID()) {
-        pTarget->SendTradeStatus(this);
-    }
+    SyncTradeStatus(this, pTarget);
 
     if(!pTarget || !pTarget->IsTradeAccepted() || !IsTradeAccepted() || pTarget->GetTradingWithUserID() != GetUserID()) {
         SendOnConsoleMessage("`6[``Trade accepted, waiting for other player to accept`6]``");
@@ -727,12 +729,9 @@ void GamePlayer::AcceptOffer(bool status)
             pTarget->SetTradeAccepted(false);
             pTarget->SetTradeConfirmedAt(0);
             pTarget->SetTradeAcceptedAt(0);
-
-            SendTradeStatus(this);
-            SendTradeStatus(pTarget);
-            pTarget->SendTradeStatus(this);
-            pTarget->SendTradeStatus(pTarget);
         }
+
+        SyncTradeStatus(this, pTarget);
 
         return;
     }
@@ -1410,7 +1409,7 @@ uint64 GamePlayer::GetStatCount(const std::string& statName) const
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
-m_loggingOff(false), m_redirectingSubServer(false), m_gems(0), m_lastObjectCollectTime(0), m_lastCollectFailCheckTime(0), m_magplantPos({ -1, -1 })
+m_loggingOff(false), m_gems(0), m_lastObjectCollectTime(0), m_lastCollectFailCheckTime(0), m_magplantPos({ -1, -1 })
 {
 }
 
@@ -1481,14 +1480,7 @@ void GamePlayer::CheckingLoginSession(VariantVector&& result)
 {
     RemoveState(PLAYER_STATE_CHECKING_SESSION);
 
-    if(result.size() < 3) {
-        LOGGER_LOG_WARN("SESSION_CHECK invalid payload userID=%u netID=%d payloadSize=%d", m_userID, GetNetID(), (int32)result.size());
-        SendLogonFailWithLog("`4OOPS! ``Please re-connect");
-        return;
-    }
-
     bool sessionAgreed = result[2].GetBool();
-    LOGGER_LOG_INFO("SESSION_CHECK result userID=%u netID=%d serverID=%u agree=%d", m_userID, GetNetID(), GetContext()->GetID(), sessionAgreed ? 1 : 0);
     if(!sessionAgreed) {
         SendLogonFailWithLog("`4OOPS! ``Please re-connect server says you're not belong to this server");
         return;

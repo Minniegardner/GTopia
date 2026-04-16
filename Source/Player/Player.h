@@ -2,7 +2,6 @@
 
 #include "../Precompiled.h"
 #include "../Network/NetEntity.h"
-#include "../Packet/GamePacket.h"
 #include "PlayerLoginDetail.h"
 #include "PlayerInventory.h"
 #include "CharacterData.h"
@@ -17,7 +16,7 @@ public:
     void SendHelloPacket();
     void SendLogonFailWithLog(const string& message);
     void SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, const string& cdnPath, const string& settings, uint32 tributeHash);
-    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP, const string& worldName = "", const string& doorID = "", LoginMode loginMode = LoginMode::CLIENT_LOGIN);
+    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP);
     void SendOnConsoleMessage(const string& message);
     void SendOnRequestWorldSelectMenu(const string& worldMenu);
     void SendOnFailedToEnterWorld();

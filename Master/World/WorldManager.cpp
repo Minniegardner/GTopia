@@ -90,7 +90,6 @@ void WorldManager::HandleWorldInit(VariantVector&& result)
             worldID,
             pServer->wanIP,
             pServer->port,
-            pWorld->worldName,
             pending.serverID
         );
     }
@@ -108,8 +107,6 @@ void WorldManager::HandlePlayerJoinRequest(VariantVector&& result)
     int32 playerNetID = result[2].GetINT();
     string upperWorldName = ToUpper(result[3].GetString());
 
-    LOGGER_LOG_INFO("WORLD_JOIN request fromServer=%u playerNetID=%d world=%s", serverID, playerNetID, upperWorldName.c_str());
-
     WorldSession* pWorld = GetWorldByName(upperWorldName);
     if(!pWorld) {
         QueryRequest req = MakeWorldExistsByName(upperWorldName, GetNetID());
@@ -122,7 +119,6 @@ void WorldManager::HandlePlayerJoinRequest(VariantVector&& result)
         DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_EXISTS_BY_NAME, req);
     }
     else if(pWorld->state == WORLD_STATE_LOADING) {
-        LOGGER_LOG_INFO("WORLD_JOIN pending world=%s worldID=%u loadingOnServer=%u requesterServer=%u playerNetID=%d", pWorld->worldName.c_str(), pWorld->worldID, pWorld->serverID, serverID, playerNetID);
         pWorld->AddPending(serverID, playerNetID);
     }
     else if(pWorld->state == WORLD_STATE_ON) {
@@ -138,7 +134,6 @@ void WorldManager::HandlePlayerJoinRequest(VariantVector&& result)
             pWorld->worldID,
             pServer->wanIP,
             pServer->port,
-            pWorld->worldName,
             serverID
         );
     }
@@ -207,7 +202,6 @@ void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& wor
     worldSession.AddPending(serverID, playerNetID);
 
     m_worldSessions.insert_or_assign(worldSession.worldID, worldSession);
-    LOGGER_LOG_INFO("WORLD_SESSION create world=%s worldID=%u hostServer=%u requesterServer=%u playerNetID=%d", worldName.c_str(), worldID, pServer->serverID, serverID, playerNetID);
     pServerMgr->SendWorldInitPacket(worldName, pServer->serverID);
 }
 

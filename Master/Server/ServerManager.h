@@ -56,7 +56,7 @@ public:
     bool SendPacketRaw(uint16 serverID, VariantVector& data);
 
     void SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID);
-    void SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, const string& worldName, uint32 serverIDForPacket);
+    void SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, uint32 serverIDForPacket);
     void SendWorldInitPacket(const string& worldName, uint32 serverID);
     void SendAuthPacket(bool succeed, uint32 serverID);
     void SendRenderResult(int32 result, uint32 playerUserID, const string& worldName, uint32 serverID);

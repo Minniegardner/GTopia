@@ -61,6 +61,24 @@ bool IsItemSucker(uint16 itemID)
     return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
 }
 
+bool IsSuckerItemCompatible(uint16 machineID, uint16 itemID)
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    if(!pItem) {
+        return false;
+    }
+
+    if(machineID == ITEM_ID_UNSTABLE_TESSERACT && pItem->type == ITEM_TYPE_SEED) {
+        return false;
+    }
+
+    if(machineID == ITEM_ID_GAIAS_BEACON && pItem->type != ITEM_TYPE_SEED) {
+        return false;
+    }
+
+    return true;
+}
+
 string GetWorldInfoSuffix(World* pWorld)
 {
     if(!pWorld) {
@@ -117,6 +135,19 @@ bool TrySuckerCheck(World* pWorld, WorldObject& obj)
 
             TileExtra_Magplant* pData = pTile->GetExtra<TileExtra_Magplant>();
             if(!pData || !pData->magnetic) {
+                continue;
+            }
+
+            if(pData->itemLimit <= 0) {
+                continue;
+            }
+
+            if(pData->itemCount < 0) {
+                pData->itemCount = 0;
+            }
+
+            const uint16 machineID = pTile->GetDisplayedItem();
+            if(!IsSuckerItemCompatible(machineID, obj.itemID)) {
                 continue;
             }
 
@@ -868,6 +899,227 @@ bool World::IsPlayerWorldAdmin(GamePlayer* pPlayer)
     return false;
 }
 
+namespace {
+
+bool HasKickBanPullException(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return false;
+    }
+
+    Role* pRole = pPlayer->GetRole();
+    return pRole && pRole->HasPerm(ROLE_PERM_COMMAND_MOD);
+}
+
+TileExtra_Lock* GetTileLockContext(World* pWorld, TileInfo* pTile, TileInfo** ppLockTile = nullptr)
+{
+    if(ppLockTile) {
+        *ppLockTile = nullptr;
+    }
+
+    if(!pWorld || !pTile) {
+        return nullptr;
+    }
+
+    if(pTile->GetParent() != 0) {
+        TileInfo* pParentLock = pWorld->GetTileManager()->GetTile(pTile->GetParent());
+        if(ppLockTile) {
+            *ppLockTile = pParentLock;
+        }
+
+        return pParentLock ? pParentLock->GetExtra<TileExtra_Lock>() : nullptr;
+    }
+
+    TileInfo* pWorldLock = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(ppLockTile) {
+        *ppLockTile = pWorldLock;
+    }
+
+    return pWorldLock ? pWorldLock->GetExtra<TileExtra_Lock>() : nullptr;
+}
+
+}
+
+bool World::CanKick(GamePlayer* pTarget, GamePlayer* pInvoker)
+{
+    if(!pTarget || !pInvoker) {
+        return false;
+    }
+
+    TileInfo* pTargetTile = GetTileManager()->GetTile((int32)(pTarget->GetWorldPos().x / 32.0f), (int32)(pTarget->GetWorldPos().y / 32.0f));
+    TileInfo* pInvokerTile = GetTileManager()->GetTile((int32)(pInvoker->GetWorldPos().x / 32.0f), (int32)(pInvoker->GetWorldPos().y / 32.0f));
+    if(!pTargetTile || !pInvokerTile) {
+        return false;
+    }
+
+    const bool targetException = HasKickBanPullException(pTarget);
+    const bool invokerException = HasKickBanPullException(pInvoker);
+
+    if(targetException && !invokerException) {
+        return false;
+    }
+
+    if(invokerException) {
+        return pTarget->GetUserID() != pInvoker->GetUserID();
+    }
+
+    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
+        return false;
+    }
+
+    TileExtra_Lock* pTargetLock = GetTileLockContext(this, pTargetTile);
+    TileExtra_Lock* pInvokerLock = GetTileLockContext(this, pInvokerTile);
+
+    const int32 targetOwnerID = pTargetLock ? pTargetLock->ownerID : 0;
+    const int32 invokerTileOwnerID = pInvokerLock ? pInvokerLock->ownerID : 0;
+    const bool invokerHasTargetAccess = pTargetLock && pTargetLock->HasAccess((int32)pInvoker->GetUserID());
+
+    if(!invokerHasTargetAccess && targetOwnerID != (int32)pInvoker->GetUserID() && invokerTileOwnerID != (int32)pInvoker->GetUserID()) {
+        return false;
+    }
+
+    if(targetOwnerID == (int32)pTarget->GetUserID() || invokerTileOwnerID == (int32)pTarget->GetUserID()) {
+        return false;
+    }
+
+    if(targetOwnerID == 0 || invokerTileOwnerID == 0) {
+        return false;
+    }
+
+    return true;
+}
+
+bool World::CanPull(GamePlayer* pTarget, GamePlayer* pInvoker)
+{
+    if(!pTarget || !pInvoker) {
+        return false;
+    }
+
+    TileInfo* pTargetTile = GetTileManager()->GetTile((int32)(pTarget->GetWorldPos().x / 32.0f), (int32)(pTarget->GetWorldPos().y / 32.0f));
+    TileInfo* pInvokerTile = GetTileManager()->GetTile((int32)(pInvoker->GetWorldPos().x / 32.0f), (int32)(pInvoker->GetWorldPos().y / 32.0f));
+    if(!pTargetTile || !pInvokerTile) {
+        return false;
+    }
+
+    const bool targetException = HasKickBanPullException(pTarget);
+    const bool invokerException = HasKickBanPullException(pInvoker);
+
+    if(targetException && !invokerException) {
+        return false;
+    }
+
+    if(invokerException) {
+        return pTarget->GetUserID() != pInvoker->GetUserID();
+    }
+
+    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
+        return false;
+    }
+
+    TileExtra_Lock* pTargetLock = GetTileLockContext(this, pTargetTile);
+    TileExtra_Lock* pInvokerLock = GetTileLockContext(this, pInvokerTile);
+
+    const int32 targetOwnerID = pTargetLock ? pTargetLock->ownerID : 0;
+    const int32 invokerTileOwnerID = pInvokerLock ? pInvokerLock->ownerID : 0;
+    const bool invokerHasTargetAccess = pTargetLock && pTargetLock->HasAccess((int32)pInvoker->GetUserID());
+    const bool invokerHasInvokerTileAccess = pInvokerLock && pInvokerLock->HasAccess((int32)pInvoker->GetUserID());
+
+    if((!invokerHasTargetAccess || !invokerHasInvokerTileAccess) && targetOwnerID != (int32)pInvoker->GetUserID() && invokerTileOwnerID != (int32)pInvoker->GetUserID()) {
+        return false;
+    }
+
+    if(targetOwnerID == (int32)pTarget->GetUserID() || invokerTileOwnerID == (int32)pTarget->GetUserID()) {
+        return false;
+    }
+
+    if(targetOwnerID == 0 || invokerTileOwnerID == 0) {
+        return false;
+    }
+
+    return true;
+}
+
+bool World::CanBan(GamePlayer* pTarget, GamePlayer* pInvoker)
+{
+    if(!pTarget || !pInvoker) {
+        return false;
+    }
+
+    const bool targetException = HasKickBanPullException(pTarget);
+    const bool invokerException = HasKickBanPullException(pInvoker);
+
+    if(targetException && !invokerException) {
+        return false;
+    }
+
+    if(invokerException) {
+        return pTarget->GetUserID() != pInvoker->GetUserID();
+    }
+
+    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
+        return false;
+    }
+
+    TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    TileExtra_Lock* pWorldLock = pWorldLockTile ? pWorldLockTile->GetExtra<TileExtra_Lock>() : nullptr;
+
+    const int32 worldOwnerID = pWorldLock ? pWorldLock->ownerID : 0;
+    if(worldOwnerID == 0 || worldOwnerID == (int32)pTarget->GetUserID()) {
+        return false;
+    }
+
+    if(!pWorldLock->HasAccess((int32)pInvoker->GetUserID()) && worldOwnerID != (int32)pInvoker->GetUserID()) {
+        return false;
+    }
+
+    if(pWorldLock->HasAccess((int32)pTarget->GetUserID())) {
+        return false;
+    }
+
+    return true;
+}
+
+void World::PullPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
+{
+    if(!pTarget || !pInvoker) {
+        return;
+    }
+
+    const Vector2Float invokerPos = pInvoker->GetWorldPos();
+    pTarget->SetWorldPos(invokerPos.x, invokerPos.y);
+    pTarget->SetRespawnPos(invokerPos.x, invokerPos.y);
+    pTarget->SendPositionToWorldPlayers();
+    pTarget->SendOnTextOverlay("You were pulled by " + pInvoker->GetDisplayName());
+
+    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `5pulls `w" + pTarget->GetDisplayName() + "`o!");
+    for(GamePlayer* pWorldPlayer : m_players) {
+        if(pWorldPlayer) {
+            pWorldPlayer->SendOnPlayPositioned("audio/object_spawn.wav", pTarget);
+        }
+    }
+}
+
+void World::KickPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
+{
+    if(!pTarget || !pInvoker) {
+        return;
+    }
+
+    pTarget->SendOnConsoleMessage("`4You were kicked by ``" + pInvoker->GetDisplayName() + "``.");
+    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `4kicks `w" + pTarget->GetDisplayName() + "`o!");
+    ForceLeavePlayer(pTarget);
+}
+
+void World::ForceLeavePlayer(GamePlayer* pTarget)
+{
+    if(!pTarget) {
+        return;
+    }
+
+    PlayerLeaverWorld(pTarget);
+    pTarget->SendOnRequestWorldSelectMenu("");
+}
+
 bool World::CanPlace(GamePlayer* pPlayer, TileInfo* pTile)
 {
     if(!pPlayer || !pTile) {
@@ -1557,14 +1809,6 @@ void World::BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurat
     // Add to banned players list
     AddBannedPlayer(banCtx);
 
-    // Broadcast ban message to all players in world
-    string banMessage = "`4[World Ban] `w" + pTarget->GetDisplayName() +
-        " `4was banned from `w" + GetWorlName() +
-        " `4by `w" + pInvoker->GetDisplayName() + "`4!";
-    
-    SendConsoleMessageToAll(banMessage);
-    PlaySFXForEveryone("audio/forceequip.wav", 0);
-
-    // Kick the banned player from the world
-    pTarget->LogOff();
+    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `4world bans `w" + pTarget->GetDisplayName() + " `ofrom `w" + GetWorlName() + "`o!");
+    PlaySFXForEveryone("audio/repair.wav", 0);
 }

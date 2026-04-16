@@ -88,6 +88,16 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
             pChemsynth->targetColor = ChemsynthColor::NONE;
         }
 
+        if(TileExtra_Lab* pLab = GetExtra<TileExtra_Lab>()) {
+            pLab->userID = 0;
+            pLab->achievementID = 0;
+        }
+
+        if(TileExtra_HeartMonitor* pHeartMonitor = GetExtra<TileExtra_HeartMonitor>()) {
+            pHeartMonitor->userID = 0;
+            pHeartMonitor->playerDisplayName.clear();
+        }
+
         if(TileExtra_Magplant* pMagplant = GetExtra<TileExtra_Magplant>()) {
             if(itemID == ITEM_ID_MAGPLANT_5000) {
                 pMagplant->itemLimit = 5000;

@@ -59,11 +59,15 @@ void Ban::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(filtered.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
+        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
         return;
     }
 
     GamePlayer* pTarget = filtered[0];
+    if(pTarget == pPlayer) {
+        pPlayer->SendOnConsoleMessage("Nope, you can't use that on yourself.");
+        return;
+    }
 
     uint32 banHours = 1;
     if(args.size() >= 3) {
@@ -82,6 +86,12 @@ void Ban::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    if(!pWorld->CanBan(pTarget, pPlayer)) {
+        pPlayer->SendOnConsoleMessage("`4Oops:`` You don't have permission to ban `w" + pTarget->GetRawName() + "!``");
+        return;
+    }
+
     pWorld->BanPlayer(pTarget, pPlayer, banHours);
+    pWorld->ForceLeavePlayer(pTarget);
     pPlayer->SendOnConsoleMessage("`oBanned ``" + pTarget->GetDisplayName() + "`` from this world for `w" + ToString(banHours) + "`` hour(s).");
 }

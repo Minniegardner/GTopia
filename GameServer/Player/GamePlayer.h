@@ -61,9 +61,6 @@ public:
 
     void Update();
 
-    void SetRedirectingSubServer(bool redirecting) { m_redirectingSubServer = redirecting; }
-    bool IsRedirectingSubServer() const { return m_redirectingSubServer; }
-
     void SetJoinWorld(bool joining) { m_joiningWorld = joining; }
     bool IsJoiningWorld() { return m_joiningWorld; }
     
@@ -252,7 +249,6 @@ private:
     uint32 m_guestID;
 
     bool m_loggingOff;
-    bool m_redirectingSubServer;
 
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;

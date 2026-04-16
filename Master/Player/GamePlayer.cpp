@@ -222,5 +222,5 @@ void GamePlayer::SwitchingToGame()
     session.name = m_loginDetail.tankIDName.empty() ? m_loginDetail.requestedName : m_loginDetail.tankIDName;
 
     GetGameServer()->AddPlayerSession(session);
-    SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP, "", "", LoginMode::REDIRECT_LOGIN);
+    SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP);
 }

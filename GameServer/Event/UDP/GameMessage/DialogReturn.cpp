@@ -218,6 +218,29 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
+            auto pStatus = packet.Find(CompileTimeHashString("status"));
+            if(!pStatus) {
+                pStatus = packet.Find(CompileTimeHashString("accepted"));
+            }
+
+            if(pStatus) {
+                string statusStr(pStatus->value, pStatus->size);
+                int32 status = 0;
+
+                if(statusStr == "true") {
+                    status = 1;
+                }
+                else if(statusStr == "false") {
+                    status = 0;
+                }
+                else if(ToInt(statusStr, status) != TO_INT_SUCCESS) {
+                    return;
+                }
+
+                pPlayer->AcceptOffer(status > 0);
+                break;
+            }
+
             auto pItemID = packet.Find(CompileTimeHashString("ItemID"));
             if(!pItemID) {
                 pItemID = packet.Find(CompileTimeHashString("itemID"));

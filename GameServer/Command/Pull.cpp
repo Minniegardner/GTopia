@@ -1,6 +1,7 @@
 #include "Pull.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../World/WorldManager.h"
 
 const CommandInfo& Pull::GetInfo()
 {
@@ -58,20 +59,27 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(filtered.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
+        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
         return;
     }
 
     GamePlayer* pTarget = filtered[0];
+    if(pTarget == pPlayer) {
+        pPlayer->SendOnConsoleMessage("Nope, you can't use that on yourself.");
+        return;
+    }
 
-    const Vector2Float srcPos = pPlayer->GetWorldPos();
-    const float pullX = std::max(0.0f, srcPos.x + 32.0f);
-    const float pullY = std::max(0.0f, srcPos.y);
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
+    }
 
-    pTarget->SetWorldPos(pullX, pullY);
-    pTarget->SetRespawnPos(pullX, pullY);
-    pTarget->SendPositionToWorldPlayers();
+    if(!pWorld->CanPull(pTarget, pPlayer)) {
+        pPlayer->SendOnConsoleMessage("`4Oops:`` You don't have permission to pull `w" + pTarget->GetRawName() + "!``");
+        return;
+    }
 
+    pWorld->PullPlayer(pTarget, pPlayer);
     pTarget->SendOnConsoleMessage("`oPulled by ``" + pPlayer->GetDisplayName() + "``.");
     pPlayer->SendOnConsoleMessage("`oPulled ``" + pTarget->GetDisplayName() + "``.");
 }

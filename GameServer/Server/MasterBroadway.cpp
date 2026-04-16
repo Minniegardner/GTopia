@@ -154,23 +154,7 @@ void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, const string& worldN
     data[2] = playerNetID;
     data[3] = worldName;
 
-    LOGGER_LOG_INFO("WORLD_JOIN forward to master fromServer=%u playerNetID=%d world=%s", GetContext()->GetID(), playerNetID, worldName.c_str());
     m_pNetClient->Send(data);
-}
-
-bool MasterBroadway::SendPlayerServerSwitch(uint32 userID, uint16 targetServerID)
-{
-    if(!m_connected || !m_pNetClient) {
-        return false;
-    }
-
-    VariantVector data(3);
-    data[0] = TCP_PACKET_PLAYER_SERVER_SWITCH;
-    data[1] = userID;
-    data[2] = (uint32)targetServerID;
-
-    LOGGER_LOG_INFO("PLAYER_SWITCH request userID=%u fromServer=%u toServer=%u", userID, GetContext()->GetID(), targetServerID);
-    return m_pNetClient->Send(data);
 }
 
 void MasterBroadway::SendCrossServerActionRequest(

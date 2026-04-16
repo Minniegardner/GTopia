@@ -1,6 +1,7 @@
 #include "MachineDialog.h"
 
 #include "Item/ItemInfoManager.h"
+#include "Item/LockAlgorithm.h"
 #include "Utils/DialogBuilder.h"
 #include "Utils/StringUtils.h"
 #include "World/TileInfo.h"
@@ -17,6 +18,35 @@ bool ParseIntField(ParsedTextPacket<8>& packet, uint32 key, int32& out)
     }
 
     return ToInt(string(pField->value, pField->size), out) == TO_INT_SUCCESS;
+}
+
+bool ParseBoolField(ParsedTextPacket<8>& packet, uint32 key, bool& out)
+{
+    auto pField = packet.Find(key);
+    if(!pField) {
+        return false;
+    }
+
+    string value(pField->value, pField->size);
+    ToLower(value);
+
+    if(value == "1" || value == "true" || value == "yes" || value == "on") {
+        out = true;
+        return true;
+    }
+
+    if(value == "0" || value == "false" || value == "no" || value == "off") {
+        out = false;
+        return true;
+    }
+
+    int32 numericValue = 0;
+    if(ToInt(value, numericValue) == TO_INT_SUCCESS) {
+        out = numericValue != 0;
+        return true;
+    }
+
+    return false;
 }
 
 bool IsBlockedMachineItem(ItemInfo* pItem)
@@ -100,6 +130,10 @@ bool IsCompatibleVendItem(ItemInfo* pItem)
     }
 
     if(pItem->HasFlag(ITEM_FLAG_UNTRADEABLE) || pItem->HasFlag(ITEM_FLAG_DROPLESS)) {
+        return false;
+    }
+
+    if(pItem->id == ITEM_ID_WORLD_KEY || pItem->type == ITEM_TYPE_LOCK || IsWorldLock(pItem->id)) {
         return false;
     }
 
@@ -495,6 +529,13 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     string dialogName(pDialogName->value, pDialogName->size);
 
+    int32 tileItemID = 0;
+    if(ParseIntField(packet, CompileTimeHashString("TileItemID"), tileItemID)) {
+        if(tileItemID <= 0 || tileItemID > UINT16_MAX || pTile->GetDisplayedItem() != (uint16)tileItemID) {
+            return;
+        }
+    }
+
     if(dialogName == "VendEdit" && !ownerAccess) {
         TileExtra_Vending* pData = pTile->GetExtra<TileExtra_Vending>();
         if(!pData) {
@@ -677,7 +718,11 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         int32 selectedItemInt = -1;
-        if(ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
+        if(!ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
+            ParseIntField(packet, CompileTimeHashString("SelectedItem"), selectedItemInt);
+        }
+
+        if(selectedItemInt >= 0) {
             if(selectedItemInt >= 0 && selectedItemInt <= UINT16_MAX) {
                 ItemInfo* pSelectedItem = GetItemInfoManager()->GetItemByID((uint16)selectedItemInt);
                 if(!IsCompatibleVendItem(pSelectedItem)) {
@@ -728,17 +773,24 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         if(buttonClicked == "TakeStock") {
             if(pData->itemID != ITEM_ID_BLANK && pData->stock > 0) {
-                if(!pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)std::min<int32>(pData->stock, 200))) {
+                const int32 freeSpace = std::max<int32>(0, 200 - pPlayer->GetInventory().GetCountOfItem(pData->itemID));
+                int32 takeAmount = std::min<int32>(pData->stock, freeSpace);
+
+                if(takeAmount < 1 || !pPlayer->GetInventory().HaveRoomForItem(pData->itemID, (uint8)takeAmount)) {
                     pPlayer->SendOnTalkBubble("That won't fit into your inventory", true);
                     return;
                 }
 
-                pPlayer->ModifyInventoryItem(pData->itemID, (int16)pData->stock);
+                pPlayer->ModifyInventoryItem(pData->itemID, (int16)takeAmount);
+                pData->stock -= takeAmount;
             }
 
-            pData->itemID = ITEM_ID_BLANK;
-            pData->stock = 0;
-            pData->price = 0;
+            if(pData->stock < 1) {
+                pData->itemID = ITEM_ID_BLANK;
+                pData->stock = 0;
+                pData->price = 0;
+            }
+
             EmitMachineUpdateEffects(pWorld, pTile);
             pWorld->SendTileUpdate(pTile);
             return;
@@ -752,28 +804,26 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         int32 price = 0;
         int32 addStock = 0;
 
-        if(!ParseIntField(packet, CompileTimeHashString("VendItemID"), itemID)) {
-            itemID = pData->itemID;
-        }
+        ParseIntField(packet, CompileTimeHashString("VendItemID"), itemID);
 
         if(!ParseIntField(packet, CompileTimeHashString("VendPrice"), price)) {
+            ParseIntField(packet, CompileTimeHashString("SetPrice"), price);
+        }
+
+        if(price == 0) {
             price = 0;
         }
 
         ParseIntField(packet, CompileTimeHashString("VendAddStock"), addStock);
 
-        auto pPerWL = packet.Find(CompileTimeHashString("PerWL"));
-        if(pPerWL) {
-            int32 value = 0;
-            if(ToInt(string(pPerWL->value, pPerWL->size), value) == TO_INT_SUCCESS && value == 1) {
-                price = -std::abs(price);
-            }
-            else {
-                price = std::abs(price);
-            }
-        }
-        else {
-            price = std::abs(price);
+        bool perItem = false;
+        bool perWL = false;
+        const bool hasPerItem = ParseBoolField(packet, CompileTimeHashString("PerItem"), perItem);
+        const bool hasPerWL = ParseBoolField(packet, CompileTimeHashString("PerWL"), perWL);
+
+        if(!hasPerItem && !hasPerWL) {
+            perItem = true;
+            perWL = false;
         }
 
         if(itemID < 0 || itemID > UINT16_MAX) {
@@ -787,7 +837,20 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         pData->itemID = (uint16)itemID;
-        pData->price = std::max(-200, std::min(200, price));
+
+        const int32 clampedPriceAbs = std::min(200, std::abs(price));
+        bool disabledVend = false;
+
+        if(clampedPriceAbs < 1 || perItem == perWL) {
+            pData->price = 0;
+            disabledVend = true;
+        }
+        else if(perWL) {
+            pData->price = -clampedPriceAbs;
+        }
+        else {
+            pData->price = clampedPriceAbs;
+        }
 
         if(addStock > 0 && pData->itemID != ITEM_ID_BLANK) {
             const uint8 owned = pPlayer->GetInventory().GetCountOfItem(pData->itemID);
@@ -800,6 +863,21 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         if(pData->itemID == ITEM_ID_BLANK || pData->stock <= 0) {
             pData->price = 0;
+        }
+
+        if(pData->itemID != ITEM_ID_BLANK) {
+            ItemInfo* pChangedItem = GetItemInfoManager()->GetItemByID(pData->itemID);
+            const string changedName = pChangedItem ? pChangedItem->name : "item";
+
+            if(pData->price == 0 || disabledVend) {
+                pWorld->SendConsoleMessageToAll("`7[``" + pPlayer->GetRawName() + "`2 disabled the vending machine.```7]``");
+            }
+            else if(pData->price < 0) {
+                pWorld->SendConsoleMessageToAll("`7[``" + pPlayer->GetRawName() + "`2 changed the price of `2" + changedName + "`` to `6" + ToString(std::abs(pData->price)) + " per World Lock.```7]``");
+            }
+            else {
+                pWorld->SendConsoleMessageToAll("`7[``" + pPlayer->GetRawName() + "`2 changed the price of `2" + changedName + "`` to `5" + ToString(pData->price) + " World Locks each.```7]``");
+            }
         }
 
         EmitMachineUpdateEffects(pWorld, pTile);
@@ -846,7 +924,11 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         int32 selectedItemInt = -1;
-        if(ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
+        if(!ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemInt)) {
+            ParseIntField(packet, CompileTimeHashString("SelectedItem"), selectedItemInt);
+        }
+
+        if(selectedItemInt >= 0) {
             if(selectedItemInt >= 0 && selectedItemInt <= UINT16_MAX) {
                 ItemInfo* pSelectedItem = GetItemInfoManager()->GetItemByID((uint16)selectedItemInt);
                 if(!IsCompatibleMagplantItem(pTile->GetDisplayedItem(), pSelectedItem)) {

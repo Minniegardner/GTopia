@@ -52,6 +52,12 @@ public:
 
     bool IsPlayerWorldOwner(GamePlayer* pPlayer);
     bool IsPlayerWorldAdmin(GamePlayer* pPlayer);
+    bool CanPull(GamePlayer* pTarget, GamePlayer* pInvoker);
+    bool CanKick(GamePlayer* pTarget, GamePlayer* pInvoker);
+    bool CanBan(GamePlayer* pTarget, GamePlayer* pInvoker);
+    void PullPlayer(GamePlayer* pTarget, GamePlayer* pInvoker);
+    void KickPlayer(GamePlayer* pTarget, GamePlayer* pInvoker);
+    void ForceLeavePlayer(GamePlayer* pTarget);
 
     bool CanPlace(GamePlayer* pPlayer, TileInfo* pTile);
     bool CanBreak(GamePlayer* pPlayer, TileInfo* pTile);

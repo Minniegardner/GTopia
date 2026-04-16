@@ -1,7 +1,7 @@
 #include "Kick.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
-#include "../Server/MasterBroadway.h"
+#include "../World/WorldManager.h"
 
 const CommandInfo& Kick::GetInfo()
 {
@@ -35,21 +35,23 @@ void Kick::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    if(pPlayer->GetCurrentWorld() == 0) {
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
+    }
+
+    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, true, pPlayer->GetCurrentWorld());
     if(matches.empty()) {
-        GetMasterBroadway()->SendCrossServerActionRequest(
-            TCP_CROSS_ACTION_KICK,
-            pPlayer->GetUserID(),
-            pPlayer->GetRawName(),
-            query,
-            false,
-            "",
-            0);
+        pPlayer->SendOnConsoleMessage("`4Oops:`` There is nobody currently in this server with a name starting with `w" + query + "``.");
         return;
     }
 
     if(matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
+        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
         return;
     }
 
@@ -59,7 +61,11 @@ void Kick::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    pTarget->SendOnConsoleMessage("`4You were kicked by ``" + pPlayer->GetDisplayName() + "``.");
+    if(!pWorld->CanKick(pTarget, pPlayer)) {
+        pPlayer->SendOnConsoleMessage("`4Oops:`` You don't have permission to kick `w" + pTarget->GetRawName() + "!``");
+        return;
+    }
+
+    pWorld->KickPlayer(pTarget, pPlayer);
     pPlayer->SendOnConsoleMessage("`oKicked ``" + pTarget->GetDisplayName() + "``.");
-    pTarget->LogOff();
 }

@@ -44,6 +44,7 @@ public:
     bool HaveRoomForItem(uint16 itemID, uint8 itemCount);
 
     uint8 GetCountOfItem(uint16 itemID);
+    const std::vector<InventoryItemInfo>& GetItems() const { return m_items; }
     uint32 GetCapacity() const { return m_capacity; }
     uint32 GetItemTypesCount() const { return (uint32)m_items.size(); }
     void IncreaseCapacity(uint32 amount);

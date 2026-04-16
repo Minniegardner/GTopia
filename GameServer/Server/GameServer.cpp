@@ -81,6 +81,13 @@ string GetDailyEventName(uint32 eventType)
 #include "../Command/Suspend.h"
 #include "../Command/GrowIDCmd.h"
 #include "../Command/SuperBroadcast.h"
+#include "../Command/Weather.h"
+#include "../Command/Effect.h"
+#include "../Command/SetGems.h"
+#include "../Command/PInfo.h"
+#include "../Command/InvSee.h"
+#include "../Command/ItemInfo.h"
+#include "../Command/ReplaceBlocks.h"
 #include "../World/WorldManager.h"
 
 GameServer::GameServer()
@@ -197,19 +204,11 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
     }
 
     GamePlayer* pPlayer = (GamePlayer*)event.peer->data;
-    if(!pPlayer) {
-        return;
-    }
-
     if(event.peer != pPlayer->GetPeer()) {
         return;
     }
 
-    LOGGER_LOG_INFO("PLAYER_DISCONNECT userID=%u netID=%d serverID=%u redirected=%d", pPlayer->GetUserID(), pPlayer->GetNetID(), GetContext()->GetID(), pPlayer->IsRedirectingSubServer() ? 1 : 0);
-
-    if(!pPlayer->IsRedirectingSubServer()) {
-        pPlayer->LogOff();
-    }
+    pPlayer->LogOff();
     
     auto it = m_playerCache.find(pPlayer->GetNetID());
     if(it != m_playerCache.end()) {
@@ -274,6 +273,13 @@ void GameServer::RegisterEvents()
     RegisterCommand<Suspend>();
     RegisterCommand<GrowIDCmd>();
     RegisterCommand<SuperBroadcast>();
+    RegisterCommand<Weather>();
+    RegisterCommand<Effect>();
+    RegisterCommand<SetGems>();
+    RegisterCommand<PInfo>();
+    RegisterCommand<InvSee>();
+    RegisterCommand<ItemInfoCmd>();
+    RegisterCommand<ReplaceBlocks>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)

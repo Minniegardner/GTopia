@@ -36,7 +36,6 @@ set(MASTER_FILES PRIVATE
     ${MASTER_EVENT}/TCP/TCPEventHello.cpp
     ${MASTER_EVENT}/TCP/TCPEventAuth.cpp
     ${MASTER_EVENT}/TCP/TCPEventPlayerSession.cpp
-    ${MASTER_EVENT}/TCP/TCPEventPlayerServerSwitch.cpp
     ${MASTER_EVENT}/TCP/TCPEventWorldInit.cpp
     ${MASTER_EVENT}/TCP/TCPEventRenderWorld.cpp
     ${MASTER_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
