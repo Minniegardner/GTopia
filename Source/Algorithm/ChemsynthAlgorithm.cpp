@@ -2,7 +2,7 @@
 
 #include "../Item/ItemInfoManager.h"
 #include "../World/TileInfo.h"
-#include "../World/World.h"
+#include "../../GameServer/World/World.h"
 #include "../World/WorldTileManager.h"
 #include "../Utils/Timer.h"
 #include "../Math/Random.h"

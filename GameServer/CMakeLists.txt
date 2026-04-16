@@ -28,6 +28,7 @@ set(GAME_WORLD "${GAME_ROOT}/World")
 set(GAME_COMMAND "${GAME_ROOT}/Command")
 set(GAME_DIALOG "${GAME_PLAYER}/Dialog")
 set(GAME_STORE "${GAME_ROOT}/Store")
+set(GAME_PRIZE "${GAME_ROOT}/Prize")
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
@@ -144,6 +145,8 @@ set(GAME_FILES PRIVATE
     ${GAME_DIALOG}/RegisterDialog.cpp
 
     ${GAME_STORE}/StoreCatalog.cpp
+
+    ${GAME_PRIZE}/PrizeManager.cpp
 
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp

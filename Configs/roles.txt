@@ -36,7 +36,7 @@ add_role|Moderator|2|@||
 set_name_color|#|
 set_chat_color|1|
 set_inherits|3|
-set_perms|mstate|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
+set_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_toggleplaymod|command_kick|command_pull|command_mod|command_ban|command_randompull|command_warn|command_warpto|
 
 add_role|Default|3|||
 set_name_color|w|

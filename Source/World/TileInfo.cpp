@@ -3,6 +3,7 @@
 #include "../IO/Log.h"
 #include "WorldTileManager.h"
 #include "WorldInfo.h"
+#include "Utils/Timer.h"
 
 TileInfo::TileInfo()
 : m_pExtraData(nullptr), m_fg(0), m_bg(0), m_parent(0), m_flags(0), m_damage(0)
@@ -111,6 +112,10 @@ void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
                 pMagplant->itemLimit = 1500;
                 pMagplant->remote = false;
             }
+        }
+
+        if(TileExtra_Provider* pProvider = GetExtra<TileExtra_Provider>()) {
+            pProvider->readyTime = (uint32)Time::GetSystemTime();
         }
     }
 

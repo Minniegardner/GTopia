@@ -12,8 +12,148 @@
 #include "../../../Player/GamePlayer.h"
 #include "../../../Server/GameServer.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
+#include "../../../World/WorldManager.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
+#include "Utils/DialogBuilder.h"
+#include "Item/ItemInfoManager.h"
+
+namespace {
+
+constexpr uint16 kTelephoneItemID = 3898;
+constexpr const char* kDailyQuestClaimDayStat = "DailyQuestClaimDay";
+
+string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
+{
+    return string(prefix) + "_" + ToString(epochDay) + "_" + ToString(itemID);
+}
+
+string GetItemNameSafe(uint32 itemID)
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    if(!pItem) {
+        return "Item #" + ToString(itemID);
+    }
+
+    return pItem->name;
+}
+
+void ShowTelephoneMainMenu(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wCrazy Jim's Quest Emporium``", kTelephoneItemID, true, true)
+        ->AddLabel("HEEEEYYY there Growtopian! I'm Crazy Jim, and my quests are so crazy they're KERRRRAAAAZZY!!")
+        ->AddSpacer()
+        ->AddButton("GotoCrazyJimDailyQuest", "Daily Quest")
+        ->EndDialog("TelephoneEdit", "", "Hang Up");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowTelephoneQuestDialog(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    const uint32 currentEpochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
+    if(pPlayer->GetCustomStatValue(kDailyQuestClaimDayStat) == currentEpochDay) {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wCrazy Jim's Quest Emporium``", kTelephoneItemID, true, true)
+            ->AddLabel("You've already completed my Daily Quest for today! Call me back after midnight to hear about my next cravings.")
+            ->AddButton("GotoCrazyJimMainMenu", "Back")
+            ->EndDialog("TelephoneEdit", "", "Hang Up");
+
+        pPlayer->SendOnDialogRequest(db.Get());
+        return;
+    }
+
+    const TCPDailyQuestData& dq = GetMasterBroadway()->GetDailyQuestData();
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wCrazy Jim's Quest Emporium``", kTelephoneItemID, true, true)
+        ->AddLabel("I guess some people call me Crazy Jim because I'm a bit of a hoarder. But I'm very particular about what I want! And today, what I want is this:")
+        ->AddSpacer()
+        ->AddLabelWithIcon("`2" + ToString(dq.questItemOneAmount) + " " + GetItemNameSafe(dq.questItemOneID) + "``", (uint16)dq.questItemOneID)
+        ->AddLabel("and", true)
+        ->AddLabelWithIcon("`2" + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + "``", (uint16)dq.questItemTwoID)
+        ->AddSpacer()
+        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the rewards from my personal collection! But hurry, this offer is only good until midnight, and only one turn-in per person!")
+        ->AddSpacer();
+
+    const uint64 countOne = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID);
+    const uint64 countTwo = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID);
+    db.AddLabel("You have " + ToString(countOne) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(countTwo) + " " + GetItemNameSafe(dq.questItemTwoID) + ".");
+
+    const uint64 collectOne = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_COLLECT", currentEpochDay, (uint16)dq.questItemOneID));
+    const uint64 collectTwo = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_COLLECT", currentEpochDay, (uint16)dq.questItemTwoID));
+    const uint64 breakOne = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_BREAK", currentEpochDay, (uint16)dq.questItemOneID));
+    const uint64 breakTwo = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_BREAK", currentEpochDay, (uint16)dq.questItemTwoID));
+    db.AddLabel("Today's tracked progress: collect " + ToString(collectOne) + "/" + ToString(dq.questItemOneAmount) + " + " + ToString(collectTwo) + "/" + ToString(dq.questItemTwoAmount) + ", break " + ToString(breakOne) + " + " + ToString(breakTwo) + ".");
+
+    if(countOne >= dq.questItemOneAmount && countTwo >= dq.questItemTwoAmount) {
+        db.AddButton("GotoCrazyJimTurnInDailyQuest", "`2Turn in quest items");
+    }
+
+    db.AddButton("GotoCrazyJimMainMenu", "Back")
+        ->EndDialog("TelephoneEdit", "", "Hang Up");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void TurnInTelephoneQuest(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    const uint32 currentEpochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
+    if(pPlayer->GetCustomStatValue(kDailyQuestClaimDayStat) == currentEpochDay) {
+        pPlayer->SendOnTalkBubble("You've already completed my Daily Quest for today!", true);
+        return;
+    }
+
+    const TCPDailyQuestData& dq = GetMasterBroadway()->GetDailyQuestData();
+    const uint64 haveOne = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID);
+    const uint64 haveTwo = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID);
+    if(haveOne < dq.questItemOneAmount || haveTwo < dq.questItemTwoAmount) {
+        pPlayer->SendOnTalkBubble("I don't have enough items to turn it in!", true);
+        return;
+    }
+
+    const uint64 growtokenCount = pPlayer->GetInventory().GetCountOfItem(ITEM_ID_GROWTOKEN);
+    if(growtokenCount >= 200) {
+        pPlayer->ModifyInventoryItem(ITEM_ID_GROWTOKEN, -(int16)growtokenCount);
+        pPlayer->ModifyInventoryItem(ITEM_ID_MEGA_GROWTOKEN, 1);
+    }
+
+    if(!pPlayer->GetInventory().HaveRoomForItem(ITEM_ID_GROWTOKEN, 1)) {
+        pPlayer->SendOnTalkBubble("This seems far-fetched, but you've already reached the maximum amount of Growtokens.", true);
+        return;
+    }
+
+    pPlayer->ModifyInventoryItem((uint16)dq.questItemOneID, -(int16)dq.questItemOneAmount);
+    pPlayer->ModifyInventoryItem((uint16)dq.questItemTwoID, -(int16)dq.questItemTwoAmount);
+    pPlayer->ModifyInventoryItem(ITEM_ID_GROWTOKEN, 1);
+    pPlayer->SetCustomStatValue(kDailyQuestClaimDayStat, currentEpochDay);
+
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(pWorld) {
+        pWorld->SendParticleEffectToAll(pPlayer->GetWorldPos().x + 12.0f, pPlayer->GetWorldPos().y + 15.0f, 198);
+        pWorld->PlaySFXForEveryone("audio/piano_nice.wav", 0);
+    }
+
+    pPlayer->SendOnTalkBubble("`wThanks, pardner! Have 1 `2Growtoken`w!", true);
+    pPlayer->SendOnConsoleMessage("[`6You jammed " + ToString(dq.questItemOneAmount) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + " into the phone, and 1 `2Growtoken`` popped out!``]");
+}
+
+}
 
 void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
@@ -397,6 +537,28 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("render_reply"): {
             RenderWorldDialog::Handle(pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("TelephoneEdit"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            auto pNumber = packet.Find(CompileTimeHashString("Number"));
+
+            string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+            int32 number = 0;
+            if(pNumber) {
+                ToInt(string(pNumber->value, pNumber->size), number);
+            }
+
+            if(buttonClicked == "GotoCrazyJimMainMenu" || number == 12345) {
+                ShowTelephoneMainMenu(pPlayer);
+            }
+            else if(buttonClicked == "GotoCrazyJimDailyQuest") {
+                ShowTelephoneQuestDialog(pPlayer);
+            }
+            else if(buttonClicked == "GotoCrazyJimTurnInDailyQuest") {
+                TurnInTelephoneQuest(pPlayer);
+            }
             break;
         }
 

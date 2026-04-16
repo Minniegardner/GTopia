@@ -1407,6 +1407,25 @@ uint64 GamePlayer::GetStatCount(const std::string& statName) const
     return it->second;
 }
 
+uint64 GamePlayer::GetCustomStatValue(const std::string& statName) const
+{
+    return GetStatCount(statName);
+}
+
+void GamePlayer::SetCustomStatValue(const std::string& statName, uint64 value)
+{
+    if(statName.empty()) {
+        return;
+    }
+
+    if(value == 0) {
+        m_stats.erase(statName);
+        return;
+    }
+
+    m_stats[statName] = value;
+}
+
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0),
 m_loggingOff(false), m_gems(0), m_lastObjectCollectTime(0), m_lastCollectFailCheckTime(0), m_magplantPos({ -1, -1 })

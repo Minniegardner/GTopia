@@ -3,9 +3,34 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Utils/Timer.h"
+#include "Server/MasterBroadway.h"
 #include "../../../World/WorldPathfinding.h"
 #include "World/World.h"
 #include "World/TileInfo.h"
+
+namespace {
+
+string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
+{
+    return string(prefix) + "_" + ToString(epochDay) + "_" + ToString(itemID);
+}
+
+void TrackDailyQuestCollectProgress(GamePlayer* pPlayer, uint16 itemID, uint64 amount)
+{
+    if(!pPlayer || amount == 0) {
+        return;
+    }
+
+    const TCPDailyQuestData& dq = GetMasterBroadway()->GetDailyQuestData();
+    if(itemID != dq.questItemOneID && itemID != dq.questItemTwoID) {
+        return;
+    }
+
+    const uint32 epochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
+    pPlayer->IncreaseStat(BuildDailyQuestStatKey("DQ_COLLECT", epochDay, itemID), amount);
+}
+
+}
 
 void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket)
 {
@@ -139,6 +164,7 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     pWorld->SendGamePacketToAll(&pickupAnim);
 
     pPlayer->ModifyInventoryItem(pObject->itemID, (int16)collected);
+    TrackDailyQuestCollectProgress(pPlayer, pObject->itemID, collected);
 
     if(pObject->itemID == ITEM_ID_COMET_DUST && collected > 0) {
         pPlayer->GiveAchievement("Sparkly Dust (Classic)");

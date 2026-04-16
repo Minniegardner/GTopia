@@ -66,6 +66,42 @@ enum eTCPDailyEventType
     TCP_DAILY_EVENT_ROLE_STAR_CAPTAIN
 };
 
+struct TCPDailyQuestData
+{
+    uint32 questItemOneID = 0;
+    uint32 questItemTwoID = 0;
+    uint32 questItemOneAmount = 0;
+    uint32 questItemTwoAmount = 0;
+    uint32 rewardOneID = 0;
+    uint32 rewardOneAmount = 0;
+    uint32 rewardTwoID = 0;
+    uint32 rewardTwoAmount = 0;
+};
+
+struct TCPWeeklyEventsData
+{
+    uint32 roleQuestFarmerDay = 0;
+    uint32 roleQuestBuilderDay = 0;
+    uint32 roleQuestSurgeonDay = 0;
+    uint32 roleQuestFishingDay = 0;
+    uint32 roleQuestChefDay = 0;
+    uint32 roleQuestCaptainDay = 0;
+};
+
+struct TCPMonthlyEventsData
+{
+    uint32 lockeDayOne = 0;
+    uint32 lockeDayTwo = 0;
+    uint32 carnivalDayOne = 0;
+    uint32 carnivalDayTwo = 0;
+    uint32 surgeryDay = 0;
+    uint32 allHowlsEveDay = 0;
+    uint32 geigerDay = 0;
+    uint32 ghostDay = 0;
+    uint32 mutantKitchenDay = 0;
+    uint32 voucherDayz = 0;
+};
+
 enum eMessagePacketType 
 {
     NET_MESSAGE_UNKNOWN,

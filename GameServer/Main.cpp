@@ -12,6 +12,7 @@
 #include "World/WorldManager.h"
 #include "Player/RoleManager.h"
 #include "Player/PlayModManager.h"
+#include "Prize/PrizeManager.h"
 
 bool firstCallShutdown = false;
 
@@ -293,6 +294,11 @@ int main(int argc, char const* argv[])
     }
 
     if(!LoadItemData()) {
+        return 0;
+    }
+
+    if(!GetPrizeManager()->Init()) {
+        LOGGER_LOG_ERROR("Failed to initialize PrizeManager");
         return 0;
     }
 

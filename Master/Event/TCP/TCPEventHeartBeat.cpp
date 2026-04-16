@@ -41,12 +41,42 @@ void TCPEventHeartBeat::Execute(NetClient* pClient, VariantVector& data)
 		pClientInfo->lastHeartbeatTime.Reset();
 	}
 
-	VariantVector response(5);
+	VariantVector response(29);
 	response[0] = TCP_PACKET_HEARTBEAT;
 	response[1] = GetServerManager()->GetTotalOnlineCount();
 	response[2] = GetServerManager()->GetDailyEpochDay();
 	response[3] = GetServerManager()->GetDailyEventType();
 	response[4] = GetServerManager()->GetDailyEventSeed();
+
+	const TCPDailyQuestData& dailyQuest = GetServerManager()->GetDailyQuestData();
+	response[5] = dailyQuest.questItemOneID;
+	response[6] = dailyQuest.questItemTwoID;
+	response[7] = dailyQuest.questItemOneAmount;
+	response[8] = dailyQuest.questItemTwoAmount;
+	response[9] = dailyQuest.rewardOneID;
+	response[10] = dailyQuest.rewardOneAmount;
+	response[11] = dailyQuest.rewardTwoID;
+	response[12] = dailyQuest.rewardTwoAmount;
+
+	const TCPWeeklyEventsData& weekly = GetServerManager()->GetWeeklyEventsData();
+	response[13] = weekly.roleQuestFarmerDay;
+	response[14] = weekly.roleQuestBuilderDay;
+	response[15] = weekly.roleQuestSurgeonDay;
+	response[16] = weekly.roleQuestFishingDay;
+	response[17] = weekly.roleQuestChefDay;
+	response[18] = weekly.roleQuestCaptainDay;
+
+	const TCPMonthlyEventsData& monthly = GetServerManager()->GetMonthlyEventsData();
+	response[19] = monthly.lockeDayOne;
+	response[20] = monthly.lockeDayTwo;
+	response[21] = monthly.carnivalDayOne;
+	response[22] = monthly.carnivalDayTwo;
+	response[23] = monthly.surgeryDay;
+	response[24] = monthly.allHowlsEveDay;
+	response[25] = monthly.geigerDay;
+	response[26] = monthly.ghostDay;
+	response[27] = monthly.mutantKitchenDay;
+	response[28] = monthly.voucherDayz;
 
 	pClient->Send(response);
 }

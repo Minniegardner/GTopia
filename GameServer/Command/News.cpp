@@ -2,6 +2,7 @@
 #include "Utils/DialogBuilder.h"
 #include "IO/File.h"
 #include "Item/ItemUtils.h"
+#include "Server/GameServer.h"
 
 const CommandInfo& News::GetInfo()
 {
@@ -33,12 +34,14 @@ void News::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         file.Close();
     }
 
-    if(content.empty()) {
-        return;
+    DialogBuilder db;
+    if(!content.empty()) {
+        db.AddCustomLine(content);
+        db.AddSpacer();
     }
 
-    DialogBuilder db;
-    db.AddCustomLine(content);
+    db.AddLabel("`wDaily and Seasonal Events");
+    db.AddTextBox(GetGameServer()->GetDailyEventStatusLine());
     db.EndDialog("command_news", "", "Close");
     pPlayer->SendOnDialogRequest(db.Get());
 }

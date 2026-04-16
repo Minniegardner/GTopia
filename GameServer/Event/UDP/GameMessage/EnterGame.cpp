@@ -18,14 +18,17 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     pPlayer->SendInventoryPacket();
     pPlayer->SendOnSetBux();
-    pPlayer->SendOnConsoleMessage("Welcome back to `#GTopia``!`o It's going to be a `#BLAST``!");
+    pPlayer->SendOnConsoleMessage("`oWelcome back to `5GTopia`o, " + pPlayer->GetRawName() + ".");
 
     const uint32 onlineFriends = pPlayer->CountOnlineFriends();
     if(onlineFriends > 0) {
-        pPlayer->SendOnConsoleMessage("You have `w" + ToString(onlineFriends) + "`o friend(s) online now.");
+        pPlayer->SendOnConsoleMessage("`oYou currently have `9" + ToString(onlineFriends) + "`o friends online.");
+    }
+    else {
+        pPlayer->SendOnConsoleMessage("`oYou currently have no friends online.");
     }
 
-    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`o online)");
+    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` others online)");
 
     const string dailyEventStatus = GetGameServer()->GetDailyEventStatusLine();
     if(!dailyEventStatus.empty()) {

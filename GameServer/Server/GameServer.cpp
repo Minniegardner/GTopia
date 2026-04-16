@@ -26,6 +26,31 @@ string GetDailyEventName(uint32 eventType)
         default: return "";
     }
 }
+
+string GetItemNameSafe(uint32 itemID)
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+    if(!pItem) {
+        return "Item #" + ToString(itemID);
+    }
+
+    return pItem->name;
+}
+
+string GetWeekdayName(uint32 day)
+{
+    static const char* kNames[] = {
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+    };
+
+    return kNames[day % 7];
+}
 }
 
 #include "../Event/UDP/GameMessage/RefreshItemData.h"
@@ -584,6 +609,9 @@ void GameServer::OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 even
         return;
     }
 
+    const TCPDailyQuestData& quest = GetMasterBroadway()->GetDailyQuestData();
+    const string questLine = "`3Quest: Deliver `w" + ToString(quest.questItemOneAmount) + " " + GetItemNameSafe(quest.questItemOneID) + "`` + `w" + ToString(quest.questItemTwoAmount) + " " + GetItemNameSafe(quest.questItemTwoID) + "``.";
+    const string rewardLine = "`3Rewards: `w" + ToString(quest.rewardOneAmount) + " " + GetItemNameSafe(quest.rewardOneID) + "`` + `w" + ToString(quest.rewardTwoAmount) + " " + GetItemNameSafe(quest.rewardTwoID) + "``.";
     const string msg = "`3Daily event synchronized across subservers: `#" + eventName + "`` (`9day=" + ToString(epochDay) + " seed=" + ToString(eventSeed) + "``)";
     for(auto& [_, pPlayer] : m_playerCache) {
         if(!pPlayer || !pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
@@ -591,6 +619,8 @@ void GameServer::OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 even
         }
 
         pPlayer->SendOnConsoleMessage(msg);
+        pPlayer->SendOnConsoleMessage(questLine);
+        pPlayer->SendOnConsoleMessage(rewardLine);
     }
 }
 
@@ -602,7 +632,21 @@ string GameServer::GetDailyEventStatusLine() const
         return "";
     }
 
-    return "`3Today is `#" + eventName + "``.";
+    const TCPDailyQuestData& quest = GetMasterBroadway()->GetDailyQuestData();
+    const TCPWeeklyEventsData& weekly = GetMasterBroadway()->GetWeeklyEventsData();
+    const TCPMonthlyEventsData& monthly = GetMasterBroadway()->GetMonthlyEventsData();
+
+    string msg = "`3Today is `#" + eventName + "``.";
+
+    if(quest.questItemOneID != 0 || quest.questItemTwoID != 0) {
+        msg += " `oDaily quests: `w" + ToString(quest.questItemOneAmount) + " " + GetItemNameSafe(quest.questItemOneID) + "`` and `w" + ToString(quest.questItemTwoAmount) + " " + GetItemNameSafe(quest.questItemTwoID) + "``.";
+        msg += " `oRewards: `w" + ToString(quest.rewardOneAmount) + " " + GetItemNameSafe(quest.rewardOneID) + "`` + `w" + ToString(quest.rewardTwoAmount) + " " + GetItemNameSafe(quest.rewardTwoID) + "``.";
+    }
+
+    msg += " `oRole quest cycle: Farmer `w" + GetWeekdayName(weekly.roleQuestFarmerDay) + "``, Builder `w" + GetWeekdayName(weekly.roleQuestBuilderDay) + "``.";
+    msg += " `oThis month: Geiger day `w" + ToString(monthly.geigerDay) + "``, Ghost day `w" + ToString(monthly.ghostDay) + "``.";
+
+    return msg;
 }
 
 void GameServer::Kill()

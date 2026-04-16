@@ -227,13 +227,25 @@ void MasterBroadway::SendServerKillPacket()
     m_pNetClient->Send(data);   
 }
 
-bool MasterBroadway::SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed)
+bool MasterBroadway::SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed, const TCPDailyQuestData* pDailyQuest, const TCPWeeklyEventsData* pWeeklyEvents, const TCPMonthlyEventsData* pMonthlyEvents)
 {
     const bool changed = m_dailyEpochDay != epochDay || m_dailyEventType != eventType || m_dailyEventSeed != eventSeed;
 
     m_dailyEpochDay = epochDay;
     m_dailyEventType = eventType;
     m_dailyEventSeed = eventSeed;
+
+    if(pDailyQuest) {
+        m_dailyQuestData = *pDailyQuest;
+    }
+
+    if(pWeeklyEvents) {
+        m_weeklyEventsData = *pWeeklyEvents;
+    }
+
+    if(pMonthlyEvents) {
+        m_monthlyEventsData = *pMonthlyEvents;
+    }
 
     return changed;
 }

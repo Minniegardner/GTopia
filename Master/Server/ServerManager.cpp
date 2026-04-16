@@ -14,6 +14,36 @@ const uint32 kDailyRoleEventTypes[] = {
     TCP_DAILY_EVENT_ROLE_STAR_CAPTAIN
 };
 
+struct DailyQuestTemplate
+{
+    uint32 questItemOneID;
+    uint32 questItemTwoID;
+    uint32 questItemOneAmount;
+    uint32 questItemTwoAmount;
+    uint32 rewardOneID;
+    uint32 rewardOneAmount;
+    uint32 rewardTwoID;
+    uint32 rewardTwoAmount;
+};
+
+const DailyQuestTemplate kDailyQuestTemplates[] = {
+    {2, 4, 20, 10, 112, 1, 7188, 1},
+    {24, 26, 15, 8, 224, 2, 1796, 1},
+    {4584, 4586, 6, 6, 1362, 3, 238, 2},
+    {5666, 5668, 5, 5, 916, 1, 138, 2},
+    {748, 750, 12, 12, 242, 2, 340, 2}
+};
+
+uint32 WrapWeekDay(uint32 day)
+{
+    return day % 7;
+}
+
+uint32 BuildMonthlyEventDay(uint32 seed, uint32 salt)
+{
+    return 1 + ((seed + (salt * 1103515245u)) % 28);
+}
+
 const char* GetDailyEventName(uint32 eventType)
 {
     switch(eventType) {
@@ -498,6 +528,36 @@ void ServerManager::UpdateDailyEventState()
     const size_t eventCount = sizeof(kDailyRoleEventTypes) / sizeof(kDailyRoleEventTypes[0]);
     const uint32 eventIndex = m_dailyEventSeed % (uint32)eventCount;
     m_dailyEventType = kDailyRoleEventTypes[eventIndex];
+
+    const size_t questCount = sizeof(kDailyQuestTemplates) / sizeof(kDailyQuestTemplates[0]);
+    const DailyQuestTemplate& questTemplate = kDailyQuestTemplates[m_dailyEventSeed % (uint32)questCount];
+    m_dailyQuestData.questItemOneID = questTemplate.questItemOneID;
+    m_dailyQuestData.questItemTwoID = questTemplate.questItemTwoID;
+    m_dailyQuestData.questItemOneAmount = questTemplate.questItemOneAmount;
+    m_dailyQuestData.questItemTwoAmount = questTemplate.questItemTwoAmount;
+    m_dailyQuestData.rewardOneID = questTemplate.rewardOneID;
+    m_dailyQuestData.rewardOneAmount = questTemplate.rewardOneAmount;
+    m_dailyQuestData.rewardTwoID = questTemplate.rewardTwoID;
+    m_dailyQuestData.rewardTwoAmount = questTemplate.rewardTwoAmount;
+
+    const uint32 weekAnchor = WrapWeekDay(epochDay);
+    m_weeklyEventsData.roleQuestFarmerDay = WrapWeekDay(weekAnchor + 0);
+    m_weeklyEventsData.roleQuestBuilderDay = WrapWeekDay(weekAnchor + 1);
+    m_weeklyEventsData.roleQuestSurgeonDay = WrapWeekDay(weekAnchor + 2);
+    m_weeklyEventsData.roleQuestFishingDay = WrapWeekDay(weekAnchor + 3);
+    m_weeklyEventsData.roleQuestChefDay = WrapWeekDay(weekAnchor + 4);
+    m_weeklyEventsData.roleQuestCaptainDay = WrapWeekDay(weekAnchor + 5);
+
+    m_monthlyEventsData.lockeDayOne = BuildMonthlyEventDay(m_dailyEventSeed, 1);
+    m_monthlyEventsData.lockeDayTwo = BuildMonthlyEventDay(m_dailyEventSeed, 2);
+    m_monthlyEventsData.carnivalDayOne = BuildMonthlyEventDay(m_dailyEventSeed, 3);
+    m_monthlyEventsData.carnivalDayTwo = BuildMonthlyEventDay(m_dailyEventSeed, 4);
+    m_monthlyEventsData.surgeryDay = BuildMonthlyEventDay(m_dailyEventSeed, 5);
+    m_monthlyEventsData.allHowlsEveDay = BuildMonthlyEventDay(m_dailyEventSeed, 6);
+    m_monthlyEventsData.geigerDay = BuildMonthlyEventDay(m_dailyEventSeed, 7);
+    m_monthlyEventsData.ghostDay = BuildMonthlyEventDay(m_dailyEventSeed, 8);
+    m_monthlyEventsData.mutantKitchenDay = BuildMonthlyEventDay(m_dailyEventSeed, 9);
+    m_monthlyEventsData.voucherDayz = BuildMonthlyEventDay(m_dailyEventSeed, 10);
 
     LOGGER_LOG_INFO("Daily event updated: epoch_day=%u event=%u (%s) seed=%u", m_dailyEpochDay, m_dailyEventType, GetDailyEventName(m_dailyEventType), m_dailyEventSeed);
 }

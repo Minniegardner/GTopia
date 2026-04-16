@@ -1,21 +1,30 @@
 #include "TileChangeRequest.h"
 #include "Item/ItemInfoManager.h"
 #include "Algorithm/ChemsynthAlgorithm.h"
+#include "Prize/PrizeManager.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
+#include "../../../Server/MasterBroadway.h"
 
 namespace {
 
-uint8 GetRarityToGem(int16 rarity)
+uint8 RollRarityGemBonus(int16 rarity)
 {
-    if(rarity >= 87) return 22;
-    if(rarity >= 68) return 18;
-    if(rarity >= 53) return 14;
-    if(rarity >= 41) return 11;
-    if(rarity >= 36) return 10;
-    if(rarity >= 32) return 9;
-    if(rarity >= 24) return 5;
-    return 1;
+    int32 safeRarity = std::max<int32>(0, rarity);
+    if(safeRarity <= 7) {
+        return 0;
+    }
+
+    int32 gemsToGive = ((safeRarity / 4) * 3) / 4;
+    if(safeRarity > 30) {
+        gemsToGive = safeRarity / 4;
+    }
+
+    if(gemsToGive <= 0) {
+        return 0;
+    }
+
+    return (uint8)(rand() % (gemsToGive + 1));
 }
 
 string GetTreeNameFromSeedName(const string& seedName)
@@ -58,6 +67,158 @@ void DropGems(World* pWorld, TileInfo* pTile, uint8 amount)
     gemDrop.itemID = ITEM_ID_GEMS;
     gemDrop.count = amount;
     pWorld->DropObject(pTile, gemDrop, true);
+}
+
+string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
+{
+    return string(prefix) + "_" + ToString(epochDay) + "_" + ToString(itemID);
+}
+
+void TrackDailyQuestBreakProgress(GamePlayer* pPlayer, uint16 itemID, uint64 amount)
+{
+    if(!pPlayer || amount == 0) {
+        return;
+    }
+
+    const TCPDailyQuestData& dq = GetMasterBroadway()->GetDailyQuestData();
+    if(itemID != dq.questItemOneID && itemID != dq.questItemTwoID) {
+        return;
+    }
+
+    const uint32 epochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
+    pPlayer->IncreaseStat(BuildDailyQuestStatKey("DQ_BREAK", epochDay, itemID), amount);
+}
+
+void SpawnPrizeDrop(World* pWorld, TileInfo* pTile, const PrizeDrop& prize)
+{
+    if(!pWorld || !pTile || prize.itemID == ITEM_ID_BLANK || prize.amount == 0) {
+        return;
+    }
+
+    WorldObject obj;
+    obj.itemID = prize.itemID;
+    obj.count = prize.amount;
+    pWorld->DropObject(pTile, obj, true);
+}
+
+bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, ItemInfo* pTileItem)
+{
+    if(!pPlayer || !pWorld || !pTile || !pTileItem || pTileItem->type != ITEM_TYPE_PROVIDER) {
+        return false;
+    }
+
+    TileExtra_Provider* pProvider = pTile->GetExtra<TileExtra_Provider>();
+    if(!pProvider) {
+        return false;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    if(pProvider->readyTime != 0 && nowMS < pProvider->readyTime) {
+        return true;
+    }
+
+    uint32 cooldownSec = pTileItem->growTime;
+    if(cooldownSec == 0) {
+        cooldownSec = 1800;
+    }
+    pProvider->readyTime = (uint32)(nowMS + (uint64)cooldownSec * 1000ull);
+
+    switch(pTileItem->id) {
+        case ITEM_ID_ATM_MACHINE: {
+            int32 gemsToDrop = (rand() % 70) == 0 ? (1 + (rand() % 150)) : (1 + (rand() % 50));
+            DropGems(pWorld, pTile, (uint8)std::min<int32>(255, gemsToDrop));
+            break;
+        }
+
+        case ITEM_ID_AWKWARD_FRIENDLY_UNICORN: {
+            SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetAwkwardUnicornDrop());
+            break;
+        }
+
+        case ITEM_ID_COW:
+        case ITEM_ID_BUFFALO: {
+            WorldObject obj;
+            obj.itemID = ITEM_ID_MILK;
+            obj.count = (uint8)(1 + (rand() % 2));
+            pWorld->DropObject(pTile, obj, true);
+            pPlayer->IncreaseStat("COW_HARVESTED");
+            break;
+        }
+
+        default:
+            return false;
+    }
+
+    const Vector2Int pos = pTile->GetPos();
+    pWorld->SendParticleEffectToAll(pos.x * 32.0f + 12.0f, pos.y * 32.0f + 15.0f, 46);
+    pWorld->SendTileUpdate(pTile);
+    return true;
+}
+
+void SpawnFarmableDrops(World* pWorld, TileInfo* pTile, ItemInfo* pTileItem)
+{
+    if(!pWorld || !pTile || !pTileItem) {
+        return;
+    }
+
+    int32 blockDrop = 0;
+    int32 seedDrop = 0;
+    int32 gemDrop = 0;
+    bool luckyHit = false;
+
+    if(pTileItem->rarity == 999) {
+        return;
+    }
+
+    if((rand() % 2) == 0 || luckyHit) {
+        blockDrop = pTileItem->HasFlag(ITEM_FLAG_SEEDLESS) ? 0 : 1;
+
+        if(!luckyHit) {
+            if((rand() % 7) == 0) {
+                return;
+            }
+
+            if(!pTileItem->HasFlag(ITEM_FLAG_PERMANENT)) {
+                seedDrop = 1;
+            }
+
+            blockDrop = 0;
+        }
+    }
+
+    if(!pTileItem->HasFlag(ITEM_FLAG_SEEDLESS) && !pTileItem->HasFlag(ITEM_FLAG_DROPLESS)) {
+        if((rand() % 20) == 0) {
+            gemDrop = 1;
+        }
+
+        gemDrop += RollRarityGemBonus(pTileItem->rarity);
+
+        if(luckyHit) {
+            if((rand() % 100) >= 90) {
+                gemDrop *= 5;
+            }
+
+            luckyHit = false;
+        }
+    }
+
+    if(seedDrop > 0) {
+        WorldObject seedObj;
+        seedObj.itemID = pTileItem->id + 1;
+        seedObj.count = (uint8)seedDrop;
+        pWorld->DropObject(pTile, seedObj, true);
+    }
+
+    if(blockDrop > 0) {
+        WorldObject blockObj;
+        blockObj.itemID = pTileItem->id;
+        blockObj.count = (uint8)blockDrop;
+        pWorld->DropObject(pTile, blockObj, true);
+    }
+
+    if(gemDrop > 0) {
+        DropGems(pWorld, pTile, (uint8)std::min<int32>(255, gemDrop));
+    }
 }
 
 string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
@@ -335,6 +496,10 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 return;
             }
 
+            if(TryHarvestProvider(pPlayer, pWorld, pTile, pTileItem)) {
+                return;
+            }
+
             uint8 punchDamage = (uint8)pPlayer->GetCharData().GetPunchDamage();
             if(pTileItem->type == ITEM_TYPE_SEED) {
                 TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
@@ -405,6 +570,13 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             }
 
             if(!pTileItem->HasFlag(ITEM_FLAG_DROPLESS)) {
+                if(pTileItem->id == ITEM_ID_GOLDEN_BOOTY_CHEST) {
+                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetGBCDrop(false));
+                }
+                else if(pTileItem->id == ITEM_ID_SUPER_GOLDEN_BOOTY_CHEST) {
+                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetSGBCDrop(false));
+                }
+
                 if(pTileItem->type == ITEM_TYPE_SEED) {
                     uint8 seedCount = (uint8)(1 + (rand() % 2));
                     if(pTile->HasFlag(TILE_FLAG_WILL_SPAWN_SEEDS_TOO)) {
@@ -415,34 +587,29 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                     seedDrop.itemID = pTileItem->id;
                     seedDrop.count = seedCount;
                     pWorld->DropObject(pTile, seedDrop, true);
+
+                    const uint8 treeGemDrop = RollRarityGemBonus(pTileItem->rarity);
+                    if(treeGemDrop > 0) {
+                        DropGems(pWorld, pTile, treeGemDrop);
+                    }
                 }
                 else if(!pTileItem->HasFlag(ITEM_FLAG_SEEDLESS)) {
-                    uint8 rarityToGem = GetRarityToGem(pTileItem->rarity);
-                    bool farmable = rarityToGem > 1;
-
-                    if((rand() % (farmable ? 2 : 5)) == 0) {
-                        DropGems(pWorld, pTile, (uint8)(1 + (rand() % rarityToGem)));
-                    }
-
-                    if((rand() % (farmable ? 3 : 5)) == 0) {
-                        WorldObject seedDrop;
-                        seedDrop.itemID = pTileItem->id + 1;
-                        seedDrop.count = 1;
-                        pWorld->DropObject(pTile, seedDrop, true);
-                    }
-                    else if((rand() % (farmable ? 5 : 9)) == 0) {
-                        WorldObject blockDrop;
-                        blockDrop.itemID = pTileItem->id;
-                        blockDrop.count = 1;
-                        pWorld->DropObject(pTile, blockDrop, true);
-                    }
+                    SpawnFarmableDrops(pWorld, pTile, pTileItem);
                 }
             }
     
             pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());
 
             if(pTileItem->type != ITEM_TYPE_LOCK) {
-                pPlayer->AddXP(1);
+                if(pTileItem->type == ITEM_TYPE_SEED) {
+                    pPlayer->AddXP(1);
+                }
+                else {
+                    const uint32 xp = 1 + (uint32)(std::max<int32>(0, pTileItem->rarity) / 15);
+                    pPlayer->AddXP(xp);
+                }
+
+                TrackDailyQuestBreakProgress(pPlayer, pTileItem->id, 1);
             }
 
             if(pTileItem->type == ITEM_TYPE_SEED) {

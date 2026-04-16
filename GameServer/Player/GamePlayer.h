@@ -180,6 +180,8 @@ public:
     void LoadStatistics(const std::string& data);
     void IncreaseStat(const std::string& statName, uint64 amount = 1);
     uint64 GetStatCount(const std::string& statName) const;
+    uint64 GetCustomStatValue(const std::string& statName) const;
+    void SetCustomStatValue(const std::string& statName, uint64 value);
 
     Role* GetRole() const { return m_pRole; };
     void ToggleCloth(uint16 itemID);

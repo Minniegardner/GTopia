@@ -345,9 +345,9 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
 
         const bool hasAccess = pLockExtra->ownerID == (int32)pPlayer->GetUserID();
         pPlayer->SendOnConsoleMessage(
-            "`5[`w" + GetWorlName() + " World Locked by " + ownerUsername +
-            (hasAccess ? " (ACCESS GRANTED)" : "") +
-            "`5]``"
+            "`5[`w" + GetWorlName() + "`o World Locked by `o" + ownerUsername + "`o" +
+            (hasAccess ? " (`2ACCESS GRANTED`o)" : "") +
+            "`5]"
         );
     }
 

@@ -40,10 +40,13 @@ public:
         m_lastHearthBeatRecvTime.Reset();
     }
 
-    bool SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed);
+    bool SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed, const TCPDailyQuestData* pDailyQuest = nullptr, const TCPWeeklyEventsData* pWeeklyEvents = nullptr, const TCPMonthlyEventsData* pMonthlyEvents = nullptr);
     uint32 GetDailyEpochDay() const { return m_dailyEpochDay; }
     uint32 GetDailyEventType() const { return m_dailyEventType; }
     uint32 GetDailyEventSeed() const { return m_dailyEventSeed; }
+    const TCPDailyQuestData& GetDailyQuestData() const { return m_dailyQuestData; }
+    const TCPWeeklyEventsData& GetWeeklyEventsData() const { return m_weeklyEventsData; }
+    const TCPMonthlyEventsData& GetMonthlyEventsData() const { return m_monthlyEventsData; }
 
 private:
     template<class T>
@@ -63,6 +66,9 @@ private:
     uint32 m_dailyEpochDay = 0;
     uint32 m_dailyEventType = TCP_DAILY_EVENT_NONE;
     uint32 m_dailyEventSeed = 0;
+    TCPDailyQuestData m_dailyQuestData;
+    TCPWeeklyEventsData m_weeklyEventsData;
+    TCPMonthlyEventsData m_monthlyEventsData;
 };
 
 MasterBroadway* GetMasterBroadway();

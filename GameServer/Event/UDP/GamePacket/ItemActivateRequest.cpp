@@ -1,5 +1,6 @@
 #include "ItemActivateRequest.h"
 #include "Item/ItemInfoManager.h"
+#include "Utils/DialogBuilder.h"
 
 bool ConvertItem(uint16 convertThis, uint16 toThis) 
 {
@@ -41,6 +42,17 @@ void ItemActivateRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdate
 
     if(pItem->type == ITEM_TYPE_CLOTHES) {
         pPlayer->ToggleCloth(pPacket->itemID);
+        return;
+    }
+
+    if(pItem->id == ITEM_ID_TELEPHONE) {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wTelephone``", ITEM_ID_TELEPHONE, true, true)
+            ->AddLabel("Dial a number to call somebody in Growtopia. Phone numbers have 5 digits, like 12345 (try it - you'd be crazy not to!). Most numbers are not in service!")
+            ->AddTextInput("Number", "Phone #", "", 5)
+            ->EndDialog("TelephoneEdit", "Dial", "Hang Up");
+        pPlayer->SendOnDialogRequest(db.Get());
         return;
     }
 }

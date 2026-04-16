@@ -8,7 +8,7 @@ const CommandInfo& SetGems::GetInfo()
     {
         "/setgems <name> <new_gems>",
         "Set player's gems",
-        ROLE_PERM_COMMAND_MOD,
+        ROLE_PERM_COMMAND_GIVEITEM,
         {
             CompileTimeHashString("setgems")
         }
