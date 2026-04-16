@@ -1,7 +1,7 @@
 #include "MachineDialog.h"
 
 #include "Item/ItemInfoManager.h"
-#include "Item/LockAlgorithm.h"
+#include "Algorithm/LockAlgorithm.h"
 #include "Utils/DialogBuilder.h"
 #include "Utils/StringUtils.h"
 #include "World/TileInfo.h"
@@ -213,8 +213,6 @@ void ShowVendingPurchaseDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_V
         ->EmbedData("TileItemID", pTile->GetDisplayedItem())
         ->EmbedData("CurrentVendPrice", pData->price)
         ->EmbedData("CurrentVendItemID", pData->itemID)
-        ->EmbedData("TotalItemsGive", totalItemsGive)
-        ->EmbedData("TotalPriceWLS", totalPriceWLS)
         ->EmbedData("BuyCount", buyCount)
         ->EndDialog("VendConfirm", "Confirm", "Cancel");
 
@@ -270,9 +268,7 @@ void ShowVendingDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Vending* 
         ->AddLabelWithIcon("`w" + string(pMachine ? pMachine->name : "Vending Machine") + "``", pMachine ? pMachine->id : ITEM_ID_VENDING_MACHINE, true)
         ->EmbedData("tilex", pTile->GetPos().x)
         ->EmbedData("tiley", pTile->GetPos().y)
-        ->EmbedData("TileItemID", pTile->GetDisplayedItem())
-        ->EmbedData("CurrentVendPrice", pData->price)
-        ->EmbedData("CurrentVendItemID", pData->itemID);
+        ->EmbedData("TileItemID", pTile->GetDisplayedItem());
 
     if(ownerAccess) {
         if(pData->stock < 1) {
@@ -692,15 +688,6 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
-        int32 confirmItemsGive = 0;
-        int32 confirmPriceWLS = 0;
-        ParseIntField(packet, CompileTimeHashString("TotalItemsGive"), confirmItemsGive);
-        ParseIntField(packet, CompileTimeHashString("TotalPriceWLS"), confirmPriceWLS);
-        if(confirmItemsGive != totalItemsGive || confirmPriceWLS != totalPriceWLS) {
-            pPlayer->SendOnTalkBubble("This vending machine has been modified. Please try again.", true);
-            return;
-        }
-
         const int32 totalWorldLocks = GetWorldLockValue(pPlayer);
         if(totalWorldLocks < totalPriceWLS) {
             pPlayer->SendOnTalkBubble("You can't afford that. You are `4" + ToString(totalPriceWLS - totalWorldLocks) + "`` world locks short.", true);
@@ -767,8 +754,8 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     pPlayer->ModifyInventoryItem(pData->itemID, (int16)-owned);
                 }
 
-                pPlayer->SendOnTalkBubble("`7[```" + pPlayer->GetRawName() + "`2 places `2" + string(pSelectedItem->name) + "`` in the Vending Machine.`7]``", true);
-                pWorld->SendConsoleMessageToAll("`7[```" + pPlayer->GetRawName() + "`2 places `2" + string(pSelectedItem->name) + "`` in the Vending Machine.`7]``");
+                pPlayer->SendOnTalkBubble("`7[``" + pPlayer->GetRawName() + "`2 places `2" + string(pSelectedItem->name) + "`` in the Vending Machine.`7]``", true);
+                pWorld->SendConsoleMessageToAll("`7[``" + pPlayer->GetRawName() + "`2 places `2" + string(pSelectedItem->name) + "`` in the Vending Machine.`7]``");
 
                 UpdateVendingMachineTile(pWorld, pTile, true);
                 return;

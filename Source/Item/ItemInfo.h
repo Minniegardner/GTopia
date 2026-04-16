@@ -6,7 +6,7 @@
 #include "../Memory/MemoryBuffer.h"
 #include "ItemUtils.h"
 #include "../Player/PlayMod.h"
-#include "LockAlgorithm.h"
+#include "../Algorithm/LockAlgorithm.h"
 
 struct ItemChairInfo
 {

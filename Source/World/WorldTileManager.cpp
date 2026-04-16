@@ -1,7 +1,7 @@
 #include "WorldTileManager.h"
 #include "../Math/Math.h"
 #include "../Item/ItemInfoManager.h"
-#include "../Item/LockAlgorithm.h"
+#include "../Algorithm/LockAlgorithm.h"
 #include "../Math/Random.h"
 #include "WorldInfo.h"
 
