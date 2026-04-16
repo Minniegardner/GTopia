@@ -105,7 +105,7 @@ void Request(GamePlayer* pPlayer, TileInfo* pTile)
 
     const bool ready = ChemsynthAlgorithm::IsChemsynthReady(pWorld, pProcessorTile);
     const uint32 percent = ChemsynthAlgorithm::GetPercentFinished(pWorld, pProcessorTile);
-    const bool active = pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+    const bool active = pProcessorTile->HasFlag(TILE_FLAG_IS_ON);
 
     DialogBuilder db;
     db.SetDefaultColor('o')
@@ -197,7 +197,7 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
-        if(pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+        if(pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
             pPlayer->SendOnTalkBubble("Chemical synthesis is already running.", true);
             pPlayer->SendOnConsoleMessage("Chemical synthesis is already running.");
             return;

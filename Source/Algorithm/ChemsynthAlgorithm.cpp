@@ -1,12 +1,12 @@
 #include "ChemsynthAlgorithm.h"
 
-#include "Algorithm/ItemInfoManager.h"
-#include "World/TileInfo.h"
-#include "World/World.h"
-#include "World/WorldTileManager.h"
-#include "Utils/Timer.h"
-#include "Math/Random.h"
-#include "Player/GamePlayer.h"
+#include "../Item/ItemInfoManager.h"
+#include "../World/TileInfo.h"
+#include "../World/World.h"
+#include "../World/WorldTileManager.h"
+#include "../Utils/Timer.h"
+#include "../Math/Random.h"
+#include "../Player/GamePlayer.h"
 
 #include <algorithm>
 #include <unordered_map>
@@ -178,7 +178,7 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
         return;
     }
 
-    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON) && !pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
         return;
     }
 
@@ -217,11 +217,6 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
         if(i + 1 < tanks.size()) {
             ++i;
         }
-    }
-
-    if(!foundActive && !tanks.empty()) {
-        SetTankActive(tanks.front(), true);
-        tiles.push_back(tanks.front());
     }
 
     UpdateTiles(pWorld, tiles);
@@ -545,7 +540,7 @@ void StartChemsynth(GamePlayer* pPlayer, World* pWorld, TileInfo* pProcessorTile
         return;
     }
 
-    if(pProcessorTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+    if(pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
         pPlayer->SendOnTalkBubble("Chemical synthesis is already running.", true);
         pPlayer->SendOnConsoleMessage("Chemical synthesis is already running.");
         return;
@@ -572,7 +567,7 @@ void StartChemsynth(GamePlayer* pPlayer, World* pWorld, TileInfo* pProcessorTile
     }
 
     pProcessorTile->SetFlag(TILE_FLAG_IS_ON);
-    pProcessorTile->SetFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+    pProcessorTile->RemoveFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
     tiles.push_back(pProcessorTile);
 
     for(size_t i = 0; i < tanks.size(); ++i) {
@@ -624,7 +619,7 @@ void UpdateWorldChemsynth(World* pWorld)
     for(int32 y = 0; y < size.y; ++y) {
         for(int32 x = 0; x < size.x; ++x) {
             TileInfo* pTile = pTileMgr->GetTile(x, y);
-            if(!pTile || !IsChemsynthProcessorItem(pTile->GetDisplayedItem()) || !pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
+            if(!pTile || !IsChemsynthProcessorItem(pTile->GetDisplayedItem()) || !pTile->HasFlag(TILE_FLAG_IS_ON)) {
                 continue;
             }
 
