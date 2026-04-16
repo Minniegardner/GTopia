@@ -11,6 +11,7 @@
 #include "../../../Player/Dialog/RenderWorldDialog.h"
 #include "../../../Player/GamePlayer.h"
 #include "../../../Server/GameServer.h"
+#include "../../../Server/MasterBroadway.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
 #include "../../../World/WorldManager.h"
 #include "Utils/StringUtils.h"
