@@ -1,0 +1,318 @@
+#include "TileExtra.h"
+#include "TileInfo.h"
+#include "Item/ItemUtils.h"
+#include "Utils/Timer.h"
+
+namespace {
+
+bool IsMagplantFamily(uint16 itemID)
+{
+    return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
+}
+
+bool IsChemsynthTank(uint16 itemID, uint8 itemType)
+{
+    return itemID == ITEM_ID_CHEMSYNTH_TANK || itemType == ITEM_TYPE_CHEMTANK;
+}
+
+}
+
+uint8 GetTileExtraType(uint8 itemType)
+{
+    switch(itemType) {
+        case ITEM_TYPE_USER_DOOR: case ITEM_TYPE_DOOR:
+        case ITEM_TYPE_PORTAL: case ITEM_TYPE_SUNGATE:
+            return TILE_EXTRA_TYPE_DOOR;
+
+        case ITEM_TYPE_SIGN:
+            return TILE_EXTRA_TYPE_SIGN;
+
+        case ITEM_TYPE_LOCK:
+            return TILE_EXTRA_TYPE_LOCK;
+
+        case ITEM_TYPE_SEED:
+            return TILE_EXTRA_TYPE_SEED;
+
+        case ITEM_TYPE_PROVIDER:
+            return TILE_EXTRA_TYPE_PROVIDER;
+
+        case ITEM_TYPE_LAB:
+            return TILE_EXTRA_TYPE_LAB;
+
+        case ITEM_TYPE_HEART_MONITOR:
+            return TILE_EXTRA_TYPE_HEART_MONITOR;
+
+        case ITEM_TYPE_COMPONENT:
+            return TILE_EXTRA_TYPE_COMPONENT;
+
+        case ITEM_TYPE_SPIRIT_STORAGE:
+            return TILE_EXTRA_TYPE_SPIRIT_STORAGE;
+
+        case ITEM_TYPE_VENDING:
+            return TILE_EXTRA_TYPE_VENDING;
+
+        default:
+            return TILE_EXTRA_TYPE_NONE;
+    }
+}
+
+uint8 GetTileExtraTypeByItem(uint16 itemID, uint8 itemType)
+{
+    if(IsMagplantFamily(itemID)) {
+        return TILE_EXTRA_TYPE_MAGPLANT;
+    }
+
+    if(IsChemsynthTank(itemID, itemType)) {
+        return TILE_EXTRA_TYPE_CHEMTANK;
+    }
+
+    return GetTileExtraType(itemType);
+}
+
+TileExtra* TileExtra::Create(uint8 tileExtraType)
+{
+    switch(tileExtraType) {
+        case TILE_EXTRA_TYPE_DOOR:
+            return new TileExtra_Door();
+
+        case TILE_EXTRA_TYPE_SIGN:
+            return new TileExtra_Sign();
+
+        case TILE_EXTRA_TYPE_VENDING:
+            return new TileExtra_Vending();
+
+        case TILE_EXTRA_TYPE_MAGPLANT:
+            return new TileExtra_Magplant();
+
+        case TILE_EXTRA_TYPE_CHEMTANK:
+            return new TileExtra_Chemsynth();
+
+        case TILE_EXTRA_TYPE_LOCK:
+            return new TileExtra_Lock(); 
+
+        case TILE_EXTRA_TYPE_SEED:
+            return new TileExtra_Seed();
+
+        case TILE_EXTRA_TYPE_COMPONENT:
+            return new TileExtra_Component();
+
+        case TILE_EXTRA_TYPE_PROVIDER:
+            return new TileExtra_Provider();
+
+        case TILE_EXTRA_TYPE_LAB:
+            return new TileExtra_Lab();
+
+        case TILE_EXTRA_TYPE_HEART_MONITOR:
+            return new TileExtra_HeartMonitor();
+
+        case TILE_EXTRA_TYPE_SPIRIT_STORAGE:
+            return new TileExtra_SpiritStorage();
+
+        default:
+            return nullptr;
+    }
+}
+
+void TileExtra::Serialize(MemoryBuffer& memBuffer, bool write)
+{
+    memBuffer.ReadWrite(type, write);
+}
+
+void TileExtra_Door::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWriteString(name, write);
+
+    if(database) {
+        memBuffer.ReadWriteString(text, write);
+        memBuffer.ReadWriteString(id, write);
+    }
+
+    int8 unk = 0;
+    memBuffer.ReadWrite(unk, write);
+}
+
+void TileExtra_Sign::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    memBuffer.ReadWriteString(text, write);
+
+    int32 unk = -1; // something with owner union but eh
+    memBuffer.ReadWrite(unk, write);
+}
+
+void TileExtra_Vending::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    if(database) {
+        memBuffer.ReadWrite(itemID, write);
+        memBuffer.ReadWrite(price, write);
+        memBuffer.ReadWrite(stock, write);
+        memBuffer.ReadWrite(earnings, write);
+        return;
+    }
+
+    int32 packetPrice = price;
+    if((packetPrice < 0 && stock < std::abs(packetPrice)) || stock < 1) {
+        packetPrice = 0;
+    }
+
+    int32 packetItemID = (int32)itemID;
+    memBuffer.ReadWrite(packetItemID, write);
+    memBuffer.ReadWrite(packetPrice, write);
+
+    if(!write) {
+        if(packetItemID < 0 || packetItemID > UINT16_MAX) {
+            itemID = ITEM_ID_BLANK;
+        }
+        else {
+            itemID = (uint16)packetItemID;
+        }
+    }
+}
+
+void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(itemID, write);
+    memBuffer.ReadWrite(itemCount, write);
+
+    uint8 magneticFlag = magnetic ? 1 : 0;
+    uint8 remoteFlag = remote ? 1 : 0;
+    memBuffer.ReadWrite(magneticFlag, write);
+    memBuffer.ReadWrite(remoteFlag, write);
+    memBuffer.ReadWrite(itemLimit, write);
+
+    if(!write) {
+        magnetic = magneticFlag != 0;
+        remote = remoteFlag != 0;
+    }
+}
+
+void TileExtra_Chemsynth::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    int32 currentColor = static_cast<int32>(color);
+    int32 currentTargetColor = static_cast<int32>(targetColor);
+    memBuffer.ReadWrite(currentColor, write);
+    memBuffer.ReadWrite(currentTargetColor, write);
+
+    if(!write) {
+        color = static_cast<ChemsynthColor>(currentColor);
+        targetColor = static_cast<ChemsynthColor>(currentTargetColor);
+    }
+}
+
+void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    memBuffer.ReadWrite(flags, write);
+    memBuffer.ReadWrite(ownerID, write);
+
+    uint32 accessSize = accessList.size();
+    memBuffer.ReadWrite(accessSize, write);
+
+    if(!write) {
+        accessList.resize(accessSize);
+    }
+
+    if(accessSize > 0) {
+        memBuffer.ReadWriteRaw(accessList.data(), accessSize * sizeof(int32), write);
+    }
+
+    if(worldVersion > 11) {
+        memBuffer.ReadWrite(minEntryLevel, write);
+    }
+
+    if(worldVersion > 12) {
+        memBuffer.ReadWrite(worldTimer, write);
+    }
+}
+
+void TileExtra_Seed::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    if(write && !database) {
+        uint32 elapsedSec = 0;
+        uint64 nowMS = Time::GetSystemTime();
+
+        if(growTime > 0 && nowMS > growTime) {
+            elapsedSec = (uint32)((nowMS - growTime) / 1000);
+        }
+
+        memBuffer.ReadWrite(elapsedSec, true);
+    }
+    else {
+        memBuffer.ReadWrite(growTime, write);
+    }
+
+    memBuffer.ReadWrite(fruitCount, write);
+}
+
+void TileExtra_Component::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(randValue, write);
+}
+
+void TileExtra_Provider::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(readyTime, write);
+
+    uint16 fgItem = pTile->GetFG();
+    if(fgItem == ITEM_ID_WINTERFEST_CALENDAR_2017) {
+        memBuffer.ReadWrite(itemID, write);
+    }
+
+    if(!database && (fgItem == ITEM_ID_WINTERFEST_CALENDAR_2018 || fgItem == ITEM_ID_WINTERFEST_CALENDAR_2019)) {
+        memBuffer.ReadWrite(itemID, write);
+    }
+
+    if(!database && fgItem == ITEM_ID_BUILDING_BLOCKS_MACHINE) {
+        // long
+        // long
+    }
+
+    if(worldVersion > 9 &&
+        (
+            fgItem == ITEM_ID_KEENAN_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_VENOMSTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_LINKTRADER_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_TERYS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_EVETS_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_BENBARRAGES_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_MRSONGO_GTS_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_OLDGERTIES_AWESOME_ITEM_O_MATIC ||
+            fgItem == ITEM_ID_MACPROOF_GTS_AWESOME_ITEM_O_MATIC
+        ))
+    {
+        // long
+        // long
+        // same as building blocks machine
+    }
+}
+
+void TileExtra_SpiritStorage::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(spiritCount, write);
+}
+
+void TileExtra_Lab::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(userID, write);
+    memBuffer.ReadWrite(achievementID, write);
+}
+
+void TileExtra_HeartMonitor::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(userID, write);
+    memBuffer.ReadWriteString(playerDisplayName, write);
+}

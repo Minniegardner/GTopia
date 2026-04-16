@@ -1,0 +1,26 @@
+# configs to connect database
+# host user pass databaseName port
+database_info|localhost|root|my_db_password|my_database_name|3306|
+
+# static server using while sending OnSuperMain
+# cdnURL cdnPATH(SLASH REQUIRED)
+cdn_server|127.0.0.1|cache/|
+
+# world renderer assets(rttex, font) path NO SLASH AT END
+rendererStaticPath|
+
+# world renderer save path for results NO SLASH AT END
+rendererSavePath|
+
+# game worlds save path NO SLASH AT END
+worldSavePath|
+
+# X people can login at once others gonna kicked
+max_logins_at_once|20
+
+# only X accounts can be created
+max_accounts_per_ip|5
+max_accounts_per_gid|5
+max_accounts_per_vid|5
+max_accounts_per_sid|5
+max_accounts_per_mac|5

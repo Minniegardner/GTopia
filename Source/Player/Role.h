@@ -1,0 +1,70 @@
+#pragma once
+
+#include "../Precompiled.h"
+
+enum eRolePerm
+{
+    ROLE_PERM_NONE, // everyone has it actually for commands
+
+    ROLE_PERM_MSTATE,
+    ROLE_PERM_SMSTATE,
+    ROLE_PERM_USE_ITEM_TYPE_MOD,
+    ROLE_PERM_CAN_WEAR_ANY,
+    ROLE_PERM_COMMAND_GHOST,
+    ROLE_PERM_COMMAND_MAGIC,
+    ROLE_PERM_BYPASS_ILLEGAl_ITEM,
+    ROLE_PERM_COMMAND_GIVEITEM,
+    ROLE_PERM_COMMAND_TOGGLEPLAYMOD,
+    ROLE_PERM_COMMAND_KICK,
+    ROLE_PERM_COMMAND_PULL,
+    ROLE_PERM_COMMAND_MOD,
+    ROLE_PERM_COMMAND_BAN,
+    ROLE_PERM_COMMAND_RANDOMPULL,
+    ROLE_PERM_COMMAND_WARN,
+    ROLE_PERM_COMMAND_WARPTO,
+
+    ROLE_PERM_SIZE
+};
+
+enum eRoleResolve
+{
+    ROLE_RESOLVE_NONE,
+    ROLE_RESOLVE_PROCESSING,
+    ROLE_RESOLVE_DONE
+};
+
+class Role {
+public:
+    friend class RoleManager;
+
+public:
+    Role();
+
+public:
+    const string& GetName() const { return m_name; }
+
+    uint32 GetID() const { return m_id; }
+    const string& GetPrefix() const { return m_prefix; }
+    const string& GetSuffix() const { return m_suffix; }
+    char GetNameColor() const { return m_nameColor; }
+    char GetChatColor() const { return m_chatColor; }
+
+    bool HasPerm(eRolePerm perm);
+
+private:
+    void AddPerm(eRolePerm perm);
+
+private:
+    string m_name;
+    uint32 m_id;
+    string m_prefix;
+    string m_suffix;
+    char m_nameColor;
+    char m_chatColor;
+    std::vector<uint32> m_inherits;
+
+    eRoleResolve m_state;
+    
+    std::vector<uint32> m_basePerms;
+    std::vector<uint32> m_finalPerms;
+};

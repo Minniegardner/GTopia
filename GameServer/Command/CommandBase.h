@@ -1,0 +1,65 @@
+#pragma once
+
+#include "Precompiled.h"
+#include "../Player/GamePlayer.h"
+#include "Player/Role.h"
+#include "../World/WorldManager.h"
+
+struct CommandInfo
+{
+    string usage = "";
+    string desc = "";
+    eRolePerm perm = ROLE_PERM_NONE;
+    std::vector<uint32> aliases = {};
+    bool disabled = false;
+};
+
+template<typename T>
+class CommandBase {
+public:
+    static const CommandInfo& GetInfo()
+    {
+        return T::GetInfo();
+    }
+
+    static void Execute(GamePlayer* pPlayer, std::vector<string>& args) 
+    {
+        if(!CheckPerm(pPlayer)) {
+            return;
+        }
+        
+        T::Execute(pPlayer, args);
+    }
+
+    static bool CheckPerm(GamePlayer* pPlayer)
+    {
+        if(!pPlayer) {
+            return false;
+        }
+
+        Role* pRole = pPlayer->GetRole();
+        if(GetInfo().disabled) {
+            pPlayer->SendOnConsoleMessage("`4Unknown command.``  Enter `$/?`` for a list of valid commands.");
+            return false;
+        }
+
+        if(pRole && pRole->HasPerm(GetInfo().perm)) {
+            return true;
+        }
+
+        if(
+            GetInfo().perm == ROLE_PERM_COMMAND_PULL ||
+            GetInfo().perm == ROLE_PERM_COMMAND_KICK ||
+            GetInfo().perm == ROLE_PERM_COMMAND_BAN ||
+            GetInfo().perm == ROLE_PERM_COMMAND_RANDOMPULL
+        ) {
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(pWorld && (pWorld->IsPlayerWorldOwner(pPlayer) || pWorld->IsPlayerWorldAdmin(pPlayer))) {
+                return true;
+            }
+        }
+
+        pPlayer->SendOnConsoleMessage("`4Unknown command.``  Enter `$/?`` for a list of valid commands.");
+        return false;
+    }
+};
