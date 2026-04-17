@@ -229,6 +229,29 @@ bool World::SuckerCheck(WorldObject& obj)
     return TrySuckerCheck(this, obj);
 }
 
+GamePlayer* World::GetPlayerOnTile(const Vector2Int& tilePos)
+{
+    GamePlayer* pBestPlayer = nullptr;
+
+    for(GamePlayer* pWorldPlayer : m_players) {
+        if(!pWorldPlayer) {
+            continue;
+        }
+
+        const Vector2Float worldPos = pWorldPlayer->GetWorldPos();
+        const Vector2Int playerTile((int32)(worldPos.x / 32.0f), (int32)(worldPos.y / 32.0f));
+        if(playerTile != tilePos) {
+            continue;
+        }
+
+        if(!pBestPlayer || pWorldPlayer->GetNetID() > pBestPlayer->GetNetID()) {
+            pBestPlayer = pWorldPlayer;
+        }
+    }
+
+    return pBestPlayer;
+}
+
 World::World()
 : m_worldID(0)
 {

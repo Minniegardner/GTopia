@@ -150,6 +150,14 @@ bool IsCompatibleMagplantItem(uint16 machineID, ItemInfo* pItem)
         return false;
     }
 
+    if(pItem->HasFlag(ITEM_FLAG_UNTRADEABLE) || pItem->HasFlag(ITEM_FLAG_DROPLESS)) {
+        return false;
+    }
+
+    if(pItem->type == ITEM_TYPE_CLOTHES || pItem->type == ITEM_TYPE_ANCES || pItem->type == ITEM_TYPE_GEMS) {
+        return false;
+    }
+
     if(machineID == ITEM_ID_UNSTABLE_TESSERACT && pItem->type == ITEM_TYPE_SEED) {
         return false;
     }
@@ -231,6 +239,8 @@ void ShowMagplantAmountDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Ma
         return;
     }
 
+    const string machineName = pMachine ? string(pMachine->name) : string("Magplant");
+
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddQuickExit()
@@ -248,7 +258,7 @@ void ShowMagplantAmountDialog(GamePlayer* pPlayer, TileInfo* pTile, TileExtra_Ma
     }
     else {
         const int32 defaultTake = std::max<int32>(0, std::min<int32>(200, pData->itemCount));
-        db.AddTextBox("The Magplant 5000 contains " + ToString(pData->itemCount) + " `2" + string(pStock->name) + "``")
+                db.AddTextBox("The " + machineName + " contains " + ToString(pData->itemCount) + " `2" + string(pStock->name) + "``")
           ->AddTextBox("How many `2" + string(pStock->name) + "`` would you like to take?")
           ->AddTextInput("TakeAmount", "Amount:", ToString(defaultTake), 3)
           ->EndDialog("Magplant", "Confirm", "Close");
@@ -943,12 +953,12 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         if(buttonClicked == "GetRemote") {
             if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000 && pData->remote && pPlayer->GetMagplantPos() != pTile->GetPos()) {
-                pPlayer->SetMagplantPos(pTile->GetPos());
-
-                const uint8 remotes = pPlayer->GetInventory().GetCountOfItem(ITEM_ID_MAGPLANT_5000_REMOTE);
-                if(remotes > 0) {
-                    pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, (int16)-remotes);
+                const uint8 remoteCount = pPlayer->GetInventory().GetCountOfItem(ITEM_ID_MAGPLANT_5000_REMOTE);
+                if(remoteCount > 0) {
+                    pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, (int16)-remoteCount);
                 }
+
+                pPlayer->SetMagplantPos(pTile->GetPos());
 
                 pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, 1);
                 pPlayer->SendOnTalkBubble("`wYou received a `2Magplant 5000 `wRemote!", true);
@@ -975,7 +985,7 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             ParseIntField(packet, CompileTimeHashString("SelectedItem"), selectedItemInt);
         }
 
-        if(selectedItemInt >= 0) {
+        if(selectedItemInt >= 0 && pData->itemCount < 1) {
             if(selectedItemInt >= 0 && selectedItemInt <= UINT16_MAX) {
                 ItemInfo* pSelectedItem = GetItemInfoManager()->GetItemByID((uint16)selectedItemInt);
                 if(!IsCompatibleMagplantItem(pTile->GetDisplayedItem(), pSelectedItem)) {
@@ -1037,6 +1047,11 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     }
 
                     const int32 fit = std::max<int32>(0, pData->itemLimit - pData->itemCount);
+                    if(fit < 1) {
+                        pPlayer->SendOnTalkBubble("That won't fit into the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
+                        return;
+                    }
+
                     if(addAmount > fit) {
                         pPlayer->SendOnTalkBubble("That won't fit into the `2" + string(pMachine ? pMachine->name : "machine") + "``!", true);
                         addAmount = fit;

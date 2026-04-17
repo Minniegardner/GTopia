@@ -51,6 +51,18 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_VENDING:
             return TILE_EXTRA_TYPE_VENDING;
 
+        case ITEM_TYPE_DISPLAY_BLOCK:
+            return TILE_EXTRA_TYPE_DISPLAY_BLOCK;
+
+        case ITEM_TYPE_CRYSTAL:
+            return TILE_EXTRA_TYPE_CRYSTAL;
+
+        case ITEM_TYPE_DONATION_BOX:
+            return TILE_EXTRA_TYPE_DONATION_BOX;
+
+        case ITEM_TYPE_MANNEQUIN:
+            return TILE_EXTRA_TYPE_MANNEQUIN;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
@@ -80,6 +92,18 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_VENDING:
             return new TileExtra_Vending();
+
+        case TILE_EXTRA_TYPE_DISPLAY_BLOCK:
+            return new TileExtra_DisplayBlock();
+
+        case TILE_EXTRA_TYPE_CRYSTAL:
+            return new TileExtra_Crystal();
+
+        case TILE_EXTRA_TYPE_DONATION_BOX:
+            return new TileExtra_DonationBox();
+
+        case TILE_EXTRA_TYPE_MANNEQUIN:
+            return new TileExtra_Mannequin();
 
         case TILE_EXTRA_TYPE_MAGPLANT:
             return new TileExtra_Magplant();
@@ -173,19 +197,226 @@ void TileExtra_Vending::Serialize(MemoryBuffer& memBuffer, bool write, bool data
     }
 }
 
+void TileExtra_DisplayBlock::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    int32 packetItemID = (int32)itemID;
+    memBuffer.ReadWrite(packetItemID, write);
+
+    if(!write) {
+        if(packetItemID < 0 || packetItemID > UINT16_MAX) {
+            itemID = ITEM_ID_BLANK;
+        }
+        else {
+            itemID = (uint16)packetItemID;
+        }
+    }
+}
+
+void TileExtra_Crystal::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    if(database) {
+        memBuffer.ReadWrite(red, write);
+        memBuffer.ReadWrite(green, write);
+        memBuffer.ReadWrite(blue, write);
+        memBuffer.ReadWrite(white, write);
+        memBuffer.ReadWrite(black, write);
+        return;
+    }
+
+    if(write) {
+        uint8 count = (uint8)std::min<uint32>(255, GetTotal() + (black * 2));
+        uint8 unk = 0;
+        memBuffer.ReadWrite(count, true);
+        memBuffer.ReadWrite(unk, true);
+
+        for(uint32 i = 0; i < red; ++i) {
+            uint8 value = 0x31;
+            memBuffer.ReadWrite(value, true);
+        }
+
+        for(uint32 i = 0; i < green; ++i) {
+            uint8 value = 0x32;
+            memBuffer.ReadWrite(value, true);
+        }
+
+        for(uint32 i = 0; i < blue; ++i) {
+            uint8 value = 0x33;
+            memBuffer.ReadWrite(value, true);
+        }
+
+        for(uint32 i = 0; i < white; ++i) {
+            uint8 value = 0x34;
+            memBuffer.ReadWrite(value, true);
+        }
+
+        for(uint32 i = 0; i < black; ++i) {
+            uint8 value = 0x34;
+            memBuffer.ReadWrite(value, true);
+        }
+
+        for(uint32 i = 0; i < black; ++i) {
+            uint8 value = 0x35;
+            memBuffer.ReadWrite(value, true);
+            memBuffer.ReadWrite(value, true);
+        }
+        return;
+    }
+
+    uint8 count = 0;
+    memBuffer.ReadWrite(count, false);
+
+    uint8 unk = 0;
+    memBuffer.ReadWrite(unk, false);
+
+    red = 0;
+    green = 0;
+    blue = 0;
+    white = 0;
+    black = 0;
+
+    for(uint8 i = 0; i < count; ++i) {
+        uint8 value = 0;
+        memBuffer.ReadWrite(value, false);
+
+        if(value == 0x31) {
+            ++red;
+        }
+        else if(value == 0x32) {
+            ++green;
+        }
+        else if(value == 0x33) {
+            ++blue;
+        }
+        else if(value == 0x34) {
+            ++white;
+        }
+        else if(value == 0x35) {
+            ++black;
+            if(i + 1 < count) {
+                uint8 extra = 0;
+                memBuffer.ReadWrite(extra, false);
+                ++i;
+            }
+        }
+    }
+}
+
+void TileExtra_DonationBox::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    if(database) {
+        TileExtra::Serialize(memBuffer, write);
+
+        uint32 donatedItemCount = (uint32)donatedItems.size();
+        memBuffer.ReadWrite(donatedItemCount, write);
+
+        if(!write) {
+            donatedItems.clear();
+            donatedItems.resize(donatedItemCount);
+        }
+
+        for(uint32 i = 0; i < donatedItemCount; ++i) {
+            TileExtra_DonatedItem& entry = donatedItems[i];
+            memBuffer.ReadWrite(entry.itemID, write);
+            memBuffer.ReadWrite(entry.amount, write);
+            memBuffer.ReadWrite(entry.userID, write);
+            memBuffer.ReadWriteString(entry.username, write);
+            memBuffer.ReadWriteString(entry.comment, write);
+            memBuffer.ReadWrite(entry.donateID, write);
+            memBuffer.ReadWrite(entry.donatedAt, write);
+        }
+
+        memBuffer.ReadWrite(currentDonateID, write);
+        return;
+    }
+
+    uint8 packetType = TILE_EXTRA_TYPE_MAGIC_EGG;
+    memBuffer.ReadWrite(packetType, write);
+
+    uint32 zero = 0;
+    memBuffer.ReadWrite(zero, write);
+}
+
+void TileExtra_Mannequin::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+
+    memBuffer.ReadWriteString(label, write);
+    memBuffer.ReadWrite(hairColorA, write);
+    memBuffer.ReadWrite(hairColorR, write);
+    memBuffer.ReadWrite(hairColorG, write);
+    memBuffer.ReadWrite(hairColorB, write);
+    memBuffer.ReadWrite(unknown, write);
+
+    if(database) {
+        memBuffer.ReadWrite(clothing.hair, write);
+        memBuffer.ReadWrite(clothing.shirt, write);
+        memBuffer.ReadWrite(clothing.pants, write);
+        memBuffer.ReadWrite(clothing.shoes, write);
+        memBuffer.ReadWrite(clothing.face, write);
+        memBuffer.ReadWrite(clothing.hand, write);
+        memBuffer.ReadWrite(clothing.back, write);
+        memBuffer.ReadWrite(clothing.hat, write);
+        memBuffer.ReadWrite(clothing.necklace, write);
+        return;
+    }
+
+    if(write) {
+        memBuffer.ReadWrite(clothing.hat, true);
+        memBuffer.ReadWrite(clothing.shirt, true);
+        memBuffer.ReadWrite(clothing.pants, true);
+        memBuffer.ReadWrite(clothing.shoes, true);
+        memBuffer.ReadWrite(clothing.face, true);
+        memBuffer.ReadWrite(clothing.hand, true);
+        memBuffer.ReadWrite(clothing.back, true);
+        memBuffer.ReadWrite(clothing.hair, true);
+        memBuffer.ReadWrite(clothing.necklace, true);
+        return;
+    }
+
+    memBuffer.ReadWrite(clothing.hat, false);
+    memBuffer.ReadWrite(clothing.shirt, false);
+    memBuffer.ReadWrite(clothing.pants, false);
+    memBuffer.ReadWrite(clothing.shoes, false);
+    memBuffer.ReadWrite(clothing.face, false);
+    memBuffer.ReadWrite(clothing.hand, false);
+    memBuffer.ReadWrite(clothing.back, false);
+    memBuffer.ReadWrite(clothing.hair, false);
+    memBuffer.ReadWrite(clothing.necklace, false);
+}
+
 void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
-    memBuffer.ReadWrite(itemID, write);
-    memBuffer.ReadWrite(itemCount, write);
-
-    uint8 magneticFlag = magnetic ? 1 : 0;
-    uint8 remoteFlag = remote ? 1 : 0;
-    memBuffer.ReadWrite(magneticFlag, write);
-    memBuffer.ReadWrite(remoteFlag, write);
     memBuffer.ReadWrite(itemLimit, write);
+    uint8 remoteFlag = remote ? 1 : 0;
+    uint8 magneticFlag = magnetic ? 1 : 0;
+    memBuffer.ReadWrite(remoteFlag, write);
+    memBuffer.ReadWrite(magneticFlag, write);
+    memBuffer.ReadWrite(itemCount, write);
+    memBuffer.ReadWrite(itemID, write);
 
     if(!write) {
+        if(itemLimit < 0) {
+            itemLimit = 0;
+        }
+
+        if(itemCount < 0) {
+            itemCount = 0;
+        }
+
+        if(itemLimit > 0 && itemCount > itemLimit) {
+            itemCount = itemLimit;
+        }
+
+        if(itemID != ITEM_ID_BLANK && !GetItemInfoManager()->GetItemByID(itemID)) {
+            itemID = ITEM_ID_BLANK;
+            itemCount = 0;
+        }
+
         magnetic = magneticFlag != 0;
         remote = remoteFlag != 0;
     }

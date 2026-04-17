@@ -134,6 +134,94 @@ protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
 
+class TileExtra_DisplayBlock : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_DISPLAY_BLOCK;
+
+    TileExtra_DisplayBlock() : TileExtra(TYPE) {}
+
+    uint16 itemID = ITEM_ID_BLANK;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_Crystal : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_CRYSTAL;
+
+    TileExtra_Crystal() : TileExtra(TYPE) {}
+
+    uint32 red = 0;
+    uint32 green = 0;
+    uint32 blue = 0;
+    uint32 white = 0;
+    uint32 black = 0;
+
+    uint32 GetTotal() const
+    {
+        return red + green + blue + white + black;
+    }
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+struct TileExtra_DonatedItem
+{
+    uint16 itemID = ITEM_ID_BLANK;
+    uint8 amount = 0;
+    uint32 userID = 0;
+    string username;
+    string comment;
+    uint32 donateID = 0;
+    uint64 donatedAt = 0;
+};
+
+class TileExtra_DonationBox : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_DONATION_BOX;
+
+    TileExtra_DonationBox() : TileExtra(TYPE) {}
+
+    uint32 currentDonateID = 0;
+    std::vector<TileExtra_DonatedItem> donatedItems;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+struct TileExtra_MannequinClothing
+{
+    uint16 hair = ITEM_ID_BLANK;
+    uint16 shirt = ITEM_ID_BLANK;
+    uint16 pants = ITEM_ID_BLANK;
+    uint16 shoes = ITEM_ID_BLANK;
+    uint16 face = ITEM_ID_BLANK;
+    uint16 hand = ITEM_ID_BLANK;
+    uint16 back = ITEM_ID_BLANK;
+    uint16 hat = ITEM_ID_BLANK;
+    uint16 necklace = ITEM_ID_BLANK;
+};
+
+class TileExtra_Mannequin : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_MANNEQUIN;
+
+    TileExtra_Mannequin() : TileExtra(TYPE) {}
+
+    string label;
+    uint8 hairColorA = 0;
+    uint8 hairColorR = 0;
+    uint8 hairColorG = 0;
+    uint8 hairColorB = 0;
+    uint8 unknown = 223;
+    TileExtra_MannequinClothing clothing;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
 class TileExtra_Magplant : public TileExtra {
 public:
     static constexpr uint8 TYPE = TILE_EXTRA_TYPE_MAGPLANT;
@@ -142,8 +230,8 @@ public:
 
     uint16 itemID = ITEM_ID_BLANK;
     int32 itemCount = 0;
-    int32 itemLimit = 200;
-    bool magnetic = true;
+    int32 itemLimit = 0;
+    bool magnetic = false;
     bool remote = false;
 
 protected:

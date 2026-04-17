@@ -43,6 +43,9 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
     }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem) {
+        return;
+    }
 
     if(pItem->type == ITEM_TYPE_SIGN) {
         SignDialog::Request(pPlayer, pTile);

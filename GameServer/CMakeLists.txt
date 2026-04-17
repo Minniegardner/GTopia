@@ -41,6 +41,7 @@ set(GAME_FILES PRIVATE
     ${SOURCE_ITEM}/ItemInfo.cpp
     ${SOURCE_ALGORITHM}/LockAlgorithm.cpp
     ${SOURCE_ALGORITHM}/ChemsynthAlgorithm.cpp
+    ${SOURCE_ALGORITHM}/GhostAlgorithm.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
 
@@ -89,6 +90,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/RenderWorld.cpp
     ${GAME_COMMAND}/GiveItem.cpp
     ${GAME_COMMAND}/Ghost.cpp
+    ${GAME_COMMAND}/SpawnGhost.cpp
     ${GAME_COMMAND}/TogglePlayMod.cpp
     ${GAME_COMMAND}/Magic.cpp
     ${GAME_COMMAND}/Trade.cpp

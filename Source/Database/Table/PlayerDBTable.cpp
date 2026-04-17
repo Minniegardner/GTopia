@@ -1,7 +1,8 @@
 #include "PlayerDBTable.h"
 
-void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred)
-{
+    {"UPDATE Players SET Name = ?, Password = UNHEX(MD5(?)) WHERE ID = ?;"},
+    {"SELECT ID FROM Players WHERE Name = ? AND Password = UNHEX(MD5(?));", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET Name = ? WHERE ID = ?;"}
     TableQuery& query = sQueryTable[queryID];
 
     if(preapred) {
@@ -201,6 +202,17 @@ QueryRequest MakeGetPlayerByNameAndPass(const string& name, const string& pass, 
     req.data.resize(2);
     req.data[0] = name;
     req.data[1] = pass;
+    return req;
+}
+
+QueryRequest MakePlayerGrowIDRename(uint32 userID, const string& name, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = name;
+    req.data[1] = userID;
     return req;
 }
 

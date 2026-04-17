@@ -59,3 +59,17 @@ set_items|3066|
 add_playmod|1204|Focused Eyes|Give people the evil eye.|Your vision is normal.|
 set_punch_type|10|
 set_items|1204|
+
+add_playmod|1368|Snowball|You are frozen solid.|You thaw out.|
+set_speed|-1000|
+set_timer|2|
+set_items|1368|
+
+add_playmod|1458|Lucky in Love|Increased chance of Golden Heart Crystal!|The honeymoon phase is over!|
+set_timer|1800|
+
+add_playmod|3722|Slimed|You're covered in ectoplasm!|You got cleaned up.|
+set_skin_color|255,255,255,100|
+
+add_playmod|1280|Recently Name Changed|You're stuck with this name for a while!|You're free to change your name now!|
+set_timer|5184000|

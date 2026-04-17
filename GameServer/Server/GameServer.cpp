@@ -79,6 +79,7 @@ string GetWeekdayName(uint32 day)
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
 #include "../Command/Ghost.h"
+#include "../Command/SpawnGhost.h"
 #include "../Command/TogglePlayMod.h"
 #include "../Command/Magic.h"
 #include "../Command/Trade.h"
@@ -271,6 +272,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();
     RegisterCommand<Ghost>();
+    RegisterCommand<SpawnGhost>();
     RegisterCommand<TogglePlayMod>();
     RegisterCommand<Magic>();
     RegisterCommand<Trade>();

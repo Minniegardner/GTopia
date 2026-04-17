@@ -38,6 +38,16 @@ bool PlayModManager::IsRequiredUpdate(ePlayModType modType)
             return true;
         }
 
+        case PLAYMOD_TYPE_FROZEN:
+        case PLAYMOD_TYPE_LUCKY_IN_LOVE: {
+            return true;
+        }
+
+        case PLAYMOD_TYPE_SLIMED:
+        case PLAYMOD_TYPE_RECENTLY_NAME_CHANGED: {
+            return true;
+        }
+
         default:
             return false;
     }

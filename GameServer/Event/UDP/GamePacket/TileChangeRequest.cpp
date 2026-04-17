@@ -1,7 +1,9 @@
 #include "TileChangeRequest.h"
 #include "Item/ItemInfoManager.h"
 #include "Algorithm/ChemsynthAlgorithm.h"
+#include "Algorithm/GhostAlgorithm.h"
 #include "Prize/PrizeManager.h"
+#include "Utils/DialogBuilder.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
 #include "../../../Server/MasterBroadway.h"
@@ -67,6 +69,45 @@ void DropGems(World* pWorld, TileInfo* pTile, uint8 amount)
     gemDrop.itemID = ITEM_ID_GEMS;
     gemDrop.count = amount;
     pWorld->DropObject(pTile, gemDrop, true);
+}
+
+bool IsWorldFlagMachineItem(uint16 itemID)
+{
+    switch(itemID) {
+        case ITEM_ID_SIGNAL_JAMMER:
+        case ITEM_ID_PUNCH_JAMMER:
+        case ITEM_ID_ZOMBIE_JAMMER:
+        case ITEM_ID_BALLOON_JAMMER:
+        case ITEM_ID_ANTIGRAVITY_GENERATOR:
+        case ITEM_ID_HYPERTECH_ANTIGRAVITY_FIELD:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool HasWorldFlagMachineAlreadyPlaced(World* pWorld, uint16 itemID)
+{
+    if(!pWorld || !IsWorldFlagMachineItem(itemID)) {
+        return false;
+    }
+
+    WorldTileManager* pTileManager = pWorld->GetTileManager();
+    if(!pTileManager) {
+        return false;
+    }
+
+    Vector2Int size = pTileManager->GetSize();
+    for(int32 y = 0; y < size.y; ++y) {
+        for(int32 x = 0; x < size.x; ++x) {
+            TileInfo* pTile = pTileManager->GetTile(x, y);
+            if(pTile && pTile->GetFG() == itemID) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
@@ -150,7 +191,6 @@ bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, Ite
     }
 
     const Vector2Int pos = pTile->GetPos();
-    pWorld->SendParticleEffectToAll(pos.x * 32.0f + 12.0f, pos.y * 32.0f + 15.0f, 46);
     pWorld->SendTileUpdate(pTile);
     return true;
 }
@@ -221,6 +261,157 @@ void SpawnFarmableDrops(World* pWorld, TileInfo* pTile, ItemInfo* pTileItem)
     }
 }
 
+bool TryHandleSpecialTilePlace(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, ItemInfo* pPlaceItem, ItemInfo* pTileItem)
+{
+    if(!pPlayer || !pWorld || !pTile || !pPlaceItem || !pTileItem) {
+        return false;
+    }
+
+    if(pTileItem->type == ITEM_TYPE_DISPLAY_BLOCK) {
+        TileExtra_DisplayBlock* pDisplay = pTile->GetExtra<TileExtra_DisplayBlock>();
+        if(!pDisplay) {
+            return false;
+        }
+
+        if(pDisplay->itemID != ITEM_ID_BLANK) {
+            pPlayer->SendOnTalkBubble("Remove what's in there first.", true);
+            return true;
+        }
+
+        if(pPlaceItem->type == ITEM_TYPE_DISPLAY_BLOCK || pPlaceItem->HasFlag(ITEM_FLAG_MOD) || pPlaceItem->HasFlag(ITEM_FLAG_UNTRADEABLE)) {
+            pPlayer->SendOnTalkBubble("You can't put that there.", true);
+            return true;
+        }
+
+        pDisplay->itemID = pPlaceItem->id;
+        pPlayer->ModifyInventoryItem(pPlaceItem->id, -1);
+
+        const Vector2Int tilePos = pTile->GetPos();
+        pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 4, 1, 0);
+        pWorld->PlaySFXForEveryone("audio/blorb.wav", 0);
+        pWorld->SendTileUpdate(pTile);
+        return true;
+    }
+
+    if(pTileItem->type == ITEM_TYPE_CRYSTAL) {
+        if(pPlaceItem->type != ITEM_TYPE_CRYSTAL) {
+            return false;
+        }
+
+        TileExtra_Crystal* pCrystal = pTile->GetExtra<TileExtra_Crystal>();
+        if(!pCrystal) {
+            return false;
+        }
+
+        if(pCrystal->GetTotal() >= 5) {
+            pPlayer->SendOnTalkBubble("The crystals have reached their highest vibration!", true);
+            return true;
+        }
+
+        switch(pPlaceItem->id) {
+            case ITEM_ID_RED_CRYSTAL: ++pCrystal->red; break;
+            case ITEM_ID_BLUE_CRYSTAL: ++pCrystal->blue; break;
+            case ITEM_ID_GREEN_CRYSTAL: ++pCrystal->green; break;
+            case ITEM_ID_WHITE_CRYSTAL: ++pCrystal->white; break;
+            case ITEM_ID_BLACK_CRYSTAL: ++pCrystal->black; break;
+            default: return true;
+        }
+
+        pPlayer->ModifyInventoryItem(pPlaceItem->id, -1);
+        pWorld->SendTileUpdate(pTile);
+        return true;
+    }
+
+    if(pTileItem->type == ITEM_TYPE_DONATION_BOX) {
+        TileExtra_DonationBox* pDonation = pTile->GetExtra<TileExtra_DonationBox>();
+        if(!pDonation) {
+            return false;
+        }
+
+        if(pDonation->donatedItems.size() >= 20) {
+            pPlayer->SendOnTalkBubble("The donation box is already full!", true);
+            return true;
+        }
+
+        int32 donatedByPlayer = 0;
+        for(const TileExtra_DonatedItem& item : pDonation->donatedItems) {
+            if(item.userID == pPlayer->GetUserID()) {
+                ++donatedByPlayer;
+            }
+        }
+
+        if(donatedByPlayer >= 3 && !pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+            pPlayer->SendOnTalkBubble("You already donated items 3 times! Try again later.", true);
+            return true;
+        }
+
+        if(pPlaceItem->rarity < 2) {
+            pPlayer->SendOnTalkBubble("This box only accepts items of rarity 2 and above.", true);
+            return true;
+        }
+
+        if(pPlaceItem->id == ITEM_ID_FIST || pPlaceItem->id == ITEM_ID_WRENCH) {
+            pPlayer->SendOnTalkBubble("You can't put that there.", true);
+            return true;
+        }
+
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`w" + string(pPlaceItem->name) + "``", pPlaceItem->id, true)
+            ->AddLabel("How many to put in the box as a gift? (Note: You will `4LOSE`` the items you give!)")
+            ->AddTextInput("Amount", "Count:", ToString(pPlayer->GetInventory().GetCountOfItem(pPlaceItem->id)), 3)
+            ->AddTextInput("Comment", "Optional Note:", "", 128)
+            ->EmbedData("tilex", pTile->GetPos().x)
+            ->EmbedData("tiley", pTile->GetPos().y)
+            ->EmbedData("TileItemID", pTile->GetDisplayedItem())
+            ->EmbedData("ItemIDToDonate", pPlaceItem->id)
+            ->EndDialog("DonationEdit", "Give", "Cancel");
+
+        pPlayer->SendOnDialogRequest(db.Get());
+        return true;
+    }
+
+    if(pTileItem->type == ITEM_TYPE_MANNEQUIN && pPlaceItem->type == ITEM_TYPE_CLOTHES) {
+        TileExtra_Mannequin* pMannequin = pTile->GetExtra<TileExtra_Mannequin>();
+        if(!pMannequin) {
+            return false;
+        }
+
+        bool alreadyWearing = false;
+        switch(pPlaceItem->bodyPart) {
+            case BODY_PART_BACK: alreadyWearing = pMannequin->clothing.back == pPlaceItem->id; break;
+            case BODY_PART_HAND: alreadyWearing = pMannequin->clothing.hand == pPlaceItem->id; break;
+            case BODY_PART_HAT: alreadyWearing = pMannequin->clothing.hat == pPlaceItem->id; break;
+            case BODY_PART_FACEITEM: alreadyWearing = pMannequin->clothing.face == pPlaceItem->id; break;
+            case BODY_PART_CHESTITEM: alreadyWearing = pMannequin->clothing.necklace == pPlaceItem->id; break;
+            case BODY_PART_SHIRT: alreadyWearing = pMannequin->clothing.shirt == pPlaceItem->id; break;
+            case BODY_PART_PANT: alreadyWearing = pMannequin->clothing.pants == pPlaceItem->id; break;
+            case BODY_PART_SHOE: alreadyWearing = pMannequin->clothing.shoes == pPlaceItem->id; break;
+            case BODY_PART_HAIR: alreadyWearing = pMannequin->clothing.hair == pPlaceItem->id; break;
+            default: break;
+        }
+
+        if(alreadyWearing) {
+            return true;
+        }
+
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`w" + string(pPlaceItem->name) + "``", pPlaceItem->id, true)
+            ->AddLabel("Do you really want to put your " + string(pPlaceItem->name) + " on the Mannequin?")
+            ->EmbedData("tilex", pTile->GetPos().x)
+            ->EmbedData("tiley", pTile->GetPos().y)
+            ->EmbedData("TileItemID", pTile->GetDisplayedItem())
+            ->EmbedData("ItemID", pPlaceItem->id)
+            ->EndDialog("MannequinEdit", "Yes", "No");
+
+        pPlayer->SendOnDialogRequest(db.Get());
+        return true;
+    }
+
+    return false;
+}
+
 string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
 {
     if(!pWorld || !pTile) {
@@ -264,7 +455,9 @@ bool ToggleWorldFlagMachine(World* pWorld, TileInfo* pTile, uint16 itemID)
         case ITEM_ID_SIGNAL_JAMMER: worldFlag = WORLD_FLAG_JAMMED; break;
         case ITEM_ID_PUNCH_JAMMER: worldFlag = WORLD_FLAG_PUNCH_JAMMER; break;
         case ITEM_ID_ZOMBIE_JAMMER: worldFlag = WORLD_FLAG_ZOMBIE_JAMMER; break;
-        case ITEM_ID_ANTIGRAVITY_GENERATOR: worldFlag = WORLD_FLAG_ANTI_GRAVITY; break;
+        case ITEM_ID_BALLOON_JAMMER: worldFlag = WORLD_FLAG_BALLOON_JAMMED; break;
+        case ITEM_ID_ANTIGRAVITY_GENERATOR:
+        case ITEM_ID_HYPERTECH_ANTIGRAVITY_FIELD: worldFlag = WORLD_FLAG_ANTI_GRAVITY; break;
         case ITEM_ID_GUARDIAN_PINEAPPLE: worldFlag = WORLD_FLAG_GUARDIAN_PINEAPPLE; break;
         default: return false;
     }
@@ -284,7 +477,9 @@ void ClearWorldFlagMachine(World* pWorld, uint16 itemID)
         case ITEM_ID_SIGNAL_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_JAMMED, false); break;
         case ITEM_ID_PUNCH_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_PUNCH_JAMMER, false); break;
         case ITEM_ID_ZOMBIE_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_ZOMBIE_JAMMER, false); break;
-        case ITEM_ID_ANTIGRAVITY_GENERATOR: pWorld->SetWorldFlag(WORLD_FLAG_ANTI_GRAVITY, false); break;
+        case ITEM_ID_BALLOON_JAMMER: pWorld->SetWorldFlag(WORLD_FLAG_BALLOON_JAMMED, false); break;
+        case ITEM_ID_ANTIGRAVITY_GENERATOR:
+        case ITEM_ID_HYPERTECH_ANTIGRAVITY_FIELD: pWorld->SetWorldFlag(WORLD_FLAG_ANTI_GRAVITY, false); break;
         case ITEM_ID_GUARDIAN_PINEAPPLE: pWorld->SetWorldFlag(WORLD_FLAG_GUARDIAN_PINEAPPLE, false); break;
         default: break;
     }
@@ -297,8 +492,255 @@ void TileChangeRequest::OnPunchedLock(GamePlayer* pPlayer, TileInfo* pTile)
 
 }
 
-void TileChangeRequest::HandleConsumable(GamePlayer *pPlayer, World *pWorld, GameUpdatePacket *pPacket)
+void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacket)
 {
+    if(!pPlayer || !pWorld || !pPacket) {
+        return;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pPacket->itemID);
+    if(!pItem) {
+        return;
+    }
+
+    TileInfo* pTile = pWorld->GetTileManager()->GetTile(pPacket->tileX, pPacket->tileY);
+    if(!pTile) {
+        return;
+    }
+
+    const Vector2Int tilePos = pTile->GetPos();
+    static constexpr const char* kBirthCertCooldownStat = "BirthCertLastUseMS";
+
+    switch(pItem->id) {
+        case ITEM_ID_FOSSIL_BRUSH: {
+            RectFloat searchRect((float)tilePos.x * 32.0f, (float)tilePos.y * 32.0f, (float)(tilePos.x + 1) * 32.0f, (float)(tilePos.y + 1) * 32.0f);
+            auto objects = pWorld->GetObjectManager()->GetObjectsInRectByItemID(searchRect, ITEM_ID_FOSSIL);
+
+            WorldObject* pFossil = nullptr;
+            for(WorldObject* pObject : objects) {
+                if(pObject && pObject->itemID == ITEM_ID_FOSSIL && pObject->count == 1) {
+                    pFossil = pObject;
+                    break;
+                }
+            }
+
+            if(!pFossil) {
+                pPlayer->SendOnTalkBubble("`wYou can only brush Fossils that have never been picked up!", true);
+                return;
+            }
+
+            WorldObject polished;
+            polished.itemID = ITEM_ID_POLISHED_FOSSIL;
+            polished.count = 1;
+            polished.pos = pFossil->pos;
+
+            pWorld->RemoveObject(pFossil->objectID);
+            pWorld->DropObject(polished);
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_FOSSIL_BRUSH, -1);
+            pPlayer->SendOnTalkBubble("`wYou polished the `2Fossil`w, using up 1 `2Fossil Brush`w.", true);
+
+            uint8 gemsToDrop = (uint8)(rand() % 13);
+            if(gemsToDrop > 0) {
+                pPlayer->AddGems(gemsToDrop);
+                pPlayer->SendOnSetBux();
+            }
+            return;
+        }
+
+        case ITEM_ID_GROW_SPRAY_FERTILIZER:
+        case ITEM_ID_DELUXE_GROW_SPRAY:
+        case ITEM_ID_ULTRA_GROW_SPRAY: {
+            if(pTile->GetDisplayedItem() == ITEM_ID_BLANK) {
+                return;
+            }
+
+            ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+            if(!pTileItem || pTileItem->type != ITEM_TYPE_SEED) {
+                return;
+            }
+
+            TileExtra_Seed* pSeedData = pTile->GetExtra<TileExtra_Seed>();
+            if(!pSeedData) {
+                return;
+            }
+
+            uint64 growSprayMS = pItem->id == ITEM_ID_DELUXE_GROW_SPRAY ? 24ull * 60ull * 60ull * 1000ull : 60ull * 60ull * 1000ull;
+            if(pItem->id == ITEM_ID_ULTRA_GROW_SPRAY) {
+                growSprayMS = 24ull * 60ull * 60ull * 1000ull;
+            }
+            const uint64 nowMS = Time::GetSystemTime();
+            if(pSeedData->growTime > 0 && nowMS >= pSeedData->growTime && (nowMS - pSeedData->growTime) >= ((uint64)pTileItem->growTime * 1000ull)) {
+                pPlayer->SendOnTalkBubble("That tree is already grown!", true);
+                return;
+            }
+
+            if(growSprayMS > 0) {
+                if(pSeedData->growTime > growSprayMS) {
+                    pSeedData->growTime -= (uint32)growSprayMS;
+                }
+                else {
+                    pSeedData->growTime = 0;
+                }
+            }
+
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+            pPlayer->SendOnPlayPositioned("audio/spray.wav");
+            const bool isOneDaySpray = pItem->id == ITEM_ID_DELUXE_GROW_SPRAY || pItem->id == ITEM_ID_ULTRA_GROW_SPRAY;
+            pPlayer->SendOnTalkBubble("``" + string(pTileItem->name) + "`` Tree aged by " + string(isOneDaySpray ? "24 hours``" : "1 hour``"), true);
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        case ITEM_ID_DOOR_MOVER: {
+            if(!pWorld->IsPlayerWorldOwner(pPlayer)) {
+                pPlayer->SendOnTalkBubble("`4You can only use this item on your own worlds with a World Lock!", true);
+                return;
+            }
+
+            TileInfo* pMainDoor = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
+            if(!pMainDoor) {
+                pPlayer->SendOnTalkBubble("`4You need to have a main door first!", true);
+                return;
+            }
+
+            if(pTile->GetDisplayedItem() != ITEM_ID_BLANK) {
+                pPlayer->SendOnTalkBubble("`4You can only move your Main Door to empty spaces!", true);
+                return;
+            }
+
+            TileInfo* pTileBelow = pWorld->GetTileManager()->GetTile(tilePos.x, tilePos.y + 1);
+            if(!pTileBelow || (pTileBelow->GetDisplayedItem() != ITEM_ID_BLANK && pTileBelow->GetDisplayedItem() != ITEM_ID_BEDROCK)) {
+                pPlayer->SendOnTalkBubble("`4The tile below has to be empty or bedrock!", true);
+                return;
+            }
+
+            const Vector2Int oldDoorPos = pMainDoor->GetPos();
+            TileInfo* pOldBelow = pWorld->GetTileManager()->GetTile(oldDoorPos.x, oldDoorPos.y + 1);
+
+            pMainDoor->SetFG(ITEM_ID_BLANK, pWorld->GetTileManager());
+            if(pOldBelow && pOldBelow->GetDisplayedItem() == ITEM_ID_BEDROCK) {
+                pOldBelow->SetFG(ITEM_ID_BLANK, pWorld->GetTileManager());
+            }
+
+            if(pTileBelow->GetDisplayedItem() == ITEM_ID_BLANK) {
+                pTileBelow->SetFG(ITEM_ID_BEDROCK, pWorld->GetTileManager());
+            }
+
+            pTile->SetFG(ITEM_ID_MAIN_DOOR, pWorld->GetTileManager());
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_DOOR_MOVER, -1);
+            pPlayer->SendOnTalkBubble("`wYou moved the door!", true);
+
+            pWorld->SendTileUpdate(pMainDoor);
+            if(pOldBelow) {
+                pWorld->SendTileUpdate(pOldBelow);
+            }
+            pWorld->SendTileUpdate(pTileBelow);
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        case ITEM_ID_BIRTH_CERTIFICATE: {
+            if(!pPlayer->HasGrowID()) {
+                pPlayer->SendOnTalkBubble("`4You need a GrowID first!", true);
+                return;
+            }
+
+            const uint64 nowMS = Time::GetSystemTime();
+            const uint64 lastUseMS = pPlayer->GetCustomStatValue(kBirthCertCooldownStat);
+            const uint64 cooldownMS = 60ull * 24ull * 60ull * 60ull * 1000ull;
+            if(lastUseMS > 0 && nowMS < lastUseMS + cooldownMS) {
+                const uint64 remainingDays = ((lastUseMS + cooldownMS) - nowMS + 86399999ull) / 86400000ull;
+                pPlayer->SendOnTalkBubble("`4You can use another Birth Certificate in " + ToString(remainingDays) + " days.", true);
+                return;
+            }
+
+            DialogBuilder db;
+            db.SetDefaultColor('o')
+                ->AddLabelWithIcon("`wBirth Certificate``, let's change your name!", ITEM_ID_BIRTH_CERTIFICATE, true)
+                ->AddSpacer()
+                ->AddLabel("Current name: `w" + pPlayer->GetRawName() + "``")
+                ->AddTextInput("new_name", "New Name", pPlayer->GetRawName(), 12)
+                ->EndDialog("BirthCertificate", "Change It", "Cancel");
+
+            pPlayer->SendOnDialogRequest(db.Get());
+            return;
+        }
+
+        case ITEM_ID_WATER_BUCKET: {
+            pTile->ToggleFlag(TILE_FLAG_IS_WET);
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+            pPlayer->SendOnPlayPositioned("audio/spray.wav");
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        case ITEM_ID_GHOST_JAR: {
+            if(!GhostAlgorithm::PlaceGhostJar(pPlayer, pWorld, pTile)) {
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_GHOST_JAR, -1);
+            return;
+        }
+
+        case ITEM_ID_BLOCK_GLUE: {
+            pTile->ToggleFlag(TILE_FLAG_GLUED);
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+            pPlayer->SendOnPlayPositioned("audio/spray.wav");
+            pWorld->SendTileUpdate(pTile);
+            return;
+        }
+
+        case ITEM_ID_SNOWBALL: {
+            if(pTile->GetDisplayedItem() == ITEM_ID_MAIN_DOOR) {
+                pPlayer->SendOnTalkBubble("You can't use that there.", true);
+                pPlayer->PlaySFX("cant_place_tile.wav");
+                return;
+            }
+
+            GamePlayer* pVictim = pWorld->GetPlayerOnTile(tilePos);
+            if(!pVictim) {
+                return;
+            }
+
+            pVictim->AddPlayMod(PLAYMOD_TYPE_FROZEN, true);
+            pVictim->SendOnTalkBubble("`#YUMMY!", false);
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+            pPlayer->SendOnPlayPositioned("audio/freeze.wav");
+            return;
+        }
+
+        case ITEM_ID_ELDRITCH_FLAME: {
+            std::vector<TileInfo*> changedTiles;
+            for(int32 i = 0; i < 10; ++i) {
+                int32 offsetX = (rand() % 7) - 3;
+                int32 offsetY = (rand() % 7) - 3;
+                TileInfo* pFireTile = pWorld->GetTileManager()->GetTile(tilePos.x + offsetX, tilePos.y + offsetY);
+                if(!pFireTile || pFireTile->HasFlag(TILE_FLAG_ON_FIRE)) {
+                    continue;
+                }
+
+                pFireTile->SetFlag(TILE_FLAG_ON_FIRE);
+                changedTiles.push_back(pFireTile);
+            }
+
+            if(changedTiles.empty()) {
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
+            pPlayer->SendOnPlayPositioned("audio/spray.wav");
+            for(TileInfo* pFireTile : changedTiles) {
+                pWorld->SendTileUpdate(pFireTile);
+            }
+            return;
+        }
+
+        default:
+            return;
+    }
 
 }
 
@@ -335,13 +777,14 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         return;
     }
 
-    if(pItem->type == ITEM_TYPE_CONSUMABLE && !isChemsynthTool) {
-        pPlayer->IncreaseStat("CONSUMABLES_USED");
+    if(pPacket->itemID != ITEM_ID_FIST && pPlayer->GetInventory().GetCountOfItem(pItem->id) == 0) {
+        pPlayer->SendFakePingReply();
         return;
     }
 
-    if(pPacket->itemID != ITEM_ID_FIST && pPlayer->GetInventory().GetCountOfItem(pItem->id) == 0) {
-        pPlayer->SendFakePingReply();
+    if(pItem->type == ITEM_TYPE_CONSUMABLE && !isChemsynthTool) {
+        HandleConsumable(pPlayer, pWorld, pPacket);
+        pPlayer->IncreaseStat("CONSUMABLES_USED");
         return;
     }
 
@@ -384,6 +827,10 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
     ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
 
+    if(pPacket->itemID != ITEM_ID_FIST && TryHandleSpecialTilePlace(pPlayer, pWorld, pTile, pItem, pTileItem)) {
+        return;
+    }
+
     if(pPacket->itemID != ITEM_ID_FIST) {
         bool allowSeedSplice = false;
         if(pItem->type == ITEM_TYPE_SEED && pTile->GetFG() != ITEM_ID_BLANK) {
@@ -422,6 +869,12 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         if(pPacket->itemID == ITEM_ID_GUARDIAN_PINEAPPLE && pWorld->GetTileManager()->GetKeyTile(KEY_TILE_GUARD_PINEAPPLE)) {
             pPlayer->SendFakePingReply();
             pPlayer->SendOnTalkBubble("This world already has a Guardian Pineapple somewhere on it, installing two would be dangerous!", true);
+            return;
+        }
+
+        if(IsWorldFlagMachineItem(pItem->id) && HasWorldFlagMachineAlreadyPlaced(pWorld, pItem->id)) {
+            pPlayer->SendFakePingReply();
+            pPlayer->SendOnTalkBubble("Only one of these can be placed in a world.", true);
             return;
         }
 
@@ -485,6 +938,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             return;
         }
         else {
+            if(pTileItem && pTileItem->id == ITEM_ID_SCIENCE_STATION) {
+                SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetChemStationDrop());
+                return;
+            }
+
             if(pTileItem && pTileItem->id == ITEM_ID_STEAM_CRANK) {
                 pTile->ToggleFlag(TILE_FLAG_IS_ON);
                 pWorld->SendTileUpdate(tilePos.x, tilePos.y);

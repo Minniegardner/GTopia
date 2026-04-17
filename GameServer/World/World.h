@@ -46,6 +46,7 @@ public:
     void HandleTilePackets(GameUpdatePacket* pGamePacket);
 
     bool PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile);
+    GamePlayer* GetPlayerOnTile(const Vector2Int& tilePos);
 
     void OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID);
     void OnRemoveLock(GamePlayer* pPlayer, TileInfo* pTile);
@@ -76,6 +77,7 @@ public:
 
     void SendCurrentWeatherToAll();
     uint32 GetPlayerCount() const { return m_players.size(); }
+    const std::vector<GamePlayer*>& GetPlayers() const { return m_players; }
     Timer& GetLastSaveTime() { return m_worldLastSaveTime; }
     Timer& GetOfflineTime() { return m_worldOfflineTime; }
 

@@ -14,10 +14,12 @@
 #include "../../../Server/MasterBroadway.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
 #include "../../../World/WorldManager.h"
+#include "../../../World/TileInfo.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 #include "Utils/DialogBuilder.h"
 #include "Item/ItemInfoManager.h"
+#include "Database/Table/PlayerDBTable.h"
 
 namespace {
 
@@ -37,6 +39,29 @@ string GetItemNameSafe(uint32 itemID)
     }
 
     return pItem->name;
+}
+
+bool ParseIntField(ParsedTextPacket<8>& packet, uint32 key, int32& out)
+{
+    auto pField = packet.Find(key);
+    if(!pField) {
+        return false;
+    }
+
+    return ToInt(string(pField->value, pField->size), out) == TO_INT_SUCCESS;
+}
+
+bool IsBirthCertNameValid(const string& name)
+{
+    if(name.size() < 3 || name.size() > 12) {
+        return false;
+    }
+
+    if(name.find(' ') != string::npos || name.find('`') != string::npos) {
+        return false;
+    }
+
+    return true;
 }
 
 void ShowTelephoneMainMenu(GamePlayer* pPlayer)
@@ -510,6 +535,247 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             DropDialog::Handle(pPlayer, (uint16)itemID, (int16)count);
+            break;
+        }
+
+        case CompileTimeHashString("DonationEdit"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Give") {
+                return;
+            }
+
+            int32 tileX = 0;
+            int32 tileY = 0;
+            int32 tileItemID = 0;
+            int32 donateItemID = 0;
+            int32 amount = 0;
+            if(!ParseIntField(packet, CompileTimeHashString("tilex"), tileX) ||
+                !ParseIntField(packet, CompileTimeHashString("tiley"), tileY) ||
+                !ParseIntField(packet, CompileTimeHashString("TileItemID"), tileItemID) ||
+                !ParseIntField(packet, CompileTimeHashString("ItemIDToDonate"), donateItemID) ||
+                !ParseIntField(packet, CompileTimeHashString("Amount"), amount))
+            {
+                return;
+            }
+
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(!pWorld) {
+                return;
+            }
+
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(tileX, tileY);
+            if(!pTile || pTile->GetDisplayedItem() != (uint16)tileItemID) {
+                pPlayer->SendOnTalkBubble("Huh? The donation box is gone!", true);
+                return;
+            }
+
+            TileExtra_DonationBox* pDonation = pTile->GetExtra<TileExtra_DonationBox>();
+            if(!pDonation) {
+                return;
+            }
+
+            ItemInfo* pDonateItem = GetItemInfoManager()->GetItemByID((uint16)donateItemID);
+            if(!pDonateItem) {
+                return;
+            }
+
+            if(pDonation->donatedItems.size() >= 20) {
+                pPlayer->SendOnTalkBubble("The donation box is already full!", true);
+                return;
+            }
+
+            int32 donatedByPlayer = 0;
+            for(const TileExtra_DonatedItem& item : pDonation->donatedItems) {
+                if(item.userID == pPlayer->GetUserID()) {
+                    ++donatedByPlayer;
+                }
+            }
+
+            if(donatedByPlayer >= 3 && !pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+                pPlayer->SendOnTalkBubble("You already donated items 3 times! Try again later.", true);
+                return;
+            }
+
+            if(pDonateItem->rarity < 2) {
+                pPlayer->SendOnTalkBubble("This box only accepts items of rarity 2 and above.", true);
+                return;
+            }
+
+            if(pDonateItem->id == ITEM_ID_FIST || pDonateItem->id == ITEM_ID_WRENCH) {
+                pPlayer->SendOnTalkBubble("You can't put that there.", true);
+                return;
+            }
+
+            if(amount < 1) {
+                return;
+            }
+
+            const uint8 ownCount = pPlayer->GetInventory().GetCountOfItem((uint16)donateItemID);
+            if(ownCount == 0) {
+                return;
+            }
+
+            amount = std::min<int32>(amount, ownCount);
+            amount = std::min<int32>(amount, 200);
+            if(amount < 1) {
+                return;
+            }
+
+            string comment;
+            auto pComment = packet.Find(CompileTimeHashString("Comment"));
+            if(pComment && pComment->size > 0) {
+                comment.assign(pComment->value, pComment->size);
+                if(comment.size() > 128) {
+                    comment.resize(128);
+                }
+            }
+
+            pPlayer->ModifyInventoryItem((uint16)donateItemID, (int16)-amount);
+
+            TileExtra_DonatedItem donation;
+            donation.itemID = (uint16)donateItemID;
+            donation.amount = (uint8)amount;
+            donation.userID = pPlayer->GetUserID();
+            donation.username = pPlayer->GetRawName();
+            donation.comment = comment;
+            donation.donateID = pDonation->currentDonateID++;
+            donation.donatedAt = Time::GetTimeSinceEpoch();
+            pDonation->donatedItems.push_back(std::move(donation));
+
+            pWorld->SendTileUpdate(pTile);
+            break;
+        }
+
+        case CompileTimeHashString("MannequinEdit"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Yes") {
+                return;
+            }
+
+            int32 tileX = 0;
+            int32 tileY = 0;
+            int32 tileItemID = 0;
+            int32 itemID = 0;
+            if(!ParseIntField(packet, CompileTimeHashString("tilex"), tileX) ||
+                !ParseIntField(packet, CompileTimeHashString("tiley"), tileY) ||
+                !ParseIntField(packet, CompileTimeHashString("TileItemID"), tileItemID) ||
+                !ParseIntField(packet, CompileTimeHashString("ItemID"), itemID))
+            {
+                return;
+            }
+
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(!pWorld) {
+                return;
+            }
+
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(tileX, tileY);
+            if(!pTile || pTile->GetDisplayedItem() != (uint16)tileItemID) {
+                pPlayer->SendOnTalkBubble("Huh? The mannequin is gone!", true);
+                return;
+            }
+
+            TileExtra_Mannequin* pMannequin = pTile->GetExtra<TileExtra_Mannequin>();
+            if(!pMannequin) {
+                return;
+            }
+
+            ItemInfo* pItem = GetItemInfoManager()->GetItemByID((uint16)itemID);
+            if(!pItem || pItem->type != ITEM_TYPE_CLOTHES) {
+                return;
+            }
+
+            uint16* pSlot = nullptr;
+            switch(pItem->bodyPart) {
+                case BODY_PART_BACK: pSlot = &pMannequin->clothing.back; break;
+                case BODY_PART_HAND: pSlot = &pMannequin->clothing.hand; break;
+                case BODY_PART_HAT: pSlot = &pMannequin->clothing.hat; break;
+                case BODY_PART_FACEITEM: pSlot = &pMannequin->clothing.face; break;
+                case BODY_PART_CHESTITEM: pSlot = &pMannequin->clothing.necklace; break;
+                case BODY_PART_SHIRT: pSlot = &pMannequin->clothing.shirt; break;
+                case BODY_PART_PANT: pSlot = &pMannequin->clothing.pants; break;
+                case BODY_PART_SHOE: pSlot = &pMannequin->clothing.shoes; break;
+                case BODY_PART_HAIR: pSlot = &pMannequin->clothing.hair; break;
+                default: break;
+            }
+
+            if(!pSlot) {
+                return;
+            }
+
+            if(pPlayer->GetInventory().GetCountOfItem((uint16)itemID) == 0) {
+                return;
+            }
+
+            const uint16 oldItem = *pSlot;
+            if(oldItem != ITEM_ID_BLANK && !pPlayer->GetInventory().HaveRoomForItem(oldItem, 1)) {
+                pPlayer->SendOnTalkBubble("That won't fit in your backpack!", true);
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem((uint16)itemID, -1);
+            if(oldItem != ITEM_ID_BLANK) {
+                pPlayer->ModifyInventoryItem(oldItem, 1);
+            }
+
+            *pSlot = (uint16)itemID;
+            pWorld->SendTileUpdate(pTile);
+            break;
+        }
+
+        case CompileTimeHashString("BirthCertificate"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Change It") {
+                return;
+            }
+
+            auto pNewName = packet.Find(CompileTimeHashString("new_name"));
+            if(!pNewName) {
+                return;
+            }
+
+            string newName(pNewName->value, pNewName->size);
+            RemoveExtraWhiteSpaces(newName);
+
+            if(!pPlayer->HasGrowID()) {
+                pPlayer->SendOnTalkBubble("`4You need a GrowID first!", true);
+                return;
+            }
+
+            if(pPlayer->GetCharData().HasPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED)) {
+                pPlayer->SendOnTalkBubble("You can't change your `$GrowID`` again so soon!", true);
+                return;
+            }
+
+            if(!IsBirthCertNameValid(newName)) {
+                pPlayer->SendOnTalkBubble("`4Oops!`` Your GrowID must be 3-12 chars, with no spaces or color codes.", true);
+                return;
+            }
+
+            if(ToUpper(newName) == ToUpper(pPlayer->GetRawName())) {
+                pPlayer->SendOnTalkBubble("`4Oops!`` That's already your name.", true);
+                return;
+            }
+
+            if(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_BIRTH_CERTIFICATE) == 0) {
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_BIRTH_CERTIFICATE, -1);
+            pPlayer->GetLoginDetail().tankIDName = newName;
+            pPlayer->GetCharData().AddPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED);
+
+            QueryRequest req = MakePlayerGrowIDRename(pPlayer->GetUserID(), newName, pPlayer->GetNetID());
+            DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GROWID_RENAME, req);
+
+            pPlayer->SendSetHasGrowID(true, pPlayer->GetLoginDetail().tankIDName, pPlayer->GetLoginDetail().tankIDPass);
+
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(pWorld) {
+                pWorld->SendNameChangeToAll(pPlayer);
+            }
+
+            pPlayer->SendOnTalkBubble("`wYou are now known as `#" + pPlayer->GetRawName() + "``!", true);
             break;
         }
 
