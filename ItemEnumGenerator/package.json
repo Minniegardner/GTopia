@@ -1,0 +1,18 @@
+{
+  "name": "growtopia-items-enum-generator",
+  "module": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "consola": "^3.4.2"
+  }
+}

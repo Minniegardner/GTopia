@@ -103,7 +103,7 @@ bool PrizeManager::Init()
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_SWEET_LOLLIPOP, 200);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_TEDDY_BEAR_BLOCK, 4500);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_TEENY_ANGEL_WINGS, 8500);
-    AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_TATTOOED_MUSCLES, 2000);
+    // AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_TATTOOED_MUSCLES, 2000); // Missing from enum eItemID in ItemUtils.h
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_VALENSIGN, 4000);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_VALENTINE, 200);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_VALENTINES_CARD, 350);
