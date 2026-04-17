@@ -14,7 +14,7 @@
 #include "../../../Server/MasterBroadway.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
 #include "../../../World/WorldManager.h"
-#include "../../../World/TileInfo.h"
+#include "../../../../Source/World/TileInfo.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 #include "Utils/DialogBuilder.h"
