@@ -1,6 +1,7 @@
 #include "TileExtra.h"
 #include "TileInfo.h"
 #include "Item/ItemUtils.h"
+#include "Item/ItemInfoManager.h"
 #include "Utils/Timer.h"
 
 namespace {
