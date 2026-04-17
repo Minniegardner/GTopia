@@ -1,0 +1,18 @@
+set_default_color|`o\n\nadd_label_with_icon|big|GrowtopiaK Private Server``|left|5016|
+nadd_spacer|small|
+nadd_spacer|small|
+add_label|small|`6Welcome To GrowVinz!|left|4|
+add_spacer|small|
+add_image_button|banner|interface/large/news_banner.rttex|noflags|||
+nadd_textbox|`3GrowVinz V1.2|left|4|\nadd_label_with_icon|small|
+add_button|crash|`2Press Here`w if you are `4Crashing`w!|
+add_quick_exit|
+add_button|chc0|`2Play GrowVinz|noflags|0|0|
+nend_dialog|gazette||OK||noflags|0|0|
+add_label_with_icon|big|`5GrowVinz Winter Update!``|left|1357|
+nadd_textbox|`31.2 Fixed Bugs.|left|4|
+nadd_textbox|`3To find items, use /find.|left|4|
+add_spacer|small|\n\nadd_textbox|`2Join our Discord for more information!|left|4|
+add_spacer|small|\nadd_label|small|`$- This Server developed by `6TimeTopia#1111`$ ,`6KingsTopia#1234.|left|4|
+add_spacer|small|\nadd_label|small|`4Make sure to Join Our discord server!|left|4|
+add_url_button||``GrowVinz discord server!``|NOFLAGS|https://discord.gg/g7CuVut|Join discord server?|0|0|

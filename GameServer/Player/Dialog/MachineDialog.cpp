@@ -154,7 +154,7 @@ bool IsCompatibleMagplantItem(uint16 machineID, ItemInfo* pItem)
         return false;
     }
 
-    if(pItem->type == ITEM_TYPE_CLOTHES || pItem->type == ITEM_TYPE_ANCES || pItem->type == ITEM_TYPE_GEMS) {
+    if(pItem->type == ITEM_TYPE_CLOTHES || pItem->type == ITEM_TYPE_ARTIFACT || pItem->type == ITEM_TYPE_GEMS) {
         return false;
     }
 

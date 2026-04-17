@@ -28,7 +28,7 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         pPlayer->SendOnConsoleMessage("`oYou currently have no friends online.");
     }
 
-    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` others online)");
+    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + " ``online)");
 
     const string dailyEventStatus = GetGameServer()->GetDailyEventStatusLine();
     if(!dailyEventStatus.empty()) {
