@@ -36,6 +36,7 @@ public:
 
 public:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld);
+    void SwapContent(TileInfo& other);
 
     void SetFG(uint16 itemID, WorldTileManager* pTileMgr);
     void SetBG(uint16 itemID);

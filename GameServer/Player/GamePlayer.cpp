@@ -1448,6 +1448,36 @@ void GamePlayer::SetMagplantPos(Vector2Int pos)
     m_magplantPos = pos;
 }
 
+void GamePlayer::ResetGauntletSwapState()
+{
+    m_gauntletSwapIndex[0] = -1;
+    m_gauntletSwapIndex[1] = -1;
+    m_gauntletAvailableSwap.clear();
+}
+
+void GamePlayer::SetGauntletSwapIndex(int32 slot, int32 tileIndex)
+{
+    if(slot < 0 || slot > 1) {
+        return;
+    }
+
+    m_gauntletSwapIndex[slot] = tileIndex;
+}
+
+int32 GamePlayer::GetGauntletSwapIndex(int32 slot) const
+{
+    if(slot < 0 || slot > 1) {
+        return -1;
+    }
+
+    return m_gauntletSwapIndex[slot];
+}
+
+void GamePlayer::SetGauntletAvailableSwap(const std::vector<int32>& tiles)
+{
+    m_gauntletAvailableSwap = tiles;
+}
+
 void GamePlayer::OnHandleDatabase(QueryTaskResult&& result)
 {
     if(HasState(PLAYER_STATE_LOGIN_GETTING_ACCOUNT)) {
@@ -1800,6 +1830,7 @@ void GamePlayer::LogOff()
 
     RemoveState(PLAYER_STATE_IN_GAME);
     m_loggingOff = true;
+    ResetGauntletSwapState();
 
     if(m_currentWorldID != 0) {
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);

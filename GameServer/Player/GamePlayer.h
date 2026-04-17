@@ -222,6 +222,12 @@ public:
     uint64 GetLastWhisperAtMS() const { return m_lastWhisperAtMS; }
     void SetLastWhisperAtMS(uint64 timeMS) { m_lastWhisperAtMS = timeMS; }
 
+    void ResetGauntletSwapState();
+    void SetGauntletSwapIndex(int32 slot, int32 tileIndex);
+    int32 GetGauntletSwapIndex(int32 slot) const;
+    void SetGauntletAvailableSwap(const std::vector<int32>& tiles);
+    const std::vector<int32>& GetGauntletAvailableSwap() const { return m_gauntletAvailableSwap; }
+
 private:
     uint32 m_state;
     bool m_joiningWorld;
@@ -286,6 +292,9 @@ private:
     uint64 m_lastWhisperAtMS = 0;
     uint64 m_mutedUntilMS = 0;
     string m_muteReason = "";
+
+    int32 m_gauntletSwapIndex[2] = { -1, -1 };
+    std::vector<int32> m_gauntletAvailableSwap = {};
 
     uint32 m_dailyRewardStreak = 0;
     uint32 m_dailyRewardClaimDay = 0;

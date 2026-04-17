@@ -140,6 +140,17 @@ void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, Wor
     }
 }
 
+void TileInfo::SwapContent(TileInfo& other)
+{
+    std::swap(m_fg, other.m_fg);
+    std::swap(m_bg, other.m_bg);
+    std::swap(m_parent, other.m_parent);
+    std::swap(m_flags, other.m_flags);
+    std::swap(m_damage, other.m_damage);
+    std::swap(m_lastDamageTime, other.m_lastDamageTime);
+    std::swap(m_pExtraData, other.m_pExtraData);
+}
+
 void TileInfo::SetFG(uint16 itemID, WorldTileManager* pTileMgr)
 {
     if(!pTileMgr) {

@@ -11,6 +11,182 @@
 namespace {
 
 uint8 RollRarityGemBonus(int16 rarity)
+bool IsGauntletItem(uint16 itemID)
+{
+    switch(itemID) {
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_I:
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_II:
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_III:
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_IV:
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_V:
+        case ITEM_ID_EXQUISITE_GAUNTLET_OF_ELEMENTS:
+            return true;
+        default:
+            return false;
+    }
+}
+
+std::vector<int32> GetGauntletElements(uint16 itemID)
+{
+    switch(itemID) {
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_I: return { 0 };
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_II: return { 0, 1 };
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_III: return { 0, 1, 2 };
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_IV: return { 0, 1, 2 };
+        case ITEM_ID_GAUNTLET_OF_ELEMENTS_TIER_V: return { 0, 1, 2, 3 };
+        case ITEM_ID_EXQUISITE_GAUNTLET_OF_ELEMENTS: return { 0, 1, 2, 3 };
+        default: return {};
+    }
+}
+
+bool IsGauntletTileSkipped(const ItemInfo* pTileItem)
+{
+    if(!pTileItem) {
+        return true;
+    }
+
+    return
+        pTileItem->id == ITEM_ID_BLANK ||
+        pTileItem->type == ITEM_TYPE_SEED ||
+        pTileItem->type == ITEM_TYPE_LOCK ||
+        pTileItem->id == ITEM_ID_MAIN_DOOR ||
+        pTileItem->id == ITEM_ID_BEDROCK ||
+        pTileItem->HasFlag(ITEM_FLAG_UNTRADEABLE) ||
+        pTileItem->HasFlag(ITEM_FLAG_MOD) ||
+        pTileItem->element == ITEM_ELEMENT_NONE;
+}
+
+bool TryHandleGauntlet(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, ItemInfo* pItem)
+{
+    if(!pPlayer || !pWorld || !pTile || !pItem || !IsGauntletItem(pItem->id)) {
+        return false;
+    }
+
+    if(!pWorld->CanBreak(pPlayer, pTile)) {
+        pPlayer->SendOnTalkBubble("With great power, comes great responsibility! Your power needs to be used on your own tiles.", true);
+        return true;
+    }
+
+    ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(IsGauntletTileSkipped(pTileItem)) {
+        return true;
+    }
+
+    std::vector<int32> elements = GetGauntletElements(pItem->id);
+    if(elements.empty()) {
+        return true;
+    }
+
+    if(std::find(elements.begin(), elements.end(), (int32)pTileItem->element) == elements.end()) {
+        if(pTileItem->element < ITEM_ELEMENT_EARTH || pTileItem->element > ITEM_ELEMENT_WATER) {
+            pPlayer->SendOnTalkBubble("This element cannot be moved by any gauntlet.", true);
+        }
+        else {
+            static const char* kElementNames[] = { "Earth", "Wind", "Fire", "Water" };
+            string gauntletElements;
+            for(size_t i = 0; i < elements.size(); ++i) {
+                if(i > 0) {
+                    gauntletElements += ", ";
+                }
+
+                gauntletElements += kElementNames[elements[i]];
+            }
+
+            pPlayer->SendOnTalkBubble("This gauntlet can only move " + gauntletElements + " elemental blocks.", true);
+        }
+
+        return true;
+    }
+
+    const Vector2Int tilePos = pTile->GetPos();
+    const int32 selectedIndex = tilePos.x + (tilePos.y * pWorld->GetTileManager()->GetSize().x);
+
+    if(pPlayer->GetGauntletSwapIndex(0) == -1) {
+        if(pWorld->GetPlayerOnTile(tilePos)) {
+            pPlayer->SendOnTalkBubble("There is a player standing over one of the tiles.", true);
+            return true;
+        }
+
+        pPlayer->SetGauntletSwapIndex(0, selectedIndex);
+        pPlayer->SetGauntletSwapIndex(1, -1);
+        pPlayer->SetGauntletAvailableSwap({});
+
+        const bool isModerator = pPlayer->GetRole() && pPlayer->GetRole()->HasPerm(ROLE_PERM_COMMAND_MOD);
+        const int32 range = isModerator ? 6 : 2;
+        const int32 size = range * 2 + 1;
+        const int32 center = range;
+        const int32 worldWidth = pWorld->GetTileManager()->GetSize().x;
+        const int32 worldHeight = pWorld->GetTileManager()->GetSize().y;
+
+        std::vector<int32> availableSwap;
+        availableSwap.reserve((size * size) - 1);
+
+        for(int32 y = 0; y < size; ++y) {
+            for(int32 x = 0; x < size; ++x) {
+                if(x == center && y == center) {
+                    continue;
+                }
+
+                const int32 targetX = tilePos.x - center + x;
+                const int32 targetY = tilePos.y - center + y;
+                if(targetX < 0 || targetY < 0 || targetX >= worldWidth || targetY >= worldHeight) {
+                    continue;
+                }
+
+                TileInfo* pCandidateTile = pWorld->GetTileManager()->GetTile(targetX, targetY);
+                if(!pCandidateTile) {
+                    continue;
+                }
+
+                ItemInfo* pCandidateItem = GetItemInfoManager()->GetItemByID(pCandidateTile->GetDisplayedItem());
+                if(IsGauntletTileSkipped(pCandidateItem)) {
+                    continue;
+                }
+
+                if(std::find(elements.begin(), elements.end(), (int32)pCandidateItem->element) == elements.end()) {
+                    continue;
+                }
+
+                if(pWorld->GetPlayerOnTile({ targetX, targetY })) {
+                    continue;
+                }
+
+                availableSwap.push_back(targetX + (targetY * worldWidth));
+            }
+        }
+
+        pPlayer->SetGauntletAvailableSwap(availableSwap);
+        return true;
+    }
+
+    pPlayer->SetGauntletSwapIndex(1, selectedIndex);
+    const std::vector<int32>& availableSwap = pPlayer->GetGauntletAvailableSwap();
+    if(std::find(availableSwap.begin(), availableSwap.end(), selectedIndex) == availableSwap.end()) {
+        pPlayer->SendOnTalkBubble("The selected tile is not valid to swap.", true);
+        return true;
+    }
+
+    const int32 firstIndex = pPlayer->GetGauntletSwapIndex(0);
+    TileInfo* pFirstTile = pWorld->GetTileManager()->GetTile(firstIndex);
+    TileInfo* pSecondTile = pWorld->GetTileManager()->GetTile(selectedIndex);
+    if(!pFirstTile || !pSecondTile) {
+        pPlayer->ResetGauntletSwapState();
+        return true;
+    }
+
+    pWorld->GetTileManager()->ModifyKeyTile(pFirstTile, true);
+    pWorld->GetTileManager()->ModifyKeyTile(pSecondTile, true);
+    pFirstTile->SwapContent(*pSecondTile);
+    pWorld->GetTileManager()->ModifyKeyTile(pFirstTile, false);
+    pWorld->GetTileManager()->ModifyKeyTile(pSecondTile, false);
+
+    pWorld->PlaySFXForEveryone("audio/blorb.wav", 0);
+    pWorld->SendTileUpdate(pFirstTile);
+    pWorld->SendTileUpdate(pSecondTile);
+
+    pPlayer->ResetGauntletSwapState();
+    return true;
+}
 {
     int32 safeRarity = std::max<int32>(0, rarity);
     if(safeRarity <= 7) {
@@ -842,6 +1018,10 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
     if(pItem->type == ITEM_TYPE_WRENCH) {
         PlayerDialog::Handle(pPlayer, pTile);
+        return;
+    }
+
+    if(TryHandleGauntlet(pPlayer, pWorld, pTile, pItem)) {
         return;
     }
 
