@@ -263,6 +263,26 @@ void HandleGhostJarCapture(World* pWorld, GhostWorldState& state, const GhostEnt
     }
 }
 
+void ClearWorldGhostsInternal(World* pWorld, GhostWorldState& state)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    std::vector<uint32> entityIDs;
+    entityIDs.reserve(state.entities.size());
+    for(const auto& [entityID, entity] : state.entities) {
+        (void)entity;
+        entityIDs.push_back(entityID);
+    }
+
+    for(uint32 entityID : entityIDs) {
+        RemoveEntity(pWorld, state, entityID);
+    }
+
+    pWorld->SetWorldFlag(WORLD_FLAG_HAUNTED, false);
+}
+
 }
 
 namespace GhostAlgorithm {
@@ -337,6 +357,37 @@ bool SpawnGhostNearPlayer(GamePlayer* pPlayer, World* pWorld)
 
     const Vector2Float pos = pPlayer->GetWorldPos();
     return SpawnGhostAt(pWorld, { pos.x + 16.0f, pos.y + 16.0f });
+}
+
+void ClearWorldGhosts(World* pWorld)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    GhostWorldState& state = GetState(pWorld);
+    ClearWorldGhostsInternal(pWorld, state);
+}
+
+void DestroyWorldState(uint32 worldID)
+{
+    s_worldStates.erase(worldID);
+}
+
+bool HasWorldGhosts(World* pWorld)
+{
+    if(!pWorld) {
+        return false;
+    }
+
+    GhostWorldState& state = GetState(pWorld);
+    for(const auto& [_, entity] : state.entities) {
+        if(!entity.jar) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void UpdateWorldGhosts(World* pWorld)

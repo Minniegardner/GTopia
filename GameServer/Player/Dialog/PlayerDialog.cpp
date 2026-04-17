@@ -24,7 +24,7 @@ void ShowTelephoneDialog(GamePlayer* pPlayer, TileInfo* pTile)
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wTelephone``", kTelephoneItemID, true, true)
-        ->AddLabel("Dial a number to call somebody in Growtopia. Phone numbers have 5 digits, like 12345.")
+        ->AddLabel("Dial a number to call somebody in Growtopia. Phone numbers have 5 digits, like 12345 (try it - you'd be crazy not to!). Most numbers are not in service!")
         ->AddTextInput("Number", "Phone #", "", 5)
         ->EmbedData("tilex", pTile->GetPos().x)
         ->EmbedData("tiley", pTile->GetPos().y)

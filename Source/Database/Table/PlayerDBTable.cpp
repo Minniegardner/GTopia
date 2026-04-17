@@ -1,8 +1,27 @@
 #include "PlayerDBTable.h"
 
-    {"UPDATE Players SET Name = ?, Password = UNHEX(MD5(?)) WHERE ID = ?;"},
+static TableQuery sQueryTable[] =
+{
+    {"SELECT ID FROM Players WHERE Name = '' AND Mac = ? AND PlatformType = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
+    {"INSERT INTO Players (GuestName, PlatformType, GuestID, Mac, IP, CreationDate, LastSeenTime) VALUES (?, ?, ?, ?, ?, SYSDATE(), NOW());", QUERY_FLAG_RETURN_INCREMENT},
+    {"SELECT GuestID, RoleID, Inventory, Gems, Level, XP, AchievementData, StatisticData, DailyRewardStreak, DailyRewardClaimDay, LastClaimDailyReward FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET LastSeenTime = NOW(), RoleID = ?, Inventory = ?, Gems = ?, Level = ?, XP = ?, AchievementData = ?, StatisticData = ?, DailyRewardStreak = ?, DailyRewardClaimDay = ?, LastClaimDailyReward = ? WHERE ID = ?;", QUERY_FLAG_NONE},
+    {"SELECT ID FROM Players WHERE IP = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID FROM Players WHERE Name = '' AND VID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID FROM Players WHERE Name = '' AND GID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID FROM Players WHERE Name = '' AND Hash = ? AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE GID = ?) AS gid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE VID = ?) AS vid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count,(SELECT COUNT(*) FROM Players WHERE SID = ?) AS sid_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT (SELECT COUNT(*) FROM Players WHERE IP = ?)  AS ip_count, (SELECT COUNT(*) FROM Players WHERE MAC = ?) AS mac_count;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID FROM Players WHERE Name = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET Name = ?, Password = UNHEX(MD5(?)) WHERE ID = ?;", QUERY_FLAG_NONE},
     {"SELECT ID FROM Players WHERE Name = ? AND Password = UNHEX(MD5(?));", QUERY_FLAG_RETURN_RESULT},
-    {"UPDATE Players SET Name = ? WHERE ID = ?;"}
+    {"UPDATE Players SET Name = ? WHERE ID = ?;", QUERY_FLAG_NONE}
+};
+
+void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred)
+{
     TableQuery& query = sQueryTable[queryID];
 
     if(preapred) {
@@ -59,10 +78,10 @@ QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inven
 
     req.data.resize(11);
     req.data[0] = roleID;
-    req.data[1] = inventoryData,
-    req.data[2] = gems,
-    req.data[3] = level,
-    req.data[4] = xp,
+    req.data[1] = inventoryData;
+    req.data[2] = gems;
+    req.data[3] = level;
+    req.data[4] = xp;
     req.data[5] = achievementData;
     req.data[6] = statisticData;
     req.data[7] = dailyRewardStreak;

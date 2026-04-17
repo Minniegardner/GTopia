@@ -18,6 +18,7 @@
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 #include "Utils/DialogBuilder.h"
+#include "Algorithm/GhostAlgorithm.h"
 #include "Item/ItemInfoManager.h"
 #include "Database/Table/PlayerDBTable.h"
 
@@ -53,7 +54,7 @@ bool ParseIntField(ParsedTextPacket<8>& packet, uint32 key, int32& out)
 
 bool IsBirthCertNameValid(const string& name)
 {
-    if(name.size() < 3 || name.size() > 12) {
+    if(name.size() < 3 || name.size() > 18) {
         return false;
     }
 
@@ -61,7 +62,82 @@ bool IsBirthCertNameValid(const string& name)
         return false;
     }
 
+    for(char c : name) {
+        if(!std::isalnum((unsigned char)c)) {
+            return false;
+        }
+    }
+
     return true;
+}
+
+void ShowCrazyJimMainMenu(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wCrazy Jim's Quest Emporium``", kTelephoneItemID, true, true)
+        ->AddLabel("HEEEEYYY there Growtopian! I'm Crazy Jim, and my quests are so crazy they're KERRRRAAAAZZY!! And that is clearly very crazy, so please, be cautious around them. What can I do ya for, partner?")
+        ->AddButton("GotoCrazyJimDailyQuest", "Daily Quest")
+        ->EndDialog("TelephoneEdit", "", "Hang Up");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowCrazyJimDailyQuest(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    const uint32 currentEpochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
+    const TCPDailyQuestData& dq = GetMasterBroadway()->GetDailyQuestData();
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wCrazy Jim's Quest Emporium``", kTelephoneItemID, true, true)
+        ->AddLabel("I guess some people call me Crazy Jim because I'm a bit of a hoarder. But I'm very particular about what I want! And today, what I want is this:")
+        ->AddSpacer()
+        ->AddLabelWithIcon("`2" + ToString(dq.questItemOneAmount) + " " + GetItemNameSafe(dq.questItemOneID) + "``", (uint16)dq.questItemOneID)
+        ->AddLabel("and", true)
+        ->AddLabelWithIcon("`2" + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + "``", (uint16)dq.questItemTwoID)
+        ->AddSpacer()
+        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the rewards from my personal collection! But hurry, this offer is only good until midnight, and only one turn-in per person!")
+        ->AddLabel("You have " + ToString(pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID)) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID)) + " " + GetItemNameSafe(dq.questItemTwoID) + ".")
+        ->AddButton("GotoCrazyJimMainMenu", "Back");
+
+    const uint64 countOne = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID);
+    const uint64 countTwo = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID);
+    if(countOne >= dq.questItemOneAmount && countTwo >= dq.questItemTwoAmount) {
+        db.AddButton("GotoCrazyJimTurnInDailyQuest", "`2Turn in quest items");
+    }
+
+    db.EndDialog("TelephoneEdit", "", "Hang Up");
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowRemoveGhostDialog(GamePlayer* pPlayer, World* pWorld)
+{
+    if(!pPlayer || !pWorld) {
+        return;
+    }
+
+    if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
+        pPlayer->SendOnTalkBubble("Well, there really ain't no ghosts in there for us to remove. Come back later when it does.", true);
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wRemove Ghost``", ITEM_ID_GHOST_BE_GONE, true, true)
+        ->AddLabel("Wanna remove ghost? It's gonna cost you `515 World Locks `ofor our services.")
+        ->AddButton("RemoveGhostConfirm", "Yes remove ghost.")
+        ->EndDialog("RemoveGhostConfirm", "", "Nevermind");
+
+    pPlayer->SendOnDialogRequest(db.Get());
 }
 
 void ShowTelephoneMainMenu(GamePlayer* pPlayer)
@@ -177,6 +253,32 @@ void TurnInTelephoneQuest(GamePlayer* pPlayer)
 
     pPlayer->SendOnTalkBubble("`wThanks, pardner! Have 1 `2Growtoken`w!", true);
     pPlayer->SendOnConsoleMessage("[`6You jammed " + ToString(dq.questItemOneAmount) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + " into the phone, and 1 `2Growtoken`` popped out!``]");
+}
+
+void RemoveGhostConfirm(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
+    }
+
+    if(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_WORLD_LOCK) < 15) {
+        pPlayer->SendOnTalkBubble("You need 15 World Locks for that.", true);
+        return;
+    }
+
+    if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
+        pPlayer->SendOnTalkBubble("Well, there really ain't no ghosts in there for us to remove. Come back later when it does.", true);
+        return;
+    }
+
+    pPlayer->ModifyInventoryItem(ITEM_ID_WORLD_LOCK, -15);
+    GhostAlgorithm::ClearWorldGhosts(pWorld);
+    pWorld->SendTalkBubbleAndConsoleToAll("`4The ghosts have vanished from the world!", true, pPlayer);
 }
 
 }
@@ -540,7 +642,12 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("DonationEdit"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Give") {
+            if(!pButtonClicked) {
+                return;
+            }
+
+            const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked != "Give" && buttonClicked != "Give the item(s)") {
                 return;
             }
 
@@ -601,17 +708,24 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
+            if(pDonateItem->HasFlag(ITEM_FLAG_UNTRADEABLE)) {
+                pPlayer->SendOnTalkBubble("That's too special to put in there!", true);
+                return;
+            }
+
             if(pDonateItem->id == ITEM_ID_FIST || pDonateItem->id == ITEM_ID_WRENCH) {
                 pPlayer->SendOnTalkBubble("You can't put that there.", true);
                 return;
             }
 
             if(amount < 1) {
+                pPlayer->SendOnTalkBubble("You can't donate nothing!", true);
                 return;
             }
 
             const uint8 ownCount = pPlayer->GetInventory().GetCountOfItem((uint16)donateItemID);
             if(ownCount == 0) {
+                pPlayer->SendOnTalkBubble("You can't donate nothing!", true);
                 return;
             }
 
@@ -642,7 +756,62 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             donation.donatedAt = Time::GetTimeSinceEpoch();
             pDonation->donatedItems.push_back(std::move(donation));
 
+            pPlayer->SendOnTalkBubble("`wThanks! You donated `#" + ToString(amount) + "`w `2" + string(pDonateItem->name) + "`w to the box.", true);
+
             pWorld->SendTileUpdate(pTile);
+            break;
+        }
+
+        case CompileTimeHashString("TelephoneEdit"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(pButtonClicked) {
+                const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+                if(buttonClicked == "GotoCrazyJimDailyQuest") {
+                    ShowCrazyJimDailyQuest(pPlayer);
+                    return;
+                }
+                if(buttonClicked == "GotoCrazyJimMainMenu") {
+                    ShowCrazyJimMainMenu(pPlayer);
+                    return;
+                }
+                if(buttonClicked == "GotoCrazyJimTurnInDailyQuest") {
+                    TurnInTelephoneQuest(pPlayer);
+                    return;
+                }
+                if(buttonClicked == "RemoveGhostConfirm") {
+                    RemoveGhostConfirm(pPlayer);
+                    return;
+                }
+                if(buttonClicked == "Dial" || buttonClicked == "TelephoneEdit") {
+                    auto pNumber = packet.Find(CompileTimeHashString("Number"));
+                    if(!pNumber) {
+                        pNumber = packet.Find(CompileTimeHashString("number"));
+                    }
+
+                    if(!pNumber) {
+                        return;
+                    }
+
+                    int32 phoneNumber = 0;
+                    if(ToInt(string(pNumber->value, pNumber->size), phoneNumber) != TO_INT_SUCCESS) {
+                        return;
+                    }
+
+                    if(phoneNumber == 12345) {
+                        ShowCrazyJimMainMenu(pPlayer);
+                        return;
+                    }
+
+                    if(phoneNumber == 52368) {
+                        World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+                        ShowRemoveGhostDialog(pPlayer, pWorld);
+                        return;
+                    }
+
+                    return;
+                }
+            }
+
             break;
         }
 
@@ -748,7 +917,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             if(!IsBirthCertNameValid(newName)) {
-                pPlayer->SendOnTalkBubble("`4Oops!`` Your GrowID must be 3-12 chars, with no spaces or color codes.", true);
+                pPlayer->SendOnTalkBubble("`4Oops!`` Your GrowID must be 3-18 chars, with letters and numbers only.", true);
                 return;
             }
 
@@ -763,7 +932,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             pPlayer->ModifyInventoryItem(ITEM_ID_BIRTH_CERTIFICATE, -1);
             pPlayer->GetLoginDetail().tankIDName = newName;
-            pPlayer->GetCharData().AddPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED);
+            pPlayer->AddPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED);
 
             QueryRequest req = MakePlayerGrowIDRename(pPlayer->GetUserID(), newName, pPlayer->GetNetID());
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GROWID_RENAME, req);
@@ -776,6 +945,63 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             pPlayer->SendOnTalkBubble("`wYou are now known as `#" + pPlayer->GetRawName() + "``!", true);
+            break;
+        }
+
+        case CompileTimeHashString("GhostBeGone"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked != "Remove Ghosts" && buttonClicked != "Yes remove ghost.") {
+                return;
+            }
+
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(!pWorld) {
+                return;
+            }
+
+            if(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_WORLD_LOCK) < 15) {
+                pPlayer->SendOnTalkBubble("You need 15 World Locks for that.", true);
+                return;
+            }
+
+            if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
+                pPlayer->SendOnTalkBubble("There are no ghosts in this world.", true);
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_WORLD_LOCK, -15);
+            GhostAlgorithm::ClearWorldGhosts(pWorld);
+            pWorld->SendTalkBubbleAndConsoleToAll("`4The ghosts have vanished from the world!", true, pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("RemoveGhostConfirm"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Yes remove ghost.") {
+                return;
+            }
+
+            RemoveGhostConfirm(pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("GotoCrazyJimMainMenu"): {
+            ShowCrazyJimMainMenu(pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("GotoCrazyJimDailyQuest"): {
+            ShowCrazyJimDailyQuest(pPlayer);
+            break;
+        }
+
+        case CompileTimeHashString("GotoCrazyJimTurnInDailyQuest"): {
+            TurnInTelephoneQuest(pPlayer);
             break;
         }
 

@@ -365,7 +365,8 @@ bool TryHandleSpecialTilePlace(GamePlayer* pPlayer, World* pWorld, TileInfo* pTi
             ->EmbedData("tiley", pTile->GetPos().y)
             ->EmbedData("TileItemID", pTile->GetDisplayedItem())
             ->EmbedData("ItemIDToDonate", pPlaceItem->id)
-            ->EndDialog("DonationEdit", "Give", "Cancel");
+            ->AddButton("Give", "`4Give the item(s)``")
+            ->EndDialog("DonationEdit", "", "Cancel");
 
         pPlayer->SendOnDialogRequest(db.Get());
         return true;
@@ -658,11 +659,13 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
 
             DialogBuilder db;
             db.SetDefaultColor('o')
-                ->AddLabelWithIcon("`wBirth Certificate``, let's change your name!", ITEM_ID_BIRTH_CERTIFICATE, true)
+                ->AddLabelWithIcon("`wChange your GrowID``", ITEM_ID_BIRTH_CERTIFICATE, true)
                 ->AddSpacer()
-                ->AddLabel("Current name: `w" + pPlayer->GetRawName() + "``")
-                ->AddTextInput("new_name", "New Name", pPlayer->GetRawName(), 12)
-                ->EndDialog("BirthCertificate", "Change It", "Cancel");
+                ->AddLabel("This will change your GrowID `4permanently``. You can't change it again for `460 days``.")
+                ->AddLabel("Your `wBirth Certificate`` will be consumed if you press `5Change It``.")
+                ->AddLabel("Choose an appropriate name or `6we will change it for you!``")
+                ->AddTextInput("new_name", "Enter your new name:", "", 32)
+                ->EndDialog("BirthCertificate", "Change it!", "Cancel");
 
             pPlayer->SendOnDialogRequest(db.Get());
             return;
@@ -682,6 +685,32 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
             }
 
             pPlayer->ModifyInventoryItem(ITEM_ID_GHOST_JAR, -1);
+            return;
+        }
+
+        case ITEM_ID_MIND_GHOST_IN_A_JAR: {
+            if(!GhostAlgorithm::PlaceGhostJar(pPlayer, pWorld, pTile)) {
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(ITEM_ID_MIND_GHOST_IN_A_JAR, -1);
+            return;
+        }
+
+        case ITEM_ID_GHOST_BE_GONE: {
+            if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
+                pPlayer->SendOnTalkBubble("There are no ghosts in this world.", true);
+                return;
+            }
+
+            DialogBuilder db;
+            db.SetDefaultColor('o')
+                ->AddLabelWithIcon("`wRemove Ghost``", ITEM_ID_GHOST_BE_GONE, true, true)
+                ->AddLabel("Wanna remove ghost? It's gonna cost you `515 World Locks `ofor our services.")
+                ->AddButton("GhostBeGone", "Yes remove ghost.")
+                ->EndDialog("GhostBeGone", "", "Nevermind");
+
+            pPlayer->SendOnDialogRequest(db.Get());
             return;
         }
 

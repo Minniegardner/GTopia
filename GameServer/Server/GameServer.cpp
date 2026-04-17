@@ -230,6 +230,10 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
     }
 
     GamePlayer* pPlayer = (GamePlayer*)event.peer->data;
+    if(!pPlayer) {
+        return;
+    }
+
     if(event.peer != pPlayer->GetPeer()) {
         return;
     }
@@ -654,6 +658,8 @@ string GameServer::GetDailyEventStatusLine() const
 void GameServer::Kill()
 {
     ServerBase::Kill();
+
+    ForceSaveAllPlayers();
 
     GetItemInfoManager()->Kill();
     GetRoleManager()->Kill();

@@ -204,7 +204,12 @@ void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)
 
 void WorldManager::Kill()
 {
+    ForceSaveAllWorlds();
+
     for(auto& [_, pWorld] : m_worlds) {
+        if(pWorld) {
+            GhostAlgorithm::DestroyWorldState(pWorld->GetID());
+        }
         SAFE_DELETE(pWorld);
     }
 }
