@@ -11,6 +11,24 @@
 namespace {
 
 uint8 RollRarityGemBonus(int16 rarity)
+{
+    int32 safeRarity = std::max<int32>(0, rarity);
+    if(safeRarity <= 7) {
+        return 0;
+    }
+
+    int32 gemsToGive = ((safeRarity / 4) * 3) / 4;
+    if(safeRarity > 30) {
+        gemsToGive = safeRarity / 4;
+    }
+
+    if(gemsToGive <= 0) {
+        return 0;
+    }
+
+    return (uint8)(rand() % (gemsToGive + 1));
+}
+
 bool IsGauntletItem(uint16 itemID)
 {
     switch(itemID) {
@@ -39,7 +57,7 @@ std::vector<int32> GetGauntletElements(uint16 itemID)
     }
 }
 
-bool IsGauntletTileSkipped(const ItemInfo* pTileItem)
+bool IsGauntletTileSkipped(ItemInfo* pTileItem)
 {
     if(!pTileItem) {
         return true;
@@ -186,23 +204,6 @@ bool TryHandleGauntlet(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, Item
 
     pPlayer->ResetGauntletSwapState();
     return true;
-}
-{
-    int32 safeRarity = std::max<int32>(0, rarity);
-    if(safeRarity <= 7) {
-        return 0;
-    }
-
-    int32 gemsToGive = ((safeRarity / 4) * 3) / 4;
-    if(safeRarity > 30) {
-        gemsToGive = safeRarity / 4;
-    }
-
-    if(gemsToGive <= 0) {
-        return 0;
-    }
-
-    return (uint8)(rand() % (gemsToGive + 1));
 }
 
 string GetTreeNameFromSeedName(const string& seedName)
