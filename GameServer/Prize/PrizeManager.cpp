@@ -69,13 +69,11 @@ bool PrizeManager::Init()
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_LOVESEAT, 140);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_PINK_MARBLE_ARCH, 6000);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_SOUR_LOLLIPOP, 200);
-    AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_STRAWBERRY_DRESS, 300);
-    AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_STRAWBERRY_HAIR, 300);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_TEENY_ANGEL_WINGS, 8500);
     AddOddsFromRefStyle(m_gbcDrops, ITEM_ID_VALENTINE_DRESS, 1000);
 
-    AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_HEARTBREAK_WINGS, 12000);
-    AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_STAINED_GLASS_SCEPTER, 20900);
+    AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_STAINED_GLASS_HEARTWINGS, 12000);
+    AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_SCEPTER_OF_THE_HONOR_GUARD, 20900);
 
     m_gbcDropsPotion = m_gbcDrops;
     m_sgbcDropsPotion = m_sgbcDrops;
