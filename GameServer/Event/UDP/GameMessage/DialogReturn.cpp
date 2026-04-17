@@ -13,6 +13,7 @@
 #include "../../../Server/GameServer.h"
 #include "../../../Server/MasterBroadway.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
+#include "../../../Context.h"
 #include "../../../World/WorldManager.h"
 #include "../../../../Source/World/TileInfo.h"
 #include "Utils/StringUtils.h"
@@ -1030,28 +1031,6 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("render_reply"): {
             RenderWorldDialog::Handle(pPlayer);
-            break;
-        }
-
-        case CompileTimeHashString("TelephoneEdit"): {
-            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            auto pNumber = packet.Find(CompileTimeHashString("Number"));
-
-            string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
-            int32 number = 0;
-            if(pNumber) {
-                ToInt(string(pNumber->value, pNumber->size), number);
-            }
-
-            if(buttonClicked == "GotoCrazyJimMainMenu" || number == 12345) {
-                ShowTelephoneMainMenu(pPlayer);
-            }
-            else if(buttonClicked == "GotoCrazyJimDailyQuest") {
-                ShowTelephoneQuestDialog(pPlayer);
-            }
-            else if(buttonClicked == "GotoCrazyJimTurnInDailyQuest") {
-                TurnInTelephoneQuest(pPlayer);
-            }
             break;
         }
 
