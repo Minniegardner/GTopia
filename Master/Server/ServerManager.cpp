@@ -2,6 +2,7 @@
 #include "Utils/Timer.h"
 #include "IO/Log.h"
 #include "../Context.h"
+#include "../World/WorldManager.h"
 
 namespace {
 const uint32 kDailyRoleEventTypes[] = {
@@ -257,13 +258,14 @@ uint32 ServerManager::GetTotalOnlineCount() const
     return totalOnlineCount;
 }
 
-void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID)
+void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID, const string& reason)
 {
-    VariantVector data(3);
+    VariantVector data(4);
 
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
     data[1] = TCP_RESULT_FAIL;
     data[2] = playerNetID;
+    data[3] = reason;
 
     SendPacketRaw(serverID, data);
 }
@@ -512,6 +514,9 @@ void ServerManager::RemoveServer(uint16 serverID)
 
     SAFE_DELETE(pServer);
     m_servers.erase(it);
+
+    // Clear all world contexts pinned to dead server to avoid stale join routing.
+    GetWorldManager()->RemoveWorldsWithServerID(serverID);
 }
 
 ServerInfo* ServerManager::GetBestGameServer()

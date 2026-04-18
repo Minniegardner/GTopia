@@ -1,6 +1,7 @@
 #include "WorldManager.h"
 #include "Utils/StringUtils.h"
 #include "Database/Table/WorldDBTable.h"
+#include "IO/Log.h"
 #include "../Context.h"
 #include "../Server/ServerManager.h"
 #include "../Server/GameServer.h"
@@ -124,7 +125,7 @@ void WorldManager::HandleWorldInit(VariantVector&& result)
 
     if(initResult != TCP_RESULT_OK) {
         for(auto& pending : pWorld->pendingPlayers) {
-            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID);
+            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID, "WORLD_INIT_FAILED");
         }
 
         m_worldNameToID.erase(MakeWorldNameKey(pWorld->worldName));
@@ -142,13 +143,13 @@ void WorldManager::HandleWorldInit(VariantVector&& result)
     for(auto& pending : pWorld->pendingPlayers) {
         uint32 loginToken = 0;
         if(!PreparePlayerSessionTransfer(pending.userID, (uint16)pWorld->serverID, loginToken)) {
-            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID);
+            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID, "SESSION_TRANSFER_FAILED");
             continue;
         }
 
         const uint16 udpPort = ResolveServerUDPPort(pWorld->serverID, pServer);
         if(udpPort == 0) {
-            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID);
+            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID, "TARGET_SERVER_PORT_ZERO");
             continue;
         }
 
@@ -197,19 +198,21 @@ void WorldManager::HandlePlayerJoinRequest(VariantVector&& result)
     else if(pWorld->state == WORLD_STATE_ON) {
         ServerInfo* pServer = GetServerManager()->GetServerByID(pWorld->serverID);
         if(!pServer) {
-            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID);
+            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID, "TARGET_SERVER_OFFLINE");
+            LOGGER_LOG_WARN("WORLD_JOIN_FAIL: world=%s id=%u target_server=%u requester_server=%u reason=TARGET_SERVER_OFFLINE", pWorld->worldName.c_str(), pWorld->worldID, pWorld->serverID, serverID);
             return;
         }
 
         uint32 loginToken = 0;
         if(!PreparePlayerSessionTransfer(userID, (uint16)pWorld->serverID, loginToken)) {
-            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID);
+            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID, "SESSION_TRANSFER_FAILED");
             return;
         }
 
         const uint16 udpPort = ResolveServerUDPPort(pWorld->serverID, pServer);
         if(udpPort == 0) {
-            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID);
+            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID, "TARGET_SERVER_PORT_ZERO");
+            LOGGER_LOG_WARN("WORLD_JOIN_FAIL: world=%s id=%u target_server=%u requester_server=%u reason=TARGET_SERVER_PORT_ZERO", pWorld->worldName.c_str(), pWorld->worldID, pWorld->serverID, serverID);
             return;
         }
 
@@ -238,7 +241,8 @@ void WorldManager::HandleDBWorldExists(QueryTaskResult&& result)
 
     ServerManager* pServerMgr = GetServerManager();
     if(!result.result) {
-        pServerMgr->SendWorldPlayerFailPacket(playerNetID, serverID);
+        pServerMgr->SendWorldPlayerFailPacket(playerNetID, serverID, "DB_QUERY_FAILED");
+        LOGGER_LOG_WARN("WORLD_JOIN_FAIL: requester_server=%u reason=DB_QUERY_FAILED", serverID);
         return;
     }
 
@@ -293,7 +297,8 @@ void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& wor
         pServer = pServerMgr->GetBestGameServer();
     }
     if(!pServer) {
-        pServerMgr->SendWorldPlayerFailPacket(playerNetID, serverID);
+        pServerMgr->SendWorldPlayerFailPacket(playerNetID, serverID, "NO_GAME_SERVER_AVAILABLE");
+        LOGGER_LOG_WARN("WORLD_JOIN_FAIL: world=%s id=%u requester_server=%u reason=NO_GAME_SERVER_AVAILABLE", worldName.c_str(), worldID, serverID);
         return;
     }
 

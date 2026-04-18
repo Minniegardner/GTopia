@@ -6,6 +6,7 @@
 #include "../Server/GameServer.h"
 #include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
+#include "IO/Log.h"
 
 #include <filesystem>
 
@@ -164,13 +165,17 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             }
 
             if(oprResult != TCP_RESULT_OK) {
+                string failReason = result.size() >= 4 ? result[3].GetString() : "UNKNOWN";
+                LOGGER_LOG_WARN("WORLD_JOIN_FAIL: netID=%d userID=%u reason=%s", playerNetID, pPlayer->GetUserID(), failReason.c_str());
                 pPlayer->SendOnFailedToEnterWorld();
                 pPlayer->SendOnConsoleMessage("Unable to move you to this world, please try again later");
+                pPlayer->SendOnConsoleMessage("`4DEBUG: enter_world failed at master (reason=" + failReason + ")");
                 return;
             }
             
             uint32 serverID = result[3].GetUINT();
             uint32 worldID = result[4].GetUINT();
+            LOGGER_LOG_DEBUG("WORLD_JOIN_ROUTE: netID=%d userID=%u targetServer=%u worldID=%u", playerNetID, pPlayer->GetUserID(), serverID, worldID);
 
             if(serverID == GetContext()->GetID()) {
                 World* pWorld = GetWorldByID(worldID);
@@ -194,6 +199,7 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 string worldName = ToUpper(result[7].GetString());
                 const uint32 userID = result[8].GetUINT();
                 const uint32 loginToken = result[9].GetUINT();
+                LOGGER_LOG_DEBUG("WORLD_JOIN_REDIRECT: userID=%u serverIP=%s announcedPort=%u resolvedPort=%u world=%s", pPlayer->GetUserID(), serverIP.c_str(), announcedServerPort, serverPort, worldName.c_str());
 
                 if(userID != pPlayer->GetUserID()) {
                     pPlayer->SetJoinWorld(false);
@@ -251,6 +257,8 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
     if(!pPlayer || pPlayer->IsJoiningWorld()) {
         return;
     }
+
+    LOGGER_LOG_DEBUG("WORLD_JOIN_REQUEST: netID=%d userID=%u world=%s localServer=%u", pPlayer->GetNetID(), pPlayer->GetUserID(), worldName.c_str(), GetContext()->GetID());
 
     pPlayer->SetJoinWorld(true);
     World* pWorld = GetWorldByName(worldName);

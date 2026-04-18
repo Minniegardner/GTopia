@@ -55,7 +55,7 @@ public:
     ServerInfo* GetServerByID(uint16 serverID);
     bool SendPacketRaw(uint16 serverID, VariantVector& data);
 
-    void SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID);
+    void SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID, const string& reason = "");
     void SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, const string& worldName, uint32 userID, uint32 loginToken, uint32 serverIDForPacket);
     void SendWorldInitPacket(const string& worldName, uint32 serverID);
     void SendAuthPacket(bool succeed, uint32 serverID);
