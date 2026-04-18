@@ -30,7 +30,9 @@ enum ePlayerSubState
 {
     PLAYER_SUB_GROWID_CHECK_IDENTIFIERS,
     PLAYER_SUB_GROWID_CHECK_NAME,
-    PLAYER_SUB_GROWID_SUCCESS
+    PLAYER_SUB_GROWID_SUCCESS,
+    PLAYER_SUB_PBAN_BY_PREFIX,
+    PLAYER_SUB_PBAN_BY_USERID
 };
 
 class TileInfo;
@@ -55,6 +57,7 @@ public:
 
     void HandleRenderWorld(VariantVector&& result);
     void HandleCreateGrowID(QueryTaskResult&& result);
+    void HandlePBanRequestResult(QueryTaskResult&& result);
 
     void SaveToDatabase();
     void LogOff();
@@ -217,6 +220,8 @@ public:
     bool CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS);
     bool HasGrowID() { return !m_loginDetail.tankIDPass.empty(); }
     void ExecGrowIDIdentifierCheck(bool fromDialog, const VariantVector& extraData = VariantVector{});
+    void BeginPBanRequest(const string& target, int32 durationSec, const string& reason);
+    void ApplyAccountBan(int32 durationSec, const string& reason, const string& sourceRawName, bool sendWorldMessage);
 
     void SendPositionToWorldPlayers();
 
@@ -234,6 +239,14 @@ public:
     int32 GetGauntletSwapIndex(int32 slot) const;
     void SetGauntletAvailableSwap(const std::vector<int32>& tiles);
     const std::vector<int32>& GetGauntletAvailableSwap() const { return m_gauntletAvailableSwap; }
+
+private:
+    struct PendingPBanRequest {
+        bool active = false;
+        int32 durationSec = 0;
+        string reason;
+        string target;
+    };
 
 private:
     uint32 m_state;
@@ -308,6 +321,8 @@ private:
     uint32 m_dailyRewardStreak = 0;
     uint32 m_dailyRewardClaimDay = 0;
     uint64 m_lastClaimDailyRewardMs = 0;
+
+    PendingPBanRequest m_pendingPBan;
 
     Role* m_pRole;
 };

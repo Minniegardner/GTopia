@@ -105,6 +105,7 @@ string GetWeekdayName(uint32 day)
 #include "../Command/KickAll.h"
 #include "../Command/Summon.h"
 #include "../Command/Suspend.h"
+#include "../Command/PBan.h"
 #include "../Command/GrowIDCmd.h"
 #include "../Command/SuperBroadcast.h"
 #include "../Command/Weather.h"
@@ -303,6 +304,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<KickAll>();
     RegisterCommand<Summon>();
     RegisterCommand<Suspend>();
+    RegisterCommand<PBan>();
     RegisterCommand<GrowIDCmd>();
     RegisterCommand<SuperBroadcast>();
     RegisterCommand<Weather>();
@@ -355,6 +357,7 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
 
         const int32 actionType = data[2].GetINT();
         const uint32 targetUserID = data[3].GetUINT();
+        const uint32 sourceUserID = data[4].GetUINT();
         const string sourceRawName = data[5].GetString();
         const string payloadText = data[6].GetString();
         const uint64 payloadNumber = (uint64)data[7].GetUINT();
@@ -419,6 +422,12 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
             case TCP_CROSS_ACTION_WARN: {
                 pTarget->SendOnTextOverlay("`4WARNING:`` " + payloadText);
                 pTarget->SendOnConsoleMessage("`4Warning from ``" + sourceRawName + "``: " + payloadText);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_PBAN: {
+                const int32 durationSec = payloadNumber >= UINT32_MAX ? -1 : (int32)payloadNumber;
+                pTarget->ApplyAccountBan(durationSec, payloadText, sourceRawName, false);
                 break;
             }
 
@@ -488,6 +497,10 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
 
             case TCP_CROSS_ACTION_SUPER_BROADCAST:
                 pSource->SendOnConsoleMessage("`oSuper-broadcast delivered across subservers.");
+                break;
+
+            case TCP_CROSS_ACTION_PBAN:
+                pSource->SendOnConsoleMessage("`oApplied account ban to ``" + targetName + "`` across subserver.");
                 break;
         }
 

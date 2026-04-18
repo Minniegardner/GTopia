@@ -328,6 +328,57 @@ bool IsLuckyInLovePotionActive(GamePlayer* pPlayer)
     return pPlayer->GetCharData().HasPlayMod(PLAYMOD_TYPE_LUCKY_IN_LOVE);
 }
 
+bool IsWeatherMachineType(uint8 itemType)
+{
+    return
+        itemType == ITEM_TYPE_WEATHER_MACHINE ||
+        itemType == ITEM_TYPE_WEATHER_SPECIAL ||
+        itemType == ITEM_TYPE_WEATHER_SPECIAL2;
+}
+
+bool ShouldCancelBreakBecauseContainerIsNotEmpty(TileInfo* pTile, ItemInfo* pTileItem, string& outBubbleMessage)
+{
+    if(!pTile || !pTileItem) {
+        return false;
+    }
+
+    if(pTileItem->type == ITEM_TYPE_DONATION_BOX) {
+        if(TileExtra_DonationBox* pDonation = pTile->GetExtra<TileExtra_DonationBox>()) {
+            if(!pDonation->donatedItems.empty()) {
+                outBubbleMessage = "Remove what's in there first!";
+                return true;
+            }
+        }
+    }
+
+    if(TileExtra_Magplant* pMagplant = pTile->GetExtra<TileExtra_Magplant>()) {
+        if(pMagplant->itemCount > 0) {
+            outBubbleMessage = "That machine still has items in it!";
+            return true;
+        }
+    }
+
+    if(pTileItem->type == ITEM_TYPE_DISPLAY_BLOCK) {
+        if(TileExtra_DisplayBlock* pDisplay = pTile->GetExtra<TileExtra_DisplayBlock>()) {
+            if(pDisplay->itemID != ITEM_ID_BLANK) {
+                outBubbleMessage = "Remove what's in there first!";
+                return true;
+            }
+        }
+    }
+
+    if(pTileItem->type == ITEM_TYPE_VENDING) {
+        if(TileExtra_Vending* pVending = pTile->GetExtra<TileExtra_Vending>()) {
+            if(pVending->itemID != ITEM_ID_BLANK && pVending->stock > 0) {
+                outBubbleMessage = "Remove what's in there first!";
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, ItemInfo* pTileItem)
 {
     if(!pPlayer || !pWorld || !pTile || !pTileItem || pTileItem->type != ITEM_TYPE_PROVIDER) {
@@ -1219,7 +1270,7 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
             float tileHealth = pTile->GetHealthPercent();
             if(tileHealth > 0) {
-                if(pTileItem->type == ITEM_TYPE_WEATHER_MACHINE && pTileItem->weatherID != 200) {
+                if(IsWeatherMachineType(pTileItem->type) && pTileItem->weatherID != 200) {
                     if(pTile->HasFlag(TILE_FLAG_IS_ON)) {
                         if(pWorld->GetCurrentWeather() != pTileItem->weatherID) {
                             pWorld->SetCurrentWeather(pTileItem->weatherID);
@@ -1245,6 +1296,17 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 return;
             }
 
+            string breakCancelMessage;
+            if(ShouldCancelBreakBecauseContainerIsNotEmpty(pTile, pTileItem, breakCancelMessage)) {
+                pPlayer->SendOnTalkBubble(breakCancelMessage, true);
+                return;
+            }
+
+            if(pTileItem->HasFlag(ITEM_FLAG_DROPLESS) && !pPlayer->GetInventory().HaveRoomForItem(pTileItem->id, 1)) {
+                pPlayer->SendOnTalkBubble("I don't have enough inventory space to pick that up!", true);
+                return;
+            }
+
             if(pWorld->GetTileManager()->GetKeyTile(KEY_TILE_GUARD_PINEAPPLE) && !pPlayer->GetInventory().HaveRoomForItem(pTileItem->id, 1)) {
                 pPlayer->SendFakePingReply();
                 pPlayer->SendOnTalkBubble("I better not break that, I have no room to pick it up!", true);
@@ -1261,8 +1323,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
             ClearWorldFlagMachine(pWorld, pTileItem->id);
             
-            if(pTileItem->type == ITEM_TYPE_WEATHER_MACHINE) {
-                pWorld->SetCurrentWeather(pTileItem->weatherID);
+            if(IsWeatherMachineType(pTileItem->type)) {
+                if(pWorld->GetCurrentWeather() == pTileItem->weatherID) {
+                    pWorld->SetCurrentWeather(pWorld->GetDefaultWeather());
+                }
+
                 pTile->RemoveFlag(TILE_FLAG_IS_ON);
                 pWorld->SendCurrentWeatherToAll();
             }

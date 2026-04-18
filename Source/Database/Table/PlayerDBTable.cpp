@@ -17,7 +17,10 @@ static TableQuery sQueryTable[] =
     {"SELECT ID FROM Players WHERE Name = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
     {"UPDATE Players SET Name = ?, Password = UNHEX(MD5(?)) WHERE ID = ?;", QUERY_FLAG_NONE},
     {"SELECT ID FROM Players WHERE Name = ? AND Password = UNHEX(MD5(?));", QUERY_FLAG_RETURN_RESULT},
-    {"UPDATE Players SET Name = ? WHERE ID = ?;", QUERY_FLAG_NONE}
+    {"UPDATE Players SET Name = ? WHERE ID = ?;", QUERY_FLAG_NONE},
+    {"SELECT ID, Name FROM Players WHERE Name LIKE ? ORDER BY Name ASC LIMIT 20;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID, Name FROM Players WHERE ID = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET StatisticData = CASE WHEN StatisticData IS NULL OR StatisticData = '' THEN CONCAT('PBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) ELSE CONCAT(StatisticData, '\\nPBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) END WHERE ID = ?;", QUERY_FLAG_NONE}
 };
 
 void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred)
@@ -232,6 +235,46 @@ QueryRequest MakePlayerGrowIDRename(uint32 userID, const string& name, int32 own
     req.data.resize(2);
     req.data[0] = name;
     req.data[1] = userID;
+    return req;
+}
+
+QueryRequest MakeFindPlayersByNamePrefix(const string& prefix, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = prefix + "%";
+    return req;
+}
+
+QueryRequest MakeGetPlayerBasicByID(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = userID;
+    return req;
+}
+
+QueryRequest MakeAppendPlayerPBanStatsByID(uint32 userID, uint32 banUntilEpochSec, uint32 banSetAtEpochSec, uint32 durationSec, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    const uint32 permaFlag = banUntilEpochSec >= INT32_MAX ? 1u : 0u;
+
+    req.data.resize(9);
+    req.data[0] = banUntilEpochSec;
+    req.data[1] = banSetAtEpochSec;
+    req.data[2] = durationSec;
+    req.data[3] = permaFlag;
+    req.data[4] = banUntilEpochSec;
+    req.data[5] = banSetAtEpochSec;
+    req.data[6] = durationSec;
+    req.data[7] = permaFlag;
+    req.data[8] = userID;
     return req;
 }
 

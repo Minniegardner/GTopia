@@ -19,7 +19,10 @@ enum ePlayerDBQuery
     DB_PLAYER_GROWID_EXISTS,
     DB_PLAYER_GROWID_CREATE,
     DB_PLAYER_GET_BY_NAME_AND_PASS,
-    DB_PLAYER_GROWID_RENAME
+    DB_PLAYER_GROWID_RENAME,
+    DB_PLAYER_FIND_BY_NAME_PREFIX,
+    DB_PLAYER_GET_BASIC_BY_ID,
+    DB_PLAYER_APPEND_PBAN_STATS_BY_ID
 };
 
 void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred = false);
@@ -41,5 +44,8 @@ QueryRequest MakePlayerGrowIDExists(const string& growID, int32 ownerID);
 QueryRequest MakePlayerGrowIDCreate(uint32 userID, const string& name, const string& pass, int32 ownerID);
 QueryRequest MakeGetPlayerByNameAndPass(const string& name, const string& pass, int32 ownerID);
 QueryRequest MakePlayerGrowIDRename(uint32 userID, const string& name, int32 ownerID);
+QueryRequest MakeFindPlayersByNamePrefix(const string& prefix, int32 ownerID);
+QueryRequest MakeGetPlayerBasicByID(uint32 userID, int32 ownerID);
+QueryRequest MakeAppendPlayerPBanStatsByID(uint32 userID, uint32 banUntilEpochSec, uint32 banSetAtEpochSec, uint32 durationSec, int32 ownerID);
 
 void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& sid, const string& rid, const string& gid, int32 hash, int32 ownerID);

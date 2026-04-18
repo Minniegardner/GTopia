@@ -116,6 +116,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/KickAll.cpp
     ${GAME_COMMAND}/Summon.cpp
     ${GAME_COMMAND}/Suspend.cpp
+    ${GAME_COMMAND}/PBan.cpp
     ${GAME_COMMAND}/GrowIDCmd.cpp
     ${GAME_COMMAND}/SuperBroadcast.cpp
     ${GAME_COMMAND}/Weather.cpp

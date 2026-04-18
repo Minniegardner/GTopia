@@ -73,3 +73,9 @@ set_skin_color|255,255,255,100|
 
 add_playmod|1280|Recently Name Changed|You're stuck with this name for a while!|You're free to change your name now!|
 set_timer|5184000|
+
+add_playmod|732|Banned|Reality flickers as you begin to wake up.|You are no longer banned. Now be good!|
+
+add_playmod|278|Curse|You've been cursed to (the world) `4hell``!|You are free to go!|
+
+add_playmod|408|Duct tape has covered your mouth!|Duct tape removed. OUCH!|
