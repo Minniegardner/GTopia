@@ -28,7 +28,7 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
             return;
         }
 
-        if(!GetServerManager()->SendCrossServerActionExecuteAll(actionType, sourceUserID, sourceRawName, payloadText, payloadNumber)) {
+        if(!GetServerManager()->SendCrossServerActionExecuteAll(actionType, sourceUserID, sourceRawName, payloadText, payloadNumber, (uint16)sourceServerID)) {
             GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_SEND_FAILED, "ALL");
             return;
         }
@@ -44,12 +44,12 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
 
     auto matches = GetGameServer()->FindPlayerSessionsByNamePrefix(targetQuery, exactMatch);
     if(matches.empty()) {
-        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, "");
+        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, targetQuery);
         return;
     }
 
     if(!exactMatch && matches.size() > 1) {
-        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH, "");
+        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH, targetQuery);
         return;
     }
 
@@ -61,12 +61,6 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
 
     if(pTargetSession->userID == sourceUserID) {
         GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_SELF_TARGET, pTargetSession->name);
-        return;
-    }
-
-    if(pTargetSession->serverID == sourceServerID) {
-        // If target is now on same subserver, the command should be handled locally.
-        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_SEND_FAILED, pTargetSession->name);
         return;
     }
 

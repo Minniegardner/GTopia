@@ -63,7 +63,7 @@ public:
     void HandleDBWorldExists(QueryTaskResult&& result);
     void HandleDBWorldCreate(QueryTaskResult&& result);
 
-    void CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID);
+    void CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID, uint32 preferredServerID = 0);
 
     WorldSession* GetWorldByName(const string& worldName);
     WorldSession* GetWorldByID(uint32 worldID);
@@ -72,6 +72,7 @@ public:
 
 private:
     std::unordered_map<uint32, WorldSession> m_worldSessions;
+    std::unordered_map<string, uint32> m_worldNameToID;
 };
 
 WorldManager* GetWorldManager();

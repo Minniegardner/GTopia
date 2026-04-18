@@ -7,6 +7,11 @@
 #include "Math/Random.h"
 
 namespace {
+string MakeWorldNameKey(const string& worldName)
+{
+    return ToUpper(worldName);
+}
+
 bool PreparePlayerSessionTransfer(uint32 userID, uint16 targetServerID, uint32& outLoginToken)
 {
     PlayerSession* pSession = GetGameServer()->GetPlayerSessionByUserID(userID);
@@ -43,6 +48,11 @@ uint16 ResolveServerUDPPort(uint32 serverID, const ServerInfo* pServer)
         if(cfg.id == serverID && cfg.udpPort != 0) {
             return cfg.udpPort;
         }
+    }
+
+    // Last-resort fallback: server 0 is udp_start + 0 in current config model.
+    if(!pCfg->servers.empty() && pCfg->servers[0].udpPort != 0) {
+        return (uint16)(pCfg->servers[0].udpPort + serverID);
     }
 
     return 0;
@@ -117,6 +127,7 @@ void WorldManager::HandleWorldInit(VariantVector&& result)
             pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID);
         }
 
+        m_worldNameToID.erase(MakeWorldNameKey(pWorld->worldName));
         m_worldSessions.erase(worldID);
         return;
     }
@@ -234,7 +245,7 @@ void WorldManager::HandleDBWorldExists(QueryTaskResult&& result)
     string worldName = result.extraData[3].GetString();
 
     if(result.result->GetRowCount() == 0) {
-        QueryRequest req = MakeWorldCreate(result.extraData[3].GetString(), GetNetID());
+        QueryRequest req = MakeWorldCreate(result.extraData[3].GetString(), serverID, GetNetID());
         req.extraData = std::move(result.extraData);
         req.extraData[0] = WORLD_DB_STATE_CREATE;
 
@@ -243,8 +254,14 @@ void WorldManager::HandleDBWorldExists(QueryTaskResult&& result)
     }
 
     uint32 worldID = result.result->GetField("ID", 0).GetUINT();
+    uint32 homeServerID = result.result->GetField("HomeServerID", 0).GetUINT();
+    if(homeServerID == 0) {
+        homeServerID = serverID;
+        QueryRequest setHomeReq = MakeSetWorldHomeServer(homeServerID, worldID, GetNetID());
+        DatabaseWorldExec(GetContext()->GetDatabasePool(), DB_WORLD_SET_HOME_SERVER, setHomeReq);
+    }
 
-    CreateWorldSessionAndNotice(worldID, worldName, playerNetID, serverID, result.extraData[4].GetUINT());
+    CreateWorldSessionAndNotice(worldID, worldName, playerNetID, serverID, result.extraData[4].GetUINT(), homeServerID);
 }
 
 void WorldManager::HandleDBWorldCreate(QueryTaskResult&& result)
@@ -258,14 +275,20 @@ void WorldManager::HandleDBWorldCreate(QueryTaskResult&& result)
     string worldName = result.extraData[3].GetString();
     uint32 worldID = result.increment;
 
-    CreateWorldSessionAndNotice(worldID, worldName, playerNetID, serverID, result.extraData[4].GetUINT());
+    CreateWorldSessionAndNotice(worldID, worldName, playerNetID, serverID, result.extraData[4].GetUINT(), serverID);
 }
 
-void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID)
+void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID, uint32 preferredServerID)
 {
     ServerManager* pServerMgr = GetServerManager();
-    // Prefer creating new/empty worlds on the same server where requester currently is.
-    ServerInfo* pServer = pServerMgr->GetServerByID((uint16)serverID);
+    // Prefer persistent world home server first, then requester's server.
+    ServerInfo* pServer = nullptr;
+    if(preferredServerID != 0) {
+        pServer = pServerMgr->GetServerByID((uint16)preferredServerID);
+    }
+    if(!pServer) {
+        pServer = pServerMgr->GetServerByID((uint16)serverID);
+    }
     if(!pServer) {
         pServer = pServerMgr->GetBestGameServer();
     }
@@ -282,20 +305,30 @@ void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& wor
     worldSession.worldName = worldName;
     worldSession.AddPending(serverID, playerNetID, userID);
 
+    auto existing = m_worldSessions.find(worldSession.worldID);
+    if(existing != m_worldSessions.end()) {
+        m_worldNameToID.erase(MakeWorldNameKey(existing->second.worldName));
+    }
+
+    m_worldNameToID[MakeWorldNameKey(worldSession.worldName)] = worldSession.worldID;
     m_worldSessions.insert_or_assign(worldSession.worldID, worldSession);
     pServerMgr->SendWorldInitPacket(worldName, pServer->serverID);
 }
 
 WorldSession* WorldManager::GetWorldByName(const string& worldName)
 {
-    string searchName = ToLower(worldName);
-    for(auto& [_, worldSession] : m_worldSessions) {
-        if(ToLower(worldSession.worldName) == searchName) {
-            return &worldSession;
-        }
+    auto itName = m_worldNameToID.find(MakeWorldNameKey(worldName));
+    if(itName == m_worldNameToID.end()) {
+        return nullptr;
     }
 
-    return nullptr;
+    auto itWorld = m_worldSessions.find(itName->second);
+    if(itWorld == m_worldSessions.end()) {
+        m_worldNameToID.erase(itName);
+        return nullptr;
+    }
+
+    return &itWorld->second;
 }
 
 WorldSession* WorldManager::GetWorldByID(uint32 worldID)
@@ -312,6 +345,7 @@ void WorldManager::RemoveWorldsWithServerID(uint32 serverID)
 {
     for(auto it = m_worldSessions.begin(); it != m_worldSessions.end();) {
         if(it->second.serverID == serverID) {
+            m_worldNameToID.erase(MakeWorldNameKey(it->second.worldName));
             it = m_worldSessions.erase(it);
             continue;
         }

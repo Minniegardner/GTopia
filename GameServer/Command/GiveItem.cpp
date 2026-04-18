@@ -1,6 +1,7 @@
 #include "Utils/StringUtils.h"
 #include "GiveItem.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 #include "Item/ItemInfoManager.h"
 
 const CommandInfo& GiveItem::GetInfo()
@@ -49,8 +50,16 @@ void GiveItem::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
-    if(!pTarget) { // search on sub-servers
-        pPlayer->SendOnConsoleMessage("`oFailed to find user with given id");
+    if(!pTarget) {
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_GIVEITEM,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            ToString(userID),
+            true,
+            ToString(pItem->id),
+            amount);
+        pPlayer->SendOnConsoleMessage("`oGiveitem request sent across subserver for user ID `w" + ToString(userID) + "``.");
         return;
     }
 

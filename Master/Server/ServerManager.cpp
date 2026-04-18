@@ -385,14 +385,22 @@ bool ServerManager::SendCrossServerActionExecuteAll(
     uint32 sourceUserID,
     const string& sourceRawName,
     const string& payloadText,
-    uint64 payloadNumber)
+    uint64 payloadNumber,
+    uint16 excludeServerID)
 {
     bool sentAny = false;
+    bool hasEligibleTarget = false;
 
     for(const auto& [serverID, pServer] : m_servers) {
         if(!pServer || pServer->serverType != CONFIG_SERVER_GAME) {
             continue;
         }
+
+        if(excludeServerID != 0 && serverID == excludeServerID) {
+            continue;
+        }
+
+        hasEligibleTarget = true;
 
         VariantVector data(10);
         data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
@@ -411,11 +419,15 @@ bool ServerManager::SendCrossServerActionExecuteAll(
         }
     }
 
-    return sentAny;
+    return hasEligibleTarget ? sentAny : true;
 }
 
 void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)
 {
+    if(!pClient) {
+        return;
+    }
+
     if(serverType != CONFIG_SERVER_GAME && serverType != CONFIG_SERVER_RENDERER) {
         pClient->status = SOCKET_CLIENT_CLOSE;
         LOGGER_LOG_WARN("Unknown server %d type %d, closing", serverID, serverType);
@@ -429,9 +441,17 @@ void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverTy
         return;
     }
 
-    auto serverNetInfo = GetContext()->GetGameConfig()->servers[serverID];
-    if(serverNetInfo.serverType != serverType || serverNetInfo.lanIP.empty() || serverNetInfo.wanIP.empty()) {
+    GameConfig* pCfg = GetContext()->GetGameConfig();
+    if(!pCfg || serverID >= pCfg->servers.size()) {
         pClient->status = SOCKET_CLIENT_CLOSE;
+        LOGGER_LOG_ERROR("Server %d is out of range in servers config (size=%d)", serverID, pCfg ? (int32)pCfg->servers.size() : -1);
+        return;
+    }
+
+    auto serverNetInfo = pCfg->servers[serverID];
+    if(serverNetInfo.serverType != serverType || serverNetInfo.lanIP.empty() || serverNetInfo.wanIP.empty() || serverNetInfo.udpPort == 0) {
+        pClient->status = SOCKET_CLIENT_CLOSE;
+        LOGGER_LOG_ERROR("Invalid config for server %d (type=%d lan='%s' wan='%s' udp=%d)", serverID, serverNetInfo.serverType, serverNetInfo.lanIP.c_str(), serverNetInfo.wanIP.c_str(), serverNetInfo.udpPort);
         return;
     }
 

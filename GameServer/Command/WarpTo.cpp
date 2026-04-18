@@ -1,6 +1,7 @@
 #include "WarpTo.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
 
 const CommandInfo& WarpTo::GetInfo()
@@ -38,7 +39,15 @@ void WarpTo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
-        pPlayer->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + query + "`6.``");
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_WARPTO,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            query,
+            exactMatch,
+            string(),
+            0);
+        pPlayer->SendOnConsoleMessage("`oSearching target globally and preparing warp...");
         return;
     }
 

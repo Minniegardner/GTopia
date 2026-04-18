@@ -5,6 +5,7 @@
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
+#include "../Player/GamePlayer.h"
 
 const CommandInfo& SuperBroadcast::GetInfo()
 {
@@ -66,6 +67,14 @@ void SuperBroadcast::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     const string payloadText =
         "CP:_PL:0_OID:_CT:[SB]_ `#** `#from (``" + pPlayer->GetRawName() + "`#) in [`o" + worldName + "`#] ** :`" + string(1, chatColor) + " " + sentence;
+
+    for(auto* pWorldPlayer : GetGameServer()->FindPlayersByNamePrefix("", false, 0)) {
+        if(!pWorldPlayer || !pWorldPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+            continue;
+        }
+
+        pWorldPlayer->SendOnConsoleMessage(payloadText);
+    }
 
     GetMasterBroadway()->SendCrossServerActionRequest(
         TCP_CROSS_ACTION_SUPER_BROADCAST,

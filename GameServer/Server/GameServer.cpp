@@ -392,6 +392,53 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
                 break;
             }
 
+            case TCP_CROSS_ACTION_WARPTO: {
+                if(targetUserID == 0 || sourceUserID == 0) {
+                    break;
+                }
+
+                const uint32 targetWorldID = pTarget->GetCurrentWorld();
+                if(targetWorldID == 0) {
+                    break;
+                }
+
+                World* pTargetWorld = GetWorldManager()->GetWorldByID(targetWorldID);
+                if(!pTargetWorld || pTargetWorld->GetWorlName().empty()) {
+                    break;
+                }
+
+                GetMasterBroadway()->SendCrossServerActionRequest(
+                    TCP_CROSS_ACTION_SUMMON,
+                    pTarget->GetUserID(),
+                    pTarget->GetRawName(),
+                    ToString(sourceUserID),
+                    true,
+                    pTargetWorld->GetWorlName(),
+                    0);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_GIVEITEM: {
+                uint32 itemID = 0;
+                if(ToUInt(payloadText, itemID) != TO_INT_SUCCESS || itemID == 0) {
+                    break;
+                }
+
+                ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
+                if(!pItem) {
+                    break;
+                }
+
+                const uint32 giveAmount = payloadNumber > UINT32_MAX ? UINT32_MAX : (uint32)payloadNumber;
+                if(giveAmount == 0) {
+                    break;
+                }
+
+                const uint8 givenCount = pTarget->GetInventory().AddItem(pItem->id, giveAmount, pTarget);
+                pTarget->SendOnConsoleMessage("`oGiven: " + ToString(givenCount) + "x " + pItem->name + " `oby ``" + sourceRawName + "``.");
+                break;
+            }
+
             case TCP_CROSS_ACTION_SUMMON: {
                 pTarget->SendOnConsoleMessage("`oYou were summoned by ``" + sourceRawName + "`` to `w" + payloadText + "``.");
                 GetWorldManager()->PlayerJoinRequest(pTarget, payloadText);
@@ -507,6 +554,14 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
                 pSource->SendOnConsoleMessage("`oSuper-broadcast delivered across subservers.");
                 break;
 
+            case TCP_CROSS_ACTION_GIVEITEM:
+                pSource->SendOnConsoleMessage("`oGiveitem delivered to ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_WARPTO:
+                pSource->SendOnConsoleMessage("`oWarp request sent to ``" + targetName + "`` across subserver.");
+                break;
+
             case TCP_CROSS_ACTION_PBAN:
                 pSource->SendOnConsoleMessage("`oApplied account ban to ``" + targetName + "`` across subserver.");
                 break;
@@ -534,7 +589,8 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         return;
     }
 
-    pSource->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + targetName + "`6.``");
+    const string notFoundTarget = targetName.empty() ? "that query" : targetName;
+    pSource->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + notFoundTarget + "`6.``");
 }
 
 bool GameServer::CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const
