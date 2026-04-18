@@ -58,6 +58,7 @@ void PInfo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             "`w" + pTarget->GetRawName() + "`` (ID: `o" + ToString(pTarget->GetUserID()) +
             "``) - LV `o" + ToString(pTarget->GetLevel()) +
             "`` - Gems `o" + ToString(pTarget->GetGems()) +
+            "`` - Server `o" + ToString(GetContext()->GetID()) +
             "`` - World `o" + worldName + "``"
         );
     }

@@ -86,6 +86,12 @@ void Player::SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const 
     data[5] = loginMode;
 
     SendCallFunctionPacket(data);
+    
+        // Send console message showing redirect info
+        VariantVector msgData(2);
+        msgData[0] = "OnConsoleMessage";
+        msgData[1] = "`#>> Redirecting to server `o" + serverIP + ":" + ToString(port) + "`` at door `o" + doorID + "``";
+        SendCallFunctionPacket(msgData);
 }
 
 void Player::SendOnConsoleMessage(const string& message)

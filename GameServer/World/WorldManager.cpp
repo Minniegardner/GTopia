@@ -166,10 +166,34 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 const uint32 userID = result[8].GetUINT();
                 const uint32 loginToken = result[9].GetUINT();
 
-                if(userID != pPlayer->GetUserID() || serverIP.empty() || serverPort == 0 || worldName.empty() || loginToken == 0) {
+                if(userID != pPlayer->GetUserID()) {
                     pPlayer->SetJoinWorld(false);
                     pPlayer->SendOnFailedToEnterWorld();
-                    pPlayer->SendOnConsoleMessage("Unable to redirect to target subserver");
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: userID mismatch - expected " + ToString(pPlayer->GetUserID()) + " got " + ToString(userID));
+                    return;
+                }
+                if(serverIP.empty()) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: serverIP is empty");
+                    return;
+                }
+                if(serverPort == 0) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: serverPort is 0");
+                    return;
+                }
+                if(worldName.empty()) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: worldName is empty");
+                    return;
+                }
+                if(loginToken == 0) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: loginToken is 0 (not rotated by master)");
                     return;
                 }
 
