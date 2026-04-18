@@ -11,13 +11,21 @@
 #include "../../GameServer/World/World.h"
 
 #include <cmath>
+#include <array>
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 namespace {
 
 enum eGhostNpcType : uint8 {
-    GHOST_NPC_TYPE_NORMAL = 1,
-    GHOST_NPC_TYPE_JAR = 2
+    GHOST_NPC_TYPE_GHOST = 1,
+    GHOST_NPC_TYPE_GHOST_JAR = 2,
+    GHOST_NPC_TYPE_YELLOW_GHOST = 4,
+    GHOST_NPC_TYPE_SHARK_GHOST = 6,
+    GHOST_NPC_TYPE_WINTER_GHOST = 7,
+    GHOST_NPC_TYPE_BOSS_GHOST = 11,
+    GHOST_NPC_TYPE_YELLOW_CRAZY_GHOST = 12
 };
 
 enum eGhostNpcAction : uint8 {
@@ -27,7 +35,8 @@ enum eGhostNpcAction : uint8 {
 };
 
 struct GhostEntity {
-    uint32 id = 0;
+    uint8 id = 0;
+    uint8 npcType = GHOST_NPC_TYPE_GHOST;
     bool jar = false;
     Vector2Float pos = {0.0f, 0.0f};
     Vector2Float lastPos = {0.0f, 0.0f};
@@ -39,7 +48,6 @@ struct GhostEntity {
 };
 
 struct GhostWorldState {
-    uint32 nextEntityID = 1;
     uint64 lastTickMS = 0;
     uint64 lastHauntedCheckMS = 0;
     std::unordered_map<uint32, GhostEntity> entities;
@@ -88,6 +96,68 @@ Vector2Float GetGhostLerpPos(const GhostEntity& entity, uint64 nowMS)
     };
 }
 
+bool IsGhostNpcType(uint8 type)
+{
+    switch(type) {
+        case GHOST_NPC_TYPE_GHOST:
+        case GHOST_NPC_TYPE_YELLOW_GHOST:
+        case GHOST_NPC_TYPE_SHARK_GHOST:
+        case GHOST_NPC_TYPE_WINTER_GHOST:
+        case GHOST_NPC_TYPE_BOSS_GHOST:
+        case GHOST_NPC_TYPE_YELLOW_CRAZY_GHOST:
+            return true;
+        default:
+            return false;
+    }
+}
+
+uint64 GetTravelMS(const GhostEntity& entity)
+{
+    const float dx = entity.destPos.x - entity.lastPos.x;
+    const float dy = entity.destPos.y - entity.lastPos.y;
+    const float dist = std::sqrt((dx * dx) + (dy * dy));
+    const float speed = std::max(1.0f, entity.speed);
+    return (uint64)((dist / speed) * 1000.0f);
+}
+
+uint8 AllocateNpcID(const GhostWorldState& state)
+{
+    std::array<bool, 256> used{};
+    for(const auto& [_, entity] : state.entities) {
+        used[entity.id] = true;
+    }
+
+    for(uint16 id = 1; id <= 255; ++id) {
+        if(!used[id]) {
+            return (uint8)id;
+        }
+    }
+
+    return 0;
+}
+
+uint8 RollGhostNpcType()
+{
+    // Keep classic ghost the most frequent, with occasional variants.
+    const uint32 roll = (uint32)(rand() % 100);
+    if(roll < 70) {
+        return GHOST_NPC_TYPE_GHOST;
+    }
+    if(roll < 80) {
+        return GHOST_NPC_TYPE_YELLOW_GHOST;
+    }
+    if(roll < 87) {
+        return GHOST_NPC_TYPE_SHARK_GHOST;
+    }
+    if(roll < 94) {
+        return GHOST_NPC_TYPE_WINTER_GHOST;
+    }
+    if(roll < 98) {
+        return GHOST_NPC_TYPE_YELLOW_CRAZY_GHOST;
+    }
+    return GHOST_NPC_TYPE_BOSS_GHOST;
+}
+
 void SendGhostNpcPacket(World* pWorld, const GhostEntity& entity, uint8 action, const Vector2Float& fromPos, const Vector2Float& toPos, float speed)
 {
     if(!pWorld) {
@@ -96,8 +166,8 @@ void SendGhostNpcPacket(World* pWorld, const GhostEntity& entity, uint8 action, 
 
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_NPC;
-    packet.field0 = entity.jar ? GHOST_NPC_TYPE_JAR : GHOST_NPC_TYPE_NORMAL;
-    packet.field1 = (uint8)(entity.id & 0xFF);
+    packet.field0 = entity.jar ? GHOST_NPC_TYPE_GHOST_JAR : entity.npcType;
+    packet.field1 = entity.id;
     packet.field2 = action;
     packet.posX = fromPos.x;
     packet.posY = fromPos.y;
@@ -123,8 +193,14 @@ void SpawnHauntedGhost(World* pWorld, GhostWorldState& state)
     pos.x = (float)(64 + (rand() % std::max<int32>(1, (size.x * 32) - 128)));
     pos.y = (float)(64 + (rand() % std::max<int32>(1, (size.y * 32) - 128)));
 
+    const uint8 entityID = AllocateNpcID(state);
+    if(entityID == 0) {
+        return;
+    }
+
     GhostEntity entity;
-    entity.id = state.nextEntityID++;
+    entity.id = entityID;
+    entity.npcType = RollGhostNpcType();
     entity.jar = false;
     entity.pos = ClampWorldPos(pWorld, pos);
     entity.lastPos = entity.pos;
@@ -142,7 +218,7 @@ void SpawnHauntedGhost(World* pWorld, GhostWorldState& state)
 bool AnyGhostLeft(const GhostWorldState& state)
 {
     for(const auto& [_, entity] : state.entities) {
-        if(!entity.jar) {
+        if(!entity.jar && IsGhostNpcType(entity.npcType)) {
             return true;
         }
     }
@@ -300,8 +376,14 @@ bool PlaceGhostJar(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile)
 
     GhostWorldState& state = GetState(pWorld);
 
+    const uint8 entityID = AllocateNpcID(state);
+    if(entityID == 0) {
+        return false;
+    }
+
     GhostEntity jarEntity;
-    jarEntity.id = state.nextEntityID++;
+    jarEntity.id = entityID;
+    jarEntity.npcType = GHOST_NPC_TYPE_GHOST_JAR;
     jarEntity.jar = true;
     jarEntity.pos = { (pTile->GetPos().x * 32.0f) + 16.0f, (pTile->GetPos().y * 32.0f) + 10.0f };
     jarEntity.lastPos = jarEntity.pos;
@@ -333,8 +415,14 @@ bool SpawnGhostAt(World* pWorld, const Vector2Float& worldPos)
 
     GhostWorldState& state = GetState(pWorld);
 
+    const uint8 entityID = AllocateNpcID(state);
+    if(entityID == 0) {
+        return false;
+    }
+
     GhostEntity ghost;
-    ghost.id = state.nextEntityID++;
+    ghost.id = entityID;
+    ghost.npcType = RollGhostNpcType();
     ghost.jar = false;
     ghost.pos = ClampWorldPos(pWorld, worldPos);
     ghost.lastPos = ghost.pos;
@@ -432,7 +520,7 @@ bool HasWorldGhosts(World* pWorld)
 
     GhostWorldState& state = GetState(pWorld);
     for(const auto& [_, entity] : state.entities) {
-        if(!entity.jar) {
+        if(!entity.jar && IsGhostNpcType(entity.npcType)) {
             return true;
         }
     }
@@ -460,7 +548,7 @@ void UpdateWorldGhosts(World* pWorld)
         if(pWorld->GetPlayerCount() >= 1 && (rand() % 40) == 0) {
             size_t ghostCount = 0;
             for(const auto& [_, entity] : state.entities) {
-                if(!entity.jar) {
+                if(!entity.jar && IsGhostNpcType(entity.npcType)) {
                     ++ghostCount;
                 }
             }
@@ -482,15 +570,11 @@ void UpdateWorldGhosts(World* pWorld)
     toRemove.reserve(8);
 
     for(auto& [entityID, entity] : state.entities) {
-        if(!entity.jar) {
+        if(!entity.jar && IsGhostNpcType(entity.npcType)) {
             const Vector2Float currentPos = GetGhostLerpPos(entity, nowMS);
             entity.pos = currentPos;
 
-            const float dx = entity.destPos.x - entity.lastPos.x;
-            const float dy = entity.destPos.y - entity.lastPos.y;
-            const float dist = std::sqrt((dx * dx) + (dy * dy));
-            const float speed = std::max(1.0f, entity.speed);
-            const uint64 travelMS = (uint64)((dist / speed) * 1000.0f);
+            const uint64 travelMS = GetTravelMS(entity);
 
             if(travelMS == 0 || nowMS - entity.lastMoveMS >= travelMS) {
                 entity.lastPos = currentPos;
@@ -518,7 +602,7 @@ void UpdateWorldGhosts(World* pWorld)
                 }
             }
         }
-        else {
+        else if(entity.jar) {
             const uint64 elapsed = nowMS - entity.spawnMS;
             if(elapsed >= 7000) {
                 HandleGhostJarCapture(pWorld, state, entity);
@@ -581,13 +665,31 @@ void SyncWorldGhostsToPlayer(World* pWorld, GamePlayer* pPlayer)
 
         GameUpdatePacket packet;
         packet.type = NET_GAME_PACKET_NPC;
-        packet.field0 = entity.jar ? GHOST_NPC_TYPE_JAR : GHOST_NPC_TYPE_NORMAL;
-        packet.field1 = (uint8)(entity.id & 0xFF);
+        packet.field0 = entity.jar ? GHOST_NPC_TYPE_GHOST_JAR : entity.npcType;
+        packet.field1 = entity.id;
         packet.field2 = GHOST_NPC_ACTION_ADD;
         packet.posX = pos.x;
         packet.posY = pos.y;
 
         SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
+
+        if(!entity.jar) {
+            const uint64 travelMS = GetTravelMS(entity);
+            if(travelMS > 0 && nowMS - entity.lastMoveMS < travelMS) {
+                GameUpdatePacket movePacket;
+                movePacket.type = NET_GAME_PACKET_NPC;
+                movePacket.field0 = entity.npcType;
+                movePacket.field1 = entity.id;
+                movePacket.field2 = GHOST_NPC_ACTION_MOVE;
+                movePacket.posX = entity.lastPos.x;
+                movePacket.posY = entity.lastPos.y;
+                movePacket.field9 = entity.destPos.x;
+                movePacket.field10 = entity.destPos.y;
+                movePacket.field11 = entity.speed;
+
+                SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &movePacket, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
+            }
+        }
     }
 }
 

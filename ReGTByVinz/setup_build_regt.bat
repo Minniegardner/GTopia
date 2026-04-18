@@ -6,6 +6,7 @@ cd /d %~dp0\..
 set "SRC_DIR=ReGTByVinz"
 set "BUILD_DIR=ReGTByVinz\build"
 set "GENERATOR="
+set "PROBE_DIR=ReGTByVinz\.cmake_probe"
 
 echo [1/4] Updating submodules...
 if exist .git (
@@ -13,22 +14,17 @@ if exist .git (
 )
 
 echo [2/4] Selecting CMake generator...
-cmake -G "Visual Studio 17 2022" -N . >nul 2>nul
-if not errorlevel 1 set "GENERATOR=Visual Studio 17 2022"
+call :try_generator "Visual Studio 17 2022"
+if not defined GENERATOR call :try_generator "Visual Studio 16 2019"
+if not defined GENERATOR call :try_generator "Ninja"
+if not defined GENERATOR call :try_generator "MinGW Makefiles"
 
 if not defined GENERATOR (
-    cmake -G "Visual Studio 16 2019" -N . >nul 2>nul
-    if not errorlevel 1 set "GENERATOR=Visual Studio 16 2019"
-)
-
-if not defined GENERATOR (
-    cmake -G "Ninja" -N . >nul 2>nul
-    if not errorlevel 1 set "GENERATOR=Ninja"
-)
-
-if not defined GENERATOR (
-    echo Failed to find a supported CMake generator.
-    echo Install Visual Studio Build Tools 2022 or Ninja, then retry.
+    echo Failed to find a working CMake generator plus C++ toolchain.
+    echo Install one of these then retry:
+    echo   - Visual Studio 2022 Build Tools ^(Desktop development with C++^)
+    echo   - Ninja + MSVC/clang-cl/g++ in PATH
+    echo   - MinGW g++ for "MinGW Makefiles"
     exit /b 1
 )
 
@@ -50,10 +46,28 @@ if errorlevel 1 goto :fail
 echo.
 echo Build complete.
 echo Output executable:
-echo   %BUILD_DIR%\Release\ReGTByVinz.exe
+if "%GENERATOR%"=="Ninja" (
+    echo   %BUILD_DIR%\ReGTByVinz.exe
+) else if "%GENERATOR%"=="MinGW Makefiles" (
+    echo   %BUILD_DIR%\ReGTByVinz.exe
+) else (
+    echo   %BUILD_DIR%\Release\ReGTByVinz.exe
+)
 exit /b 0
 
 :fail
 echo.
 echo Setup or build failed.
 exit /b 1
+
+:try_generator
+set "TRY_GEN=%~1"
+if exist "%PROBE_DIR%" rmdir /s /q "%PROBE_DIR%"
+
+cmake -S "%SRC_DIR%" -B "%PROBE_DIR%" -G "%TRY_GEN%" >nul 2>nul
+if not errorlevel 1 (
+    set "GENERATOR=%TRY_GEN%"
+)
+
+if exist "%PROBE_DIR%" rmdir /s /q "%PROBE_DIR%"
+exit /b 0
