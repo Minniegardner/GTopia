@@ -22,6 +22,18 @@ CREATE TABLE `Players` (
   `DailyRewardClaimDay` int NOT NULL DEFAULT '0',
   `LastClaimDailyReward` bigint NOT NULL DEFAULT '0',
   `RoleID` int DEFAULT NULL,
+  `GuildID` bigint unsigned NOT NULL DEFAULT '0',
+  `ShowLocationToGuild` tinyint(1) NOT NULL DEFAULT '1',
+  `ShowGuildNotification` tinyint(1) NOT NULL DEFAULT '1',
+  `TitleShowPrefix` tinyint(1) NOT NULL DEFAULT '1',
+  `TitlePermLegend` tinyint(1) NOT NULL DEFAULT '0',
+  `TitlePermGrow4Good` tinyint(1) NOT NULL DEFAULT '0',
+  `TitlePermMVP` tinyint(1) NOT NULL DEFAULT '0',
+  `TitlePermVIP` tinyint(1) NOT NULL DEFAULT '0',
+  `TitleEnabledLegend` tinyint(1) NOT NULL DEFAULT '0',
+  `TitleEnabledGrow4Good` tinyint(1) NOT NULL DEFAULT '0',
+  `TitleEnabledMVP` tinyint(1) NOT NULL DEFAULT '0',
+  `TitleEnabledVIP` tinyint(1) NOT NULL DEFAULT '0',
   `VID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
   `Hash` int NOT NULL DEFAULT '0',
   `SID` binary(16) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
@@ -32,7 +44,28 @@ CREATE TABLE `Players` (
   KEY `idx_vid` (`VID`),
   KEY `idx_hash` (`Hash`),
   KEY `idx_sid` (`SID`),
-  KEY `idx_name` (`Name`)
+  KEY `idx_name` (`Name`),
+  KEY `idx_guildid` (`GuildID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `Guilds` (
+  `ID` bigint unsigned NOT NULL,
+  `Name` varchar(18) NOT NULL,
+  `Statement` varchar(50) NOT NULL DEFAULT '',
+  `Notebook` longtext,
+  `WorldID` int unsigned NOT NULL DEFAULT '0',
+  `OwnerID` int unsigned NOT NULL DEFAULT '0',
+  `Level` int unsigned NOT NULL DEFAULT '1',
+  `XP` int unsigned NOT NULL DEFAULT '0',
+  `LogoFG` int NOT NULL DEFAULT '0',
+  `LogoBG` int NOT NULL DEFAULT '0',
+  `ShowMascot` tinyint(1) NOT NULL DEFAULT '1',
+  `CreatedAt` bigint unsigned NOT NULL DEFAULT '0',
+  `MemberCount` int unsigned NOT NULL DEFAULT '0',
+  `MemberData` longblob,
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `uq_guild_name` (`Name`),
+  KEY `idx_owner` (`OwnerID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `Worlds` (

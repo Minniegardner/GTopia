@@ -5,6 +5,7 @@
 #include "Utils/Timer.h"
 #include "Player/PlayMod.h"
 #include "Packet/GamePacket.h"
+#include "../Guild/Guild.h"
 
 #include <unordered_set>
 
@@ -24,7 +25,8 @@ enum ePlayerState
     PLAYER_STATE_IN_GAME = 1 << 5,
     PLAYER_STATE_RENDERING_WORLD = 1 << 6,
     PLAYER_STATE_CREATING_GROWID = 1 << 7,
-    PLAYER_STATE_LOADING_SOCIAL = 1 << 8
+    PLAYER_STATE_LOADING_SOCIAL = 1 << 8,
+    PLAYER_STATE_LOADING_GUILD = 1 << 9
 };
 
 enum ePlayerSubState
@@ -34,7 +36,10 @@ enum ePlayerSubState
     PLAYER_SUB_GROWID_SUCCESS,
     PLAYER_SUB_PBAN_BY_PREFIX,
     PLAYER_SUB_PBAN_BY_USERID,
-    PLAYER_SUB_SOCIAL_LOAD
+    PLAYER_SUB_SOCIAL_LOAD,
+    PLAYER_SUB_GUILD_LOAD,
+    PLAYER_SUB_GUILD_NAME_CHECK,
+    PLAYER_SUB_GUILD_CREATE
 };
 
 class TileInfo;
@@ -70,7 +75,13 @@ public:
     void SetJoinWorld(bool joining) { m_joiningWorld = joining; }
     bool IsJoiningWorld() { return m_joiningWorld; }
     
-    void SetCurrentWorld(uint32 worldID) { m_currentWorldID = worldID; }
+    void SetCurrentWorld(uint32 worldID) {
+        if(m_currentWorldID != 0 && m_currentWorldID != worldID) {
+            m_pendingGuildInvites.clear();
+        }
+
+        m_currentWorldID = worldID;
+    }
     uint32 GetCurrentWorld() const { return m_currentWorldID; }
 
     void SetSwitchingSubserver(bool switching) { m_switchingSubserver = switching; }
@@ -79,6 +90,25 @@ public:
     string GetDisplayName();
     string GetRawName();
     string GetSpawnData(bool local);
+
+    bool IsPrefixEnabled() const;
+    void SetPrefixEnabled(bool enabled);
+    bool IsLegend() const;
+    void SetIsLegend(bool enabled);
+    bool IsGrow4Good() const;
+    void SetIsGrow4Good(bool enabled);
+    bool IsMVP() const;
+    void SetIsMVP(bool enabled);
+    bool IsVIP() const;
+    void SetIsVIP(bool enabled);
+    bool IsLegendaryTitleEnabled();
+    void SetLegendaryTitleEnabled(bool enabled);
+    bool IsGrow4GoodTitleEnabled();
+    void SetGrow4GoodTitleEnabled(bool enabled);
+    bool IsMaxLevelTitleEnabled();
+    void SetMaxLevelTitleEnabled(bool enabled);
+    bool IsSuperSupporterTitleEnabled();
+    void SetSuperSupporterTitleEnabled(bool enabled);
 
     void SetWorldPos(float x, float y) { m_worldPos.x = x; m_worldPos.y = y; }
     Vector2Float GetWorldPos() const { return m_worldPos; }
@@ -181,6 +211,24 @@ public:
     bool AddIgnoredUserID(uint32 userID);
     bool RemoveIgnoredUserID(uint32 userID);
 
+    uint64 GetGuildID() const { return m_guildID; }
+    void SetGuildID(uint64 guildID) { m_guildID = guildID; }
+    bool IsShowLocationToGuild() const { return m_showLocationToGuild; }
+    void SetShowLocationToGuild(bool val) { m_showLocationToGuild = val; }
+    bool IsShowGuildNotification() const { return m_showGuildNotification; }
+    void SetShowGuildNotification(bool val) { m_showGuildNotification = val; }
+    bool IsGuildMascotEnabled() const { return m_isGuildMascotEnabled && m_guildID != 0; }
+    void SetGuildMascotEnabled(bool val) { m_isGuildMascotEnabled = val; }
+    void SetPendingGuildCreationData(const string& guildName, const string& guildStatement) { m_pendingGuildName = guildName; m_pendingGuildStatement = guildStatement; }
+    bool CreateGuildFromPendingData();
+    void SendGuildMenu(const string& button = "");
+    void SendGuildDataChanged(Guild* pGuild = nullptr);
+    void AddPendingGuildInvite(uint64 guildID, Guild* pGuild);
+    void RemovePendingGuildInvite(uint64 guildID);
+    Guild* GetPendingGuildInvite(uint64 guildID) const;
+    void SendPendingGuildInviteDialog();
+    void HandleGuildInviteResponse(uint64 guildID, bool accepted);
+
     bool IsMuted() const;
     uint64 GetMutedUntilMS() const { return m_mutedUntilMS; }
     const string& GetMuteReason() const { return m_muteReason; }
@@ -248,6 +296,8 @@ public:
     const std::vector<int32>& GetGauntletAvailableSwap() const { return m_gauntletAvailableSwap; }
 
 private:
+    void RequestGuildDataLoad();
+    void HandleGuildDataLoad(QueryTaskResult&& result);
     void SyncSocialDataToStats();
     void LoadSocialDataFromStats();
     void RequestSocialDataLoad();
@@ -325,7 +375,23 @@ private:
     std::unordered_set<uint32> m_receivedFriendRequestUserIDs = {};
     std::unordered_set<uint32> m_ignoredUserIDs = {};
     std::unordered_map<uint64, uint64> m_friendAlertDebounce = {};
+    uint64 m_guildID = 0;
+    bool m_showLocationToGuild = true;
+    bool m_showGuildNotification = true;
+    bool m_titleShowPrefix = true;
+    bool m_titlePermLegend = false;
+    bool m_titlePermGrow4Good = false;
+    bool m_titlePermMVP = false;
+    bool m_titlePermVIP = false;
+    bool m_titleEnabledLegend = false;
+    bool m_titleEnabledGrow4Good = false;
+    bool m_titleEnabledMVP = false;
+    bool m_titleEnabledVIP = false;
+    bool m_isGuildMascotEnabled = false;
+    string m_pendingGuildName = "";
+    string m_pendingGuildStatement = "";
     uint32 m_lastWhisperUserID = 0;
+    std::unordered_map<uint64, Guild*> m_pendingGuildInvites = {};
     uint64 m_lastWhisperAtMS = 0;
     uint64 m_mutedUntilMS = 0;
     string m_muteReason = "";

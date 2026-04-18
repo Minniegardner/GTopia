@@ -304,6 +304,11 @@ public:
     std::vector<int32> accessList; // includes tempo
     int32 minEntryLevel = 0;
     int32 worldTimer = 0;
+    uint64 guildID = 0;
+    uint32 guildLevel = 0;
+    uint16 guildFG = ITEM_ID_BLANK;
+    uint16 guildBG = ITEM_ID_BLANK;
+    uint8 guildFlags = 0;
 
     void SetFlag(uint8 flag) { flags |= flag; }
     void RemoveFlag(uint8 flag) { flags &= ~flag; }
@@ -356,6 +361,30 @@ public:
         }
 
         return false;
+    }
+
+    uint64 GetGuildID() const { return guildID; }
+    void SetGuildID(uint64 id) { guildID = id; }
+
+    uint32 GetGuildLevel() const { return guildLevel; }
+    void SetGuildLevel(uint32 level) { guildLevel = level; }
+
+    uint16 GetGuildFG() const { return guildFG; }
+    void SetGuildFG(uint16 itemID) { guildFG = itemID; }
+
+    uint16 GetGuildBG() const { return guildBG; }
+    void SetGuildBG(uint16 itemID) { guildBG = itemID; }
+
+    uint8 GetGuildFlags() const { return guildFlags; }
+    void SetGuildFlags(uint8 flagsValue) { guildFlags = flagsValue; }
+    bool HasGuildFlag(uint8 flag) const { return (guildFlags & flag) != 0; }
+    void SetGuildFlag(uint8 flag, bool enabled) {
+        if(enabled) {
+            guildFlags |= flag;
+        }
+        else {
+            guildFlags &= ~flag;
+        }
     }
 
 protected:

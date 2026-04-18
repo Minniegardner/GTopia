@@ -25,6 +25,7 @@
 #include "Algorithm/GhostAlgorithm.h"
 #include "Item/ItemInfoManager.h"
 #include "Database/Table/PlayerDBTable.h"
+#include "../../../Guild/GuildManager.h"
 
 namespace {
 
@@ -401,7 +402,8 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 buttonClicked == "goals" || buttonClicked == "bonus" ||
                 buttonClicked == "view_owned_worlds" || buttonClicked == "alist" ||
                 buttonClicked == "emojis" || buttonClicked == "marvelous_missions" ||
-                buttonClicked == "change_password" || buttonClicked == "open_social_portal")
+                buttonClicked == "change_password" || buttonClicked == "open_social_portal" ||
+                buttonClicked == "GuildInvitations")
             {
                 if(buttonClicked == "Settings") {
                     bool showFriendNotifications = pPlayer->IsShowFriendNotification();
@@ -416,6 +418,41 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
                 pPlayer->SendWrenchSelf(buttonClicked);
             }
+            break;
+        }
+
+        case CompileTimeHashString("TitlesCustomization"): {
+            bool usePrefix = pPlayer->IsPrefixEnabled();
+            ParseBoolField(packet, CompileTimeHashString("Prefix"), usePrefix);
+            pPlayer->SetPrefixEnabled(usePrefix);
+
+            bool useLegendary = pPlayer->IsLegendaryTitleEnabled();
+            if(ParseBoolField(packet, CompileTimeHashString("legentitle"), useLegendary)) {
+                pPlayer->SetLegendaryTitleEnabled(useLegendary);
+            }
+
+            bool useGrow4Good = pPlayer->IsGrow4GoodTitleEnabled();
+            if(ParseBoolField(packet, CompileTimeHashString("grow4good"), useGrow4Good)) {
+                pPlayer->SetGrow4GoodTitleEnabled(useGrow4Good);
+            }
+
+            bool useMvp = pPlayer->IsMaxLevelTitleEnabled();
+            if(ParseBoolField(packet, CompileTimeHashString("bluename"), useMvp)) {
+                pPlayer->SetMaxLevelTitleEnabled(useMvp);
+            }
+
+            bool useVip = pPlayer->IsSuperSupporterTitleEnabled();
+            if(ParseBoolField(packet, CompileTimeHashString("ssup"), useVip)) {
+                pPlayer->SetSuperSupporterTitleEnabled(useVip);
+            }
+
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            if(pWorld) {
+                pWorld->SendNameChangeToAll(pPlayer);
+                pWorld->SendSetCharPacketToAll(pPlayer);
+            }
+
+            pPlayer->SendWrenchSelf("PlayerInfo");
             break;
         }
 
@@ -496,6 +533,30 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             else if(buttonClicked == "Report" || buttonClicked == "report_player") {
                 pPlayer->SendOnConsoleMessage("`oReport queued for review on ``" + pTarget->GetDisplayName() + "``.");
                 pPlayer->SendOnTalkBubble("`wThanks for the report, our team will review it.", true);
+            }
+            else if(buttonClicked == "InviteGuild") {
+                Guild* pGuild = GetGuildManager()->Get(pPlayer->GetGuildID());
+                if(!pGuild) {
+                    pPlayer->SendOnConsoleMessage("`4You are not in a guild.");
+                    return;
+                }
+
+                if(pTarget->GetGuildID() != 0) {
+                    pPlayer->SendOnConsoleMessage("`4That player is already in a guild.");
+                    return;
+                }
+
+                if(pGuild->HasPendingInvite(pTarget->GetUserID())) {
+                    pPlayer->SendOnConsoleMessage("`4That player already has a pending invite from your guild.");
+                    return;
+                }
+
+                pGuild->AddPendingInvite(pTarget->GetUserID(), Time::GetSystemTime());
+                pTarget->AddPendingGuildInvite(pGuild->GetGuildID(), pGuild);
+
+                pPlayer->SendOnConsoleMessage(fmt::format("`2Guild invitation sent to ``{}``", pTarget->GetDisplayName()));
+                pTarget->SendOnTalkBubble(fmt::format("`3[``{}`` invited you to join guild `c{}``!`3]``", pPlayer->GetDisplayName(), pGuild->GetName()), true);
+                pTarget->SendOnConsoleMessage(fmt::format("`2You received a guild invitation from ``{}``. Wrench yourself to see your invitations!", pPlayer->GetDisplayName()));
             }
             break;
         }
@@ -1587,9 +1648,285 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pPlayer->SendOnConsoleMessage(string("`oFriend notifications are now ") + (pPlayer->IsShowFriendNotification() ? "`2enabled``." : "`4disabled``."));
                 pPlayer->SendSocialPortal();
             }
+            else if(buttonClicked.find("GuildPromote_") == 0 || buttonClicked.find("GuildDemote_") == 0 || buttonClicked.find("GuildTransfer_") == 0) {
+                Guild* pGuild = GetGuildManager()->Get(pPlayer->GetGuildID());
+                if(!pGuild) {
+                    break;
+                }
+
+                GuildMember* pSelfMember = pGuild->GetMember(pPlayer->GetUserID());
+                if(!pSelfMember) {
+                    break;
+                }
+
+                const bool isLeader = pSelfMember->Position == GuildPosition::LEADER;
+                const bool isCoLeader = pSelfMember->Position == GuildPosition::CO_LEADER;
+                if(!isLeader && !isCoLeader) {
+                    break;
+                }
+
+                const string promotePrefix = "GuildPromote_";
+                const string demotePrefix = "GuildDemote_";
+                const string transferPrefix = "GuildTransfer_";
+
+                uint32 targetUserID = 0;
+                string targetText;
+                if(buttonClicked.find(promotePrefix) == 0) {
+                    targetText = buttonClicked.substr(promotePrefix.size());
+                }
+                else if(buttonClicked.find(demotePrefix) == 0) {
+                    targetText = buttonClicked.substr(demotePrefix.size());
+                }
+                else {
+                    targetText = buttonClicked.substr(transferPrefix.size());
+                }
+
+                if(ToUInt(targetText, targetUserID) != TO_INT_SUCCESS || targetUserID == pPlayer->GetUserID()) {
+                    break;
+                }
+
+                GuildMember* pTargetMember = pGuild->GetMember(targetUserID);
+                if(!pTargetMember) {
+                    break;
+                }
+
+                if(buttonClicked.find(promotePrefix) == 0) {
+                    if(isLeader) {
+                        if(pTargetMember->Position < GuildPosition::LEADER) {
+                            pTargetMember->Position = static_cast<GuildPosition>(static_cast<uint32>(pTargetMember->Position) + 1);
+                        }
+                    }
+                    else if(isCoLeader && pTargetMember->Position == GuildPosition::MEMBER) {
+                        pTargetMember->Position = GuildPosition::ELDER;
+                    }
+                }
+                else if(buttonClicked.find(demotePrefix) == 0) {
+                    if(isLeader) {
+                        if(pTargetMember->Position > GuildPosition::MEMBER) {
+                            pTargetMember->Position = static_cast<GuildPosition>(static_cast<uint32>(pTargetMember->Position) - 1);
+                        }
+                    }
+                    else if(isCoLeader && pTargetMember->Position == GuildPosition::ELDER) {
+                        pTargetMember->Position = GuildPosition::MEMBER;
+                    }
+                }
+                else if(isLeader) {
+                    if(pTargetMember->Position != GuildPosition::LEADER) {
+                        pTargetMember->Position = GuildPosition::LEADER;
+                        pSelfMember->Position = GuildPosition::CO_LEADER;
+                        pGuild->SetOwnerID(targetUserID);
+                    }
+                }
+
+                const string memberHex = SerializeGuildMembersHex(pGuild->GetMembers());
+                QueryRequest updateGuildReq = MakeUpdateGuildReq(
+                    pGuild->GetGuildID(),
+                    pGuild->GetName(),
+                    pGuild->GetStatement(),
+                    pGuild->GetNotebook(),
+                    pGuild->GetWorldID(),
+                    pGuild->GetOwnerID(),
+                    pGuild->GetLevel(),
+                    pGuild->GetXP(),
+                    pGuild->GetLogoForeground(),
+                    pGuild->GetLogoBackground(),
+                    pGuild->IsShowMascot(),
+                    pGuild->GetCreatedAt(),
+                    static_cast<uint32>(pGuild->GetMembers().size()),
+                    memberHex,
+                    pPlayer->GetNetID()
+                );
+
+                DatabaseGuildExec(GetContext()->GetDatabasePool(), DB_GUILD_UPDATE, updateGuildReq);
+                pPlayer->SendGuildMenu("GotoGuildMenu");
+                break;
+            }
             else if(buttonClicked == "GotoGuildMenu" || buttonClicked == "CreateGuild") {
-                pPlayer->SendOnConsoleMessage("`oGuild feature is not available in this source build yet.``");
-                pPlayer->SendSocialPortal();
+                if(buttonClicked == "GotoGuildMenu") {
+                    if(pPlayer->GetGuildID() != 0) {
+                        pPlayer->SendGuildMenu(buttonClicked);
+                    }
+                    break;
+                }
+
+                if(pPlayer->GetGuildID() != 0) {
+                    break;
+                }
+
+                DialogBuilder db;
+                db.SetDefaultColor('o')
+                    ->AddLabelWithIcon("`wGrow Guilds Creation``", ITEM_ID_GUILD_LOCK, true)
+                    ->AddLabel("Welcome to Grow Guilds where you can create a Guild! With a Guild you can compete in Guild Leaderboards to earn rewards and level up the Guild to add more members.")
+                    ->AddSpacer()
+                    ->AddLabel("To create a Guild you must be atleast level 20.")
+                    ->AddLabel("The cost for creating a guild in this server is 500,000 Gems.")
+                    ->AddSpacer()
+                    ->AddLabel("`8Caution``: A guild can only be created in a world owned by you and locked with a `5World Lock``!")
+                    ->AddSpacer()
+                    ->AddButton("ShowCreateGuild", "Create a Guild")
+                    ->AddButton("GotoSocialPortal", "Back")
+                    ->EndDialog("SocialPortal", "", "");
+
+                pPlayer->SendOnDialogRequest(db.Get());
+            }
+            else if(buttonClicked == "ShowCreateGuild") {
+                if(pPlayer->GetGuildID() != 0) {
+                    break;
+                }
+
+                if(pPlayer->GetLevel() < 20) {
+                    DialogBuilder db;
+                    db.SetDefaultColor('o')
+                        ->AddLabelWithIcon("`wGrow Guilds Creation``", ITEM_ID_GUILD_LOCK, true)
+                        ->AddLabel("`9You must be atleast level 20 to create a guild.")
+                        ->EndDialog("SocialPortal", "", "Close");
+
+                    pPlayer->SendOnDialogRequest(db.Get());
+                    break;
+                }
+
+                DialogBuilder db;
+                db.SetDefaultColor('o')
+                    ->AddLabelWithIcon("`wGrow Guilds Creation``", ITEM_ID_GUILD_LOCK, true)
+                    ->AddTextInput("GuildName", "Guild Name:", "", 18)
+                    ->AddTextInput("GuildStatement", "Guild Statement:", "", 50)
+                    ->AddLabel("`oConfirm your guild settings by selecting `2Create Guild`o below to create your guild.")
+                    ->AddLabel("`9Take Note: `oA guild can only be created in a world owned by you and locked with a `#World Lock!```o")
+                    ->AddSpacer()
+                    ->AddLabel("`4Warning! `pThe guild name could only be changed by buying a `#Guild Name Certificate`o from the premium store.")
+                    ->AddButton("FinalizeCreateGuild", "Proceed")
+                    ->AddButton("GotoSocialPortal", "Back")
+                    ->EndDialog("SocialPortal", "", "");
+
+                pPlayer->SendOnDialogRequest(db.Get());
+            }
+            else if(buttonClicked == "FinalizeCreateGuild") {
+                auto pGuildName = packet.Find(CompileTimeHashString("GuildName"));
+                auto pGuildStatement = packet.Find(CompileTimeHashString("GuildStatement"));
+                if(!pGuildName || !pGuildStatement) {
+                    break;
+                }
+
+                string guildName(pGuildName->value, pGuildName->size);
+                string guildStatement(pGuildStatement->value, pGuildStatement->size);
+
+                RemoveAllSpaces(guildName);
+                RemoveExtraWhiteSpaces(guildStatement);
+
+                auto sendCreateDialog = [&](const string& errorLabel) {
+                    DialogBuilder db;
+                    db.SetDefaultColor('o')
+                        ->AddLabelWithIcon("`wGrow Guilds Creation``", ITEM_ID_GUILD_LOCK, true)
+                        ->AddLabel(errorLabel)
+                        ->AddTextInput("GuildName", "Guild Name:", "", 18)
+                        ->AddTextInput("GuildStatement", "Guild Statement:", "", 50)
+                        ->AddLabel("`oConfirm your guild settings by selecting `2Create Guild`o below to create your guild.")
+                        ->AddLabel("`9Take Note: `oA guild can only be created in a world owned by you and locked with a `#World Lock!```o")
+                        ->AddSpacer()
+                        ->AddLabel("`4Warning! `pThe guild name could only be changed by buying a `#Guild Name Certificate`o from the premium store.")
+                        ->AddButton("FinalizeCreateGuild", "Proceed")
+                        ->AddButton("GotoSocialPortal", "Back")
+                        ->EndDialog("SocialPortal", "", "");
+
+                    pPlayer->SendOnDialogRequest(db.Get());
+                };
+
+                if(guildName.empty() || guildStatement.empty()) {
+                    sendCreateDialog("`9Guild name or statement cannot be empty!");
+                    break;
+                }
+
+                bool isAlphaNumeric = true;
+                for(char c : guildName) {
+                    if(!IsAlpha(c) && !IsDigit(c)) {
+                        isAlphaNumeric = false;
+                        break;
+                    }
+                }
+
+                if(!isAlphaNumeric) {
+                    sendCreateDialog("`9Your guild name includes invalid charaters. Only A-Z, a-z and numbers from 0-9 are allowed.");
+                    break;
+                }
+
+                if(guildName.size() > 18) {
+                    sendCreateDialog("`9Guild name is too long!");
+                    break;
+                }
+
+                if(guildName.size() < 3) {
+                    sendCreateDialog("`9Guild name is too short!");
+                    break;
+                }
+
+                if(guildStatement.size() > 50) {
+                    sendCreateDialog("`9Guild statement is too long!");
+                    break;
+                }
+
+                World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+                if(!pWorld || !pWorld->IsPlayerWorldOwner(pPlayer)) {
+                    sendCreateDialog("`9You can only create a guild in a world that you own!");
+                    break;
+                }
+
+                if(pPlayer->GetGems() < 500000) {
+                    sendCreateDialog("`9You don't have enough gems to create a guild!");
+                    break;
+                }
+
+                bool nameTaken = false;
+                GetGuildManager()->Guilds([&](uint64, Guild* pGuild) {
+                    if(pGuild && ToUpper(pGuild->GetName()) == ToUpper(guildName)) {
+                        nameTaken = true;
+                    }
+                });
+
+                if(nameTaken) {
+                    sendCreateDialog("`9That guild name exists already! Try to think of a better name.");
+                    break;
+                }
+
+                DialogBuilder db;
+                db.SetDefaultColor('o')
+                    ->AddLabelWithIcon("`wGrow Guilds Creation``", ITEM_ID_GUILD_LOCK, true)
+                    ->AddLabel("`9WARNING: `oPlease confirm the information before proceeding.")
+                    ->AddLabel("`3Guild Name: `w" + guildName)
+                    ->AddLabel("`3Guild Statement: `w" + guildStatement)
+                    ->AddSpacer()
+                    ->AddLabel("`9You will be charged: `41,000,000 Gems")
+                    ->EmbedData("GuildName", guildName)
+                    ->EmbedData("GuildStatement", guildStatement)
+                    ->AddButton("ConfirmGuildCreation", "Confirm Guild Creation")
+                    ->AddButton("ShowCreateGuild", "Back")
+                    ->EndDialog("SocialPortal", "", "");
+
+                pPlayer->SendOnDialogRequest(db.Get());
+            }
+            else if(buttonClicked == "ConfirmGuildCreation") {
+                auto pGuildName = packet.Find(CompileTimeHashString("GuildName"));
+                auto pGuildStatement = packet.Find(CompileTimeHashString("GuildStatement"));
+                if(!pGuildName || !pGuildStatement) {
+                    break;
+                }
+
+                string guildName(pGuildName->value, pGuildName->size);
+                string guildStatement(pGuildStatement->value, pGuildStatement->size);
+                RemoveAllSpaces(guildName);
+                RemoveExtraWhiteSpaces(guildStatement);
+
+                if(guildName.empty() || guildStatement.empty()) {
+                    break;
+                }
+
+                pPlayer->SetPendingGuildCreationData(guildName, guildStatement);
+
+                if(!pPlayer->CreateGuildFromPendingData()) {
+                    pPlayer->SendOnConsoleMessage("`4OOPS! ``An issue has occured on one of our internal services.");
+                }
+                else {
+                    pPlayer->SendGuildMenu("GotoGuildMenu");
+                }
             }
             else if(buttonClicked == "GotoTradeHistory") {
                 DialogBuilder db;
@@ -1619,6 +1956,32 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             else if(buttonClicked == "BackToWrench") {
                 pPlayer->SendWrenchSelf("PlayerInfo");
             }
+            break;
+        }
+
+        case CompileTimeHashString("GuildInvitations"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                break;
+            }
+
+            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+
+            if(buttonClicked.find("AcceptGuildInvite_") == 0) {
+                string guildIDStr = buttonClicked.substr(18);
+                uint64 guildID = 0;
+                if(ToUInt64(guildIDStr, guildID) == TO_INT_SUCCESS) {
+                    pPlayer->HandleGuildInviteResponse(guildID, true);
+                }
+            }
+            else if(buttonClicked.find("RejectGuildInvite_") == 0) {
+                string guildIDStr = buttonClicked.substr(18);
+                uint64 guildID = 0;
+                if(ToUInt64(guildIDStr, guildID) == TO_INT_SUCCESS) {
+                    pPlayer->HandleGuildInviteResponse(guildID, false);
+                }
+            }
+
             break;
         }
 

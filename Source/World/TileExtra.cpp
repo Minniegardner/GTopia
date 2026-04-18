@@ -548,6 +548,33 @@ void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
     if(worldVersion > 12) {
         memBuffer.ReadWrite(worldTimer, write);
     }
+
+    if(worldVersion > 13) {
+        memBuffer.ReadWrite(guildID, write);
+
+        if(write && !database) {
+            uint16 clientFG = (uint16)GetItemInfoManager()->GetClientIDByItemID(guildFG);
+            uint16 clientBG = (uint16)GetItemInfoManager()->GetClientIDByItemID(guildBG);
+            memBuffer.ReadWrite(clientFG, true);
+            memBuffer.ReadWrite(clientBG, true);
+        }
+        else {
+            memBuffer.ReadWrite(guildFG, write);
+            memBuffer.ReadWrite(guildBG, write);
+        }
+
+        memBuffer.ReadWrite(guildLevel, write);
+        memBuffer.ReadWrite(guildFlags, write);
+
+        if(write) {
+            uint8 padding[3] = {0, 0, 0};
+            memBuffer.ReadWriteRaw(padding, sizeof(padding), true);
+        }
+        else {
+            uint8 padding[3];
+            memBuffer.ReadWriteRaw(padding, sizeof(padding), false);
+        }
+    }
 }
 
 void TileExtra_Seed::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)

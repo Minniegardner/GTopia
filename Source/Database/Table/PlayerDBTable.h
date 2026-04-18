@@ -37,7 +37,7 @@ void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryReques
 QueryRequest MakePlayerByMacReq(const string& mac, uint8 platformType, int32 ownerID);
 QueryRequest MakePlayerCreateReq(const string& guestName, uint8 platformType, uint16 guestID, const string& mac, const string& ip, int32 ownerID);
 QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID);
-QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, uint32 dailyRewardStreak, uint32 dailyRewardClaimDay, uint64 lastClaimDailyRewardMs, int32 ownerID);
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, uint32 dailyRewardStreak, uint32 dailyRewardClaimDay, uint64 lastClaimDailyRewardMs, uint64 guildID, bool showLocationToGuild, bool showGuildNotification, bool titleShowPrefix, bool titlePermLegend, bool titlePermGrow4Good, bool titlePermMVP, bool titlePermVIP, bool titleEnabledLegend, bool titleEnabledGrow4Good, bool titleEnabledMVP, bool titleEnabledVIP, int32 ownerID);
 QueryRequest MakeGetForInactive(uint32 userID, int32 ownerID);
 QueryRequest MakeCountCreatedAccByIP(const string& ip, int32 ownerID);
 QueryRequest MakePlayerByVIDReq(const string& vid, uint8 platformType, int32 ownerID);

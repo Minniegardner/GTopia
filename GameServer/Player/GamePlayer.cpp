@@ -7,6 +7,7 @@
 #include "Player/PlayerTribute.h"
 #include "Player/RoleManager.h"
 #include "Database/Table/PlayerDBTable.h"
+#include "Database/Table/GuildDBTable.h"
 #include "Player/PlayModManager.h"
 #include "../World/WorldManager.h"
 #include "Math/Random.h"
@@ -15,6 +16,7 @@
 #include "AchievementCatalog.h"
 #include "Dialog/RegisterDialog.h"
 #include "Utils/DialogBuilder.h"
+#include "../Guild/GuildManager.h"
 #include "../Server/GameServer.h"
 #include "../Component/GeigerComponent.h"
 #include "Proton/ProtonUtils.h"
@@ -89,6 +91,80 @@ constexpr const char* kPBanStatUntil = "PBAN_UNTIL";
 constexpr const char* kPBanStatSetAt = "PBAN_SET_AT";
 constexpr const char* kPBanStatDuration = "PBAN_DURATION";
 constexpr const char* kPBanStatPerma = "PBAN_PERMA";
+constexpr uint32 kGuildMemberBlobVersion = 1;
+
+string SerializeGuildMembersHex(const std::vector<GuildMember>& members)
+{
+    const uint32 memberCount = static_cast<uint32>(members.size());
+    const uint32 memSize = sizeof(uint32) + memberCount * (sizeof(uint32) + sizeof(uint32));
+    std::vector<uint8> data(memSize, 0);
+
+    MemoryBuffer memBuffer(data.data(), memSize);
+    uint32 version = kGuildMemberBlobVersion;
+    memBuffer.ReadWrite(version, true);
+
+    for(const GuildMember& member : members) {
+        uint32 userID = member.UserID;
+        uint32 position = static_cast<uint32>(member.Position);
+        memBuffer.ReadWrite(userID, true);
+        memBuffer.ReadWrite(position, true);
+    }
+
+    return ToHex(data.data(), memSize);
+}
+
+std::vector<GuildMember> ParseGuildMembersHex(const string& membersHex)
+{
+    std::vector<GuildMember> out;
+    if(membersHex.empty() || (membersHex.size() % 2) != 0) {
+        return out;
+    }
+
+    const uint32 memSize = static_cast<uint32>(membersHex.size() / 2);
+    if(memSize < sizeof(uint32)) {
+        return out;
+    }
+
+    std::vector<uint8> data(memSize, 0);
+    HexToBytes(membersHex, data.data());
+
+    MemoryBuffer memBuffer(data.data(), memSize);
+    uint32 version = 0;
+    memBuffer.ReadWrite(version, false);
+    if(version != kGuildMemberBlobVersion) {
+        return out;
+    }
+
+    while(memBuffer.GetOffset() + (sizeof(uint32) * 2) <= memSize) {
+        GuildMember member;
+
+        uint32 userID = 0;
+        uint32 position = 0;
+        memBuffer.ReadWrite(userID, false);
+        memBuffer.ReadWrite(position, false);
+
+        member.UserID = userID;
+        member.Position = static_cast<GuildPosition>(position);
+        out.push_back(member);
+    }
+
+    return out;
+}
+
+bool IsValidGuildName(const string& guildName)
+{
+    if(guildName.size() < 3 || guildName.size() > 18) {
+        return false;
+    }
+
+    for(char c : guildName) {
+        if(!IsAlpha(c) && !IsDigit(c)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 string FormatBanCountdown(uint64 totalSeconds)
 {
@@ -1048,6 +1124,10 @@ void GamePlayer::SendWrenchSelf(std::string page)
         SendOnConsoleMessage("`oPassword change is handled through account tools in this source.``");
         page = "PlayerInfo";
     }
+    else if(page == "GuildInvitations") {
+        SendPendingGuildInviteDialog();
+        return;
+    }
 
     const Vector2Float worldPos = GetWorldPos();
     const int32 tileX = (int32)(worldPos.x / 32.0f) + 1;
@@ -1142,7 +1222,13 @@ void GamePlayer::SendWrenchSelf(std::string page)
             ->AddButton("Settings", "Settings")
             ->AddButton("Titles", "Title Settings")
             ->AddButton("Worlds", "My Worlds")
-            ->EndDialog("WrenchSelf", "", "Continue")
+            ;
+
+        if(!m_pendingGuildInvites.empty()) {
+            db.AddButton("GuildInvitations", "Guild Invitations");
+        }
+
+        db.EndDialog("WrenchSelf", "", "Continue")
             ->AddQuickExit();
     }
     else if(page == "SocialProfile") {
@@ -1177,11 +1263,34 @@ void GamePlayer::SendWrenchSelf(std::string page)
         ->EndDialog("WrenchSelf", "", "Continue");
     }
     else if(page == "Titles") {
-        db.AddLabelWithIcon("`wTitle Settings``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oRole prefix and title switching is server-side in this source.")
-        ->AddSpacer()
-        ->AddButton("PlayerInfo", "Back")
-        ->EndDialog("WrenchSelf", "", "Continue");
+        const bool canLegendary = IsLegend();
+        const bool canGrow4Good = IsGrow4Good();
+        const bool canMvp = IsMVP();
+        const bool canVip = IsVIP();
+
+        db.AddLabelWithIcon("`wTitles and Prefix``", ITEM_ID_GROWMOJI_GROW, true)
+            ->AddSpacer()
+            ->AddLabel("`wGlobal Preference``")
+            ->AddCheckBox("Prefix", "Show Prefix", IsPrefixEnabled());
+
+        if(canLegendary) {
+            db.AddCheckBox("legentitle", "Enable Legendary Title", IsLegendaryTitleEnabled());
+        }
+
+        if(canGrow4Good) {
+            db.AddCheckBox("grow4good", "Enable MVP+ Title", IsGrow4GoodTitleEnabled());
+        }
+
+        if(canMvp) {
+            db.AddCheckBox("bluename", "Enable MVP Title", IsMaxLevelTitleEnabled());
+        }
+
+        if(canVip) {
+            db.AddCheckBox("ssup", "Enable VIP Title", IsSuperSupporterTitleEnabled());
+        }
+
+        db.AddQuickExit()
+            ->EndDialog("TitlesCustomization", "Save", "Cancel");
     }
     else if(page == "Worlds") {
         db.AddLabelWithIcon("`wMy Worlds``", ITEM_ID_WRENCH, true)
@@ -1218,15 +1327,331 @@ void GamePlayer::SendSocialPortal()
         ->AddButton("SeeReceived", "Received Friend Requests")
         ->AddButton("FriendsOptions", "Friend Options")
         ->AddButton("ToggleFriendNotif", "Toggle Friend Notifications")
-        ->AddSpacer()
-        ->AddButton("GotoGuildMenu", "Guild Menu")
-        ->AddButton("CreateGuild", "Create Guild")
-        ->AddButton("GotoTradeHistory", "Trade History")
+        ->AddSpacer();
+
+    if(m_guildID != 0) {
+        db.AddButton("GotoGuildMenu", "Guild Menu");
+    }
+    else {
+        db.AddButton("CreateGuild", "Create Guild");
+    }
+
+    db.AddButton("GotoTradeHistory", "Trade History")
         ->AddButton("BackToWrench", "Back to Wrench")
         ->AddQuickExit()
         ->EndDialog("SocialPortal", "", "OK");
 
     SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendGuildMenu(const string& button)
+{
+    if(m_guildID == 0) {
+        SendSocialPortal();
+        return;
+    }
+
+    Guild* pGuild = GetGuildManager()->Get(m_guildID);
+    if(!pGuild) {
+        SendOnConsoleMessage("`4OOPS! ``Failed to load your guild data.");
+        return;
+    }
+
+    GuildMember* pSelfMember = pGuild->GetMember(GetUserID());
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wGuild Menu``", ITEM_ID_GUILD_LOCK, true)
+        ->AddSpacer()
+        ->AddLabel("`3Guild Name: `w" + pGuild->GetName())
+        ->AddLabel("`3Statement: `w" + pGuild->GetStatement())
+        ->AddLabel("`3Level: `w" + ToString(pGuild->GetLevel()) + "`` `3XP: `w" + ToString(pGuild->GetXP()))
+        ->AddLabel("`3Members: `w" + ToString((uint32)pGuild->GetMembers().size()))
+        ->AddSpacer();
+
+    for(const GuildMember& member : pGuild->GetMembers()) {
+        string roleName = "Member";
+        if(member.Position == GuildPosition::ELDER) {
+            roleName = "Elder";
+        }
+        else if(member.Position == GuildPosition::CO_LEADER) {
+            roleName = "Co-Leader";
+        }
+        else if(member.Position == GuildPosition::LEADER) {
+            roleName = "Leader";
+        }
+
+        GamePlayer* pMember = GetGameServer()->GetPlayerByUserID(member.UserID);
+        const string memberName = pMember ? pMember->GetRawName() : ("User #" + ToString(member.UserID));
+        db.AddLabel("`o- ``" + memberName + " `8(" + roleName + ")``");
+
+        if(pSelfMember && member.UserID != GetUserID()) {
+            if(pSelfMember->Position == GuildPosition::LEADER) {
+                if(member.Position != GuildPosition::LEADER) {
+                    db.AddButton("GuildPromote_" + ToString(member.UserID), "`2Promote``");
+                }
+                if(member.Position != GuildPosition::MEMBER) {
+                    db.AddButton("GuildDemote_" + ToString(member.UserID), "`4Demote``");
+                }
+                db.AddButton("GuildTransfer_" + ToString(member.UserID), "`9Transfer Leader``");
+            }
+            else if(pSelfMember->Position == GuildPosition::CO_LEADER) {
+                if(member.Position == GuildPosition::MEMBER) {
+                    db.AddButton("GuildPromote_" + ToString(member.UserID), "`2Promote``");
+                }
+                else if(member.Position == GuildPosition::ELDER) {
+                    db.AddButton("GuildDemote_" + ToString(member.UserID), "`4Demote``");
+                }
+            }
+        }
+    }
+
+    db.AddSpacer()
+        ->AddButton("GotoSocialPortal", "Back")
+        ->EndDialog("SocialPortal", "", "Close");
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendGuildDataChanged(Guild* pGuild)
+{
+    if(!pGuild) {
+        pGuild = GetGuildManager()->Get(m_guildID);
+    }
+
+    if(!pGuild) {
+        return;
+    }
+
+    GuildMember* pMember = pGuild->GetMember(GetUserID());
+    if(!pMember) {
+        return;
+    }
+
+    VariantVector data(5);
+    data[0] = "OnGuildDataChanged";
+    data[1] = pGuild->IsShowMascot() ? 1 : 0;
+    data[2] = (int32)2;
+    data[3] = (int32)GetItemInfoManager()->GetClientIDByItemID(pGuild->GetLogoForeground()) |
+        ((int32)GetItemInfoManager()->GetClientIDByItemID(pGuild->GetLogoBackground()) << 16);
+    data[4] = (int32)pMember->Position;
+
+    SendCallFunctionPacket(data, GetNetID());
+    SetGuildMascotEnabled(pGuild->IsShowMascot());
+}
+
+bool GamePlayer::CreateGuildFromPendingData()
+{
+    if(m_pendingGuildName.empty() || m_pendingGuildStatement.empty()) {
+        return false;
+    }
+
+    if(m_guildID != 0 || GetLevel() < 20 || GetGems() < 500000) {
+        return false;
+    }
+
+    if(!IsValidGuildName(m_pendingGuildName) || m_pendingGuildStatement.size() > 50) {
+        return false;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+    if(!pWorld || !pWorld->IsPlayerWorldOwner(this)) {
+        return false;
+    }
+
+    TileInfo* pWorldLockTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(!pWorldLockTile || !pWorldLockTile->GetExtra<TileExtra_Lock>()) {
+        return false;
+    }
+
+    const uint64 guildID = (Time::GetSystemTime() << 12) ^ GetUserID();
+    Guild* pGuild = new Guild();
+    pGuild->SetGuildID(guildID);
+    pGuild->SetName(m_pendingGuildName);
+    pGuild->SetStatement(m_pendingGuildStatement);
+    pGuild->SetOwnerID(GetUserID());
+    pGuild->SetLevel(1);
+    pGuild->SetXP(0);
+    pGuild->SetShowMascot(true);
+    pGuild->SetWorldID(pWorld->GetID());
+    pGuild->SetLogoForeground(ITEM_ID_BLANK);
+    pGuild->SetLogoBackground(ITEM_ID_BLANK);
+    pGuild->SetCreatedAt(Time::GetSystemTime());
+    pGuild->AddMember({ GetUserID(), GuildPosition::LEADER });
+
+    const string memberHex = SerializeGuildMembersHex(pGuild->GetMembers());
+
+    QueryRequest insertGuildReq = MakeInsertGuildReq(
+        pGuild->GetGuildID(),
+        pGuild->GetName(),
+        pGuild->GetStatement(),
+        pGuild->GetNotebook(),
+        pGuild->GetWorldID(),
+        pGuild->GetOwnerID(),
+        pGuild->GetLevel(),
+        pGuild->GetXP(),
+        pGuild->GetLogoForeground(),
+        pGuild->GetLogoBackground(),
+        pGuild->IsShowMascot(),
+        pGuild->GetCreatedAt(),
+        static_cast<uint32>(pGuild->GetMembers().size()),
+        memberHex,
+        GetNetID()
+    );
+
+    DatabaseGuildExec(GetContext()->GetDatabasePool(), DB_GUILD_INSERT, insertGuildReq);
+    GetGuildManager()->Add(pGuild);
+
+    SetGems(GetGems() - 500000);
+    SendOnSetBux();
+    SetGuildID(pGuild->GetGuildID());
+    SetGuildMascotEnabled(true);
+
+    pWorldLockTile->SetFG(ITEM_ID_GUILD_LOCK, pWorld->GetTileManager());
+    TileExtra_Lock* pLockExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
+    if(!pLockExtra) {
+        return false;
+    }
+
+    pLockExtra->ownerID = (int32)GetUserID();
+    pLockExtra->SetGuildID(pGuild->GetGuildID());
+    pLockExtra->SetGuildLevel(pGuild->GetLevel());
+    pLockExtra->SetGuildFG(pGuild->GetLogoForeground());
+    pLockExtra->SetGuildBG(pGuild->GetLogoBackground());
+    pLockExtra->SetGuildFlags(pGuild->IsShowMascot() ? 1 : 0);
+    pWorld->SendTileUpdate(pWorldLockTile);
+
+    SendOnTalkBubble("Guild Created", true);
+    SendOnConsoleMessage("Guild Created!");
+
+    SendGuildDataChanged(pGuild);
+
+    m_pendingGuildName.clear();
+    m_pendingGuildStatement.clear();
+    return true;
+}
+
+void GamePlayer::AddPendingGuildInvite(uint64 guildID, Guild* pGuild)
+{
+    if(!pGuild) {
+        return;
+    }
+
+    m_pendingGuildInvites[guildID] = pGuild;
+}
+
+void GamePlayer::RemovePendingGuildInvite(uint64 guildID)
+{
+    auto it = m_pendingGuildInvites.find(guildID);
+    if(it != m_pendingGuildInvites.end()) {
+        m_pendingGuildInvites.erase(it);
+    }
+}
+
+Guild* GamePlayer::GetPendingGuildInvite(uint64 guildID) const
+{
+    auto it = m_pendingGuildInvites.find(guildID);
+    if(it != m_pendingGuildInvites.end()) {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
+void GamePlayer::SendPendingGuildInviteDialog()
+{
+    if(m_pendingGuildInvites.empty()) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wGuild Invitations``", ITEM_ID_FIST, true)
+        ->AddSpacer();
+
+    for(const auto& pair : m_pendingGuildInvites) {
+        Guild* pGuild = pair.second;
+        if(!pGuild) {
+            continue;
+        }
+
+        db.AddLabel(fmt::format("`c{}``", pGuild->GetName()))
+            ->AddLabel(fmt::format("`7{} members``, invited by guild leader", pGuild->GetMembers().size()))
+            ->AddSpacer()
+            ->AddButton("AcceptGuildInvite_" + std::to_string(pair.first), "`2Accept``")
+            ->AddButton("RejectGuildInvite_" + std::to_string(pair.first), "`4Reject``")
+            ->AddSpacer();
+    }
+
+    db.AddQuickExit()
+        ->EndDialog("GuildInvitations", "OK", "Cancel");
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::HandleGuildInviteResponse(uint64 guildID, bool accepted)
+{
+    Guild* pGuild = GetPendingGuildInvite(guildID);
+    if(!pGuild) {
+        return;
+    }
+
+    if(accepted) {
+        if(m_guildID != 0 || GetLevel() < 1) {
+            SendOnConsoleMessage("`4Cannot join guild: already in a guild or insufficient level.");
+            RemovePendingGuildInvite(guildID);
+            return;
+        }
+
+        pGuild->RemovePendingInvite(GetUserID());
+        pGuild->AddMember({GetUserID(), GuildPosition::MEMBER});
+        SetGuildID(pGuild->GetGuildID());
+
+        const string memberHex = SerializeGuildMembersHex(pGuild->GetMembers());
+        QueryRequest updateGuildReq = MakeUpdateGuildReq(
+            pGuild->GetGuildID(),
+            pGuild->GetName(),
+            pGuild->GetStatement(),
+            pGuild->GetNotebook(),
+            pGuild->GetWorldID(),
+            pGuild->GetOwnerID(),
+            pGuild->GetLevel(),
+            pGuild->GetXP(),
+            pGuild->GetLogoForeground(),
+            pGuild->GetLogoBackground(),
+            pGuild->IsShowMascot(),
+            pGuild->GetCreatedAt(),
+            static_cast<uint32>(pGuild->GetMembers().size()),
+            memberHex,
+            GetNetID()
+        );
+
+        DatabaseGuildExec(GetContext()->GetDatabasePool(), DB_GUILD_UPDATE, updateGuildReq);
+
+        VariantVector joinNotif(4);
+        joinNotif[0] = "OnGuildMemberJoined";
+        joinNotif[1] = GetUserID();
+        joinNotif[2] = GetDisplayName();
+        joinNotif[3] = (int32)GuildPosition::MEMBER;
+
+        World* pWorld = GetWorldManager()->GetWorldByID(pGuild->GetWorldID());
+        if(pWorld) {
+            pWorld->Players([&](uint32, uint32, GamePlayer* pMember) {
+                if(pMember && pMember->GetGuildID() == guildID) {
+                    pMember->SendCallFunctionPacket(joinNotif, GetNetID());
+                }
+            });
+        }
+
+        SendOnConsoleMessage(fmt::format("`2You joined guild `c{}``", pGuild->GetName()));
+        SendGuildDataChanged(pGuild);
+    }
+    else {
+        pGuild->RemovePendingInvite(GetUserID());
+        SendOnConsoleMessage(fmt::format("`4You rejected invitation from `c{}``", pGuild->GetName()));
+    }
+
+    RemovePendingGuildInvite(guildID);
 }
 
 void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
@@ -1238,90 +1663,6 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     DialogBuilder db;
     db.SetDefaultColor('o')
     ->EmbedData("MyNetID", GetNetID())
-    ->EmbedData("OtherNetID", otherPlayer->GetNetID())
-    ->AddLabelWithIcon("`w" + otherPlayer->GetDisplayName() + "``", ITEM_ID_WRENCH, true)
-    ->AddLabel("`oCurrent level: `w" + ToString(otherPlayer->GetLevel()) + "``")
-    ->AddLabel("`oCurrent world: `w" + ToString(otherPlayer->GetCurrentWorld()) + "``")
-    ->AddLabel("`oRole: `w" + string(otherPlayer->GetRole() ? otherPlayer->GetRole()->GetName() : "Player") + "``")
-    ->AddSpacer()
-    ->AddButton("Trade", "`wTrade``");
-
-    db.AddLabel("(No Battle Leash equipped)")
-    ->AddLabel("(Not enough Superpower Cards to battle)")
-    ->AddSpacer();
-
-    Role* pRole = GetRole();
-    bool hasWorldAdminAccess = false;
-    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
-    if(pWorld) {
-        hasWorldAdminAccess = pWorld->IsPlayerWorldOwner(this) || pWorld->IsPlayerWorldAdmin(this);
-    }
-
-    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_PULL)) || hasWorldAdminAccess) {
-        db.AddButton("Pull", "`#Pull``");
-    }
-
-    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_KICK)) || hasWorldAdminAccess) {
-        db.AddButton("Kick", "`4Kick``");
-    }
-
-    if((pRole && pRole->HasPerm(ROLE_PERM_COMMAND_BAN)) || hasWorldAdminAccess) {
-        db.AddButton("Ban", "`4World Ban``");
-    }
-
-    if(!IsFriendWith(otherPlayer->GetUserID())) {
-        db.AddButton("Add", "`wAdd as Friend``");
-    }
-    else {
-        db.AddButton("Unfriend", "`4Remove Friend``");
-    }
-
-    db.AddButton("Ignore", "`wIgnore Player``")
-    ->AddSpacer()
-    ->EndDialog("WrenchOthers", "", "Continue");
-
-    SendOnDialogRequest(db.Get());
-}
-
-void GamePlayer::SendFriendMenu(const string& action)
-{
-    if(action == "SeeSent") {
-        DialogBuilder db;
-        db.SetDefaultColor('o')
-            ->AddLabelWithIcon("`wSent Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
-            ->AddSpacer();
-
-        if(m_sentFriendRequestUserIDs.empty()) {
-            db.AddLabel("You have no pending sent friend requests.");
-        }
-        else {
-            for(uint32 userID : m_sentFriendRequestUserIDs) {
-                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
-                const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
-                db.AddLabel("`o- ``" + name);
-            }
-        }
-
-        db.AddSpacer()
-            ->AddButton("GotoFriendsMenu", "Back")
-            ->EndDialog("FriendMenu", "", "Close");
-
-        SendOnDialogRequest(db.Get());
-        return;
-    }
-
-    if(action == "SeeReceived") {
-        DialogBuilder db;
-        db.SetDefaultColor('o')
-            ->AddLabelWithIcon("`wReceived Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
-            ->AddSpacer();
-
-        if(m_receivedFriendRequestUserIDs.empty()) {
-            db.AddLabel("You have no pending received friend requests.");
-        }
-        else {
-            for(uint32 userID : m_receivedFriendRequestUserIDs) {
-                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
                 const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
 
                 db.AddLabel("`o" + name)
@@ -2082,6 +2423,12 @@ void GamePlayer::OnHandleDatabase(QueryTaskResult&& result)
             result.Destroy();
             return;
         }
+
+        if(subType == PLAYER_SUB_GUILD_LOAD) {
+            HandleGuildDataLoad(std::move(result));
+            result.Destroy();
+            return;
+        }
     }
 
     if(HasState(PLAYER_STATE_LOGIN_GETTING_ACCOUNT)) {
@@ -2173,6 +2520,30 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     m_dailyRewardStreak = result.result->GetField("DailyRewardStreak", 0).GetUINT();
     m_dailyRewardClaimDay = result.result->GetField("DailyRewardClaimDay", 0).GetUINT();
     m_lastClaimDailyRewardMs = (uint64)result.result->GetField("LastClaimDailyReward", 0).GetUINT();
+    m_guildID = (uint64)result.result->GetField("GuildID", 0).GetUINT();
+    m_showLocationToGuild = result.result->GetField("ShowLocationToGuild", 0).GetUINT() != 0;
+    m_showGuildNotification = result.result->GetField("ShowGuildNotification", 0).GetUINT() != 0;
+    m_titleShowPrefix = result.result->GetField("TitleShowPrefix", 0).GetUINT() != 0;
+    m_titlePermLegend = result.result->GetField("TitlePermLegend", 0).GetUINT() != 0;
+    m_titlePermGrow4Good = result.result->GetField("TitlePermGrow4Good", 0).GetUINT() != 0;
+    m_titlePermMVP = result.result->GetField("TitlePermMVP", 0).GetUINT() != 0;
+    m_titlePermVIP = result.result->GetField("TitlePermVIP", 0).GetUINT() != 0;
+    m_titleEnabledLegend = result.result->GetField("TitleEnabledLegend", 0).GetUINT() != 0;
+    m_titleEnabledGrow4Good = result.result->GetField("TitleEnabledGrow4Good", 0).GetUINT() != 0;
+    m_titleEnabledMVP = result.result->GetField("TitleEnabledMVP", 0).GetUINT() != 0;
+    m_titleEnabledVIP = result.result->GetField("TitleEnabledVIP", 0).GetUINT() != 0;
+    if(!m_titlePermLegend) {
+        m_titleEnabledLegend = false;
+    }
+    if(!m_titlePermGrow4Good) {
+        m_titleEnabledGrow4Good = false;
+    }
+    if(!m_titlePermMVP) {
+        m_titleEnabledMVP = false;
+    }
+    if(!m_titlePermVIP) {
+        m_titleEnabledVIP = false;
+    }
 
     m_pRole = GetRoleManager()->GetRole(roleID);
 
@@ -2244,6 +2615,70 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
 
         if(pItem->type == ITEM_TYPE_CLOTHES && pItem->playModType != PLAYMOD_TYPE_NONE) {
             AddPlayMod(pItem->playModType, true);
+        }
+    }
+
+    if(m_guildID != 0) {
+        RequestGuildDataLoad();
+    }
+    else {
+        RequestSocialDataLoad();
+    }
+}
+
+void GamePlayer::RequestGuildDataLoad()
+{
+    if(m_guildID == 0) {
+        RequestSocialDataLoad();
+        return;
+    }
+
+    if(GetGuildManager()->Get(m_guildID)) {
+        RequestSocialDataLoad();
+        return;
+    }
+
+    SetState(PLAYER_STATE_LOADING_GUILD);
+
+    QueryRequest req = MakeGetGuildByIDReq(m_guildID, GetNetID());
+    req.extraData.resize(1);
+    req.extraData[0] = PLAYER_SUB_GUILD_LOAD;
+    DatabaseGuildExec(GetContext()->GetDatabasePool(), DB_GUILD_GET_BY_ID, req);
+}
+
+void GamePlayer::HandleGuildDataLoad(QueryTaskResult&& result)
+{
+    RemoveState(PLAYER_STATE_LOADING_GUILD);
+
+    if(!result.result || result.result->GetRowCount() == 0) {
+        m_guildID = 0;
+        RequestSocialDataLoad();
+        return;
+    }
+
+    Guild* pGuild = GetGuildManager()->Get(m_guildID);
+    const bool newlyAllocated = (pGuild == nullptr);
+    if(!pGuild) {
+        pGuild = new Guild();
+    }
+
+    pGuild->SetGuildID((uint64)result.result->GetField("ID", 0).GetUINT());
+    pGuild->SetName(result.result->GetField("Name", 0).GetString());
+    pGuild->SetStatement(result.result->GetField("Statement", 0).GetString());
+    pGuild->SetNotebook(result.result->GetField("Notebook", 0).GetString());
+    pGuild->SetWorldID(result.result->GetField("WorldID", 0).GetUINT());
+    pGuild->SetOwnerID(result.result->GetField("OwnerID", 0).GetUINT());
+    pGuild->SetLevel(result.result->GetField("Level", 0).GetUINT());
+    pGuild->SetXP(result.result->GetField("XP", 0).GetUINT());
+    pGuild->SetLogoForeground((uint16)result.result->GetField("LogoFG", 0).GetUINT());
+    pGuild->SetLogoBackground((uint16)result.result->GetField("LogoBG", 0).GetUINT());
+    pGuild->SetShowMascot(result.result->GetField("ShowMascot", 0).GetUINT() != 0);
+    pGuild->SetCreatedAt((uint64)result.result->GetField("CreatedAt", 0).GetUINT());
+    pGuild->SetMembers(ParseGuildMembersHex(result.result->GetField("MemberDataHex", 0).GetString()));
+
+    if(newlyAllocated) {
+        if(!GetGuildManager()->Add(pGuild)) {
+            SAFE_DELETE(pGuild);
         }
     }
 
@@ -2487,12 +2922,53 @@ void GamePlayer::SaveToDatabase()
         m_dailyRewardStreak,
         m_dailyRewardClaimDay,
         m_lastClaimDailyRewardMs,
+        m_guildID,
+        m_showLocationToGuild,
+        m_showGuildNotification,
+        m_titleShowPrefix,
+        m_titlePermLegend,
+        m_titlePermGrow4Good,
+        m_titlePermMVP,
+        m_titlePermVIP,
+        m_titleEnabledLegend,
+        m_titleEnabledGrow4Good,
+        m_titleEnabledMVP,
+        m_titleEnabledVIP,
         GetNetID()
     );
     
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_SAVE, req);
+
+    if(m_guildID != 0) {
+        Guild* pGuild = GetGuildManager()->Get(m_guildID);
+        if(pGuild) {
+            const string memberHex = SerializeGuildMembersHex(pGuild->GetMembers());
+
+            QueryRequest updateGuildReq = MakeUpdateGuildReq(
+                pGuild->GetGuildID(),
+                pGuild->GetName(),
+                pGuild->GetStatement(),
+                pGuild->GetNotebook(),
+                pGuild->GetWorldID(),
+                pGuild->GetOwnerID(),
+                pGuild->GetLevel(),
+                pGuild->GetXP(),
+                pGuild->GetLogoForeground(),
+                pGuild->GetLogoBackground(),
+                pGuild->IsShowMascot(),
+                pGuild->GetCreatedAt(),
+                static_cast<uint32>(pGuild->GetMembers().size()),
+                memberHex,
+                GetNetID()
+            );
+
+            DatabaseGuildExec(GetContext()->GetDatabasePool(), DB_GUILD_UPDATE, updateGuildReq);
+        }
+    }
+
     SaveSocialDataToDatabase();
     SAFE_DELETE_ARRAY(pInvData);
+
 }
 
 bool GamePlayer::CanClaimDailyReward(uint32 currentEpochDay) const
@@ -2586,6 +3062,128 @@ void GamePlayer::Update()
     }
 }
 
+bool GamePlayer::IsPrefixEnabled() const
+{
+    return m_titleShowPrefix;
+}
+
+void GamePlayer::SetPrefixEnabled(bool enabled)
+{
+    m_titleShowPrefix = enabled;
+}
+
+bool GamePlayer::IsLegend() const
+{
+    return m_titlePermLegend;
+}
+
+void GamePlayer::SetIsLegend(bool enabled)
+{
+    m_titlePermLegend = enabled;
+    if(!m_titlePermLegend) {
+        m_titleEnabledLegend = false;
+    }
+}
+
+bool GamePlayer::IsGrow4Good() const
+{
+    return m_titlePermGrow4Good;
+}
+
+void GamePlayer::SetIsGrow4Good(bool enabled)
+{
+    m_titlePermGrow4Good = enabled;
+    if(!m_titlePermGrow4Good) {
+        m_titleEnabledGrow4Good = false;
+    }
+}
+
+bool GamePlayer::IsMVP() const
+{
+    return m_titlePermMVP;
+}
+
+void GamePlayer::SetIsMVP(bool enabled)
+{
+    m_titlePermMVP = enabled;
+    if(!m_titlePermMVP) {
+        m_titleEnabledMVP = false;
+    }
+}
+
+bool GamePlayer::IsVIP() const
+{
+    return m_titlePermVIP;
+}
+
+void GamePlayer::SetIsVIP(bool enabled)
+{
+    m_titlePermVIP = enabled;
+    if(!m_titlePermVIP) {
+        m_titleEnabledVIP = false;
+    }
+}
+
+bool GamePlayer::IsLegendaryTitleEnabled()
+{
+    if(!m_titlePermLegend) {
+        m_titleEnabledLegend = false;
+        return false;
+    }
+
+    return m_titleEnabledLegend;
+}
+
+void GamePlayer::SetLegendaryTitleEnabled(bool enabled)
+{
+    m_titleEnabledLegend = m_titlePermLegend && enabled;
+}
+
+bool GamePlayer::IsGrow4GoodTitleEnabled()
+{
+    if(!m_titlePermGrow4Good) {
+        m_titleEnabledGrow4Good = false;
+        return false;
+    }
+
+    return m_titleEnabledGrow4Good;
+}
+
+void GamePlayer::SetGrow4GoodTitleEnabled(bool enabled)
+{
+    m_titleEnabledGrow4Good = m_titlePermGrow4Good && enabled;
+}
+
+bool GamePlayer::IsMaxLevelTitleEnabled()
+{
+    if(!m_titlePermMVP) {
+        m_titleEnabledMVP = false;
+        return false;
+    }
+
+    return m_titleEnabledMVP;
+}
+
+void GamePlayer::SetMaxLevelTitleEnabled(bool enabled)
+{
+    m_titleEnabledMVP = m_titlePermMVP && enabled;
+}
+
+bool GamePlayer::IsSuperSupporterTitleEnabled()
+{
+    if(!m_titlePermVIP) {
+        m_titleEnabledVIP = false;
+        return false;
+    }
+
+    return m_titleEnabledVIP;
+}
+
+void GamePlayer::SetSuperSupporterTitleEnabled(bool enabled)
+{
+    m_titleEnabledVIP = m_titlePermVIP && enabled;
+}
+
 string GamePlayer::GetDisplayName()
 {
     string displayName;
@@ -2606,13 +3204,20 @@ string GamePlayer::GetDisplayName()
         displayName += "`"; 
         displayName += m_pRole->GetNameColor();
     }
-    displayName += m_pRole->GetPrefix();
+
+    if(IsPrefixEnabled()) {
+        displayName += m_pRole->GetPrefix();
+    }
 
     if(!m_loginDetail.tankIDName.empty()) {
         displayName += m_loginDetail.tankIDName;
     }
     else {
         displayName += m_loginDetail.requestedName + "_" + ToString(m_guestID);
+    }
+
+    if(IsLegendaryTitleEnabled()) {
+        displayName += " of Legend";
     }
 
     displayName += m_pRole->GetSuffix();

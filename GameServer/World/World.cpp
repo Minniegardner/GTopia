@@ -353,6 +353,21 @@ GamePlayer* World::GetPlayerOnTile(const Vector2Int& tilePos)
     return pBestPlayer;
 }
 
+GamePlayer* World::GetPlayerByNetID(uint32 netID)
+{
+    for(GamePlayer* pWorldPlayer : m_players) {
+        if(!pWorldPlayer) {
+            continue;
+        }
+
+        if((uint32)pWorldPlayer->GetNetID() == netID) {
+            return pWorldPlayer;
+        }
+    }
+
+    return nullptr;
+}
+
 World::World()
 : m_worldID(0)
 {
@@ -449,6 +464,10 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     }
 
     GhostAlgorithm::SyncWorldGhostsToPlayer(this, pPlayer);
+
+    if(pPlayer->GetGuildID() != 0) {
+        pPlayer->SendGuildDataChanged();
+    }
 
     const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
     const string enteredBubble = "`5<`w" + pPlayer->GetRawName() + " `5entered, `w" + ToString(otherPlayersHere) + "`` `5others here>```w";

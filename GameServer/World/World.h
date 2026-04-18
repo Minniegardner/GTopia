@@ -47,6 +47,7 @@ public:
 
     bool PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile);
     GamePlayer* GetPlayerOnTile(const Vector2Int& tilePos);
+    GamePlayer* GetPlayerByNetID(uint32 netID);
 
     void OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID);
     void OnRemoveLock(GamePlayer* pPlayer, TileInfo* pTile);

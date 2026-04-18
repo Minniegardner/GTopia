@@ -33,6 +33,7 @@ set(GAME_PRIZE "${GAME_ROOT}/Prize")
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
+    ${SOURCE_DATABASE}/Table/GuildDBTable.cpp
     ${SOURCE_DATABASE}/Table/WorldDBTable.cpp
     ${SOURCE_UTILS}/GameConfig.cpp
     ${SOURCE_UTILS}/DialogBuilder.cpp
@@ -163,6 +164,9 @@ set(GAME_FILES PRIVATE
     ${GAME_STORE}/StoreCatalog.cpp
 
     ${GAME_PRIZE}/PrizeManager.cpp
+
+    ${GAME_ROOT}/Guild/Guild.cpp
+    ${GAME_ROOT}/Guild/GuildManager.cpp
 
     ${SOURCE_PLAYER}/Role.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp

@@ -1,7 +1,7 @@
 #include "WorldInfo.h"
 
 WorldInfo::WorldInfo()
-: m_version(10), m_flags(0)
+: m_version(14), m_flags(0)
 {
     m_pTileMgr = new WorldTileManager();
     m_pObjMgr = new WorldObjectManager();
