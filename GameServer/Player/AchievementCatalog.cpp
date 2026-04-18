@@ -6,8 +6,14 @@ namespace {
 
 const std::vector<AchievementStatRule> kStatRules = {
     { "BLOCKS_PLACED", 100, "Builder (Classic)" },
+    { "BLOCKS_PLACED", 1000, "ProBuilder" },
+    { "BLOCKS_PLACED", 10000, "ExpertBuilder" },
     { "TREES_HARVESTED", 100, "Farmer (Classic)" },
+    { "TREES_HARVESTED", 1000, "FarmerInTheDell" },
+    { "TREES_HARVESTED", 10000, "FarmasaurusRex" },
     { "BLOCKS_DESTROYED", 100, "Demolition (Classic)" },
+    { "BLOCKS_DESTROYED", 1000, "WreckingCrew" },
+    { "BLOCKS_DESTROYED", 10000, "Annihilator" },
     { "SPENT_GEMS_ON_STORE", 10000, "Big Spender (Classic)" },
     { "ITEMS_TRASHED", 5000, "Trashman (Classic)" },
     { "CONSUMABLES_USED", 100, "Paint The Town Blue (Classic)" },
@@ -21,6 +27,8 @@ const std::vector<AchievementStatRule> kStatRules = {
     { "CAPTURED_GHOSTS", 100, "Who Ya Gonna Call? (Classic)" },
     { "CAPTURED_MIND_GHOSTS", 100, "Mastermind (Classic)" },
     { "BROKEN_ANOMALIZERS", 10, "Big Breaker (Classic)" },
+    { "BROKEN_ANOMALIZERS", 100, "BiggerBreaker" },
+    { "BROKEN_ANOMALIZERS", 500, "BiggestBreaker" },
     { "BROKEN_HAMMER_ANOMALIZERS", 10, "Hammer Time (Classic)" },
     { "BROKEN_SCYTHE_ANOMALIZERS", 10, "Reaper King (Classic)" },
     { "BROKEN_BONESAW_ANOMALIZERS", 10, "Bone Breaker (Classic)" },
@@ -63,6 +71,10 @@ const std::vector<string> kKnownAchievements = {
     "Embiggened (Classic)"
 };
 
+const std::vector<string> kReferenceAchievementKeys = {
+    "Builder", "Farmer", "Demolition", "Packrat", "BigSpender", "Trashman", "PaintTheTownBlue", "Embiggened", "MineAllMine", "Ding", "SocialButterfly", "YouLikeMe", "MilkinIt", "BubbleBubble", "Surgeron", "Legen", "SparkyDust", "RadiationHunter", "CrimeFighter", "DailyChallengeData", "DeadlyVacuum", "Resurrection", "WhoYaGonnaCall", "Mastermind", "BigBreaker", "HammerTime", "ReaperKing", "BoneBreaker", "RodSnapper", "TrowelTroubles", "CultivateThis", "ScappedScanners", "CookingConundrum", "ProBuilder", "FarmerInTheDell", "WreckingCrew", "Hoarder", "OlMoneybags", "GivinAHoot", "Splat", "SpaceCommander", "LetTheRightOneIn", "LongTimeFan", "SocialMonarch", "MooJuice", "Mixologist", "ChiefOfSurgery", "WaitForIt", "WeAreAllStardust", "GrowingAThirdArm", "SaviorOfTheCity", "MonthlyChallenge", "StarHoarder", "Bones", "AintAfraid", "MatterOverMind", "GrowmojiFan", "BiggerBreaker", "ExpertBuilder", "FarmasaurusRex", "Annihilator", "FilthyRich", "OneMeeelion", "OCD", "MadVandal", "MasterOfSpaceAndTime", "ThisLandIsMyLand", "ObsessiveGrowtopian", "Supporter", "KevinBacon", "BestOfAllPossibleWorlds", "KingOfTheWorld", "CollectorExtraordinaire", "Science", "Superhero", "SurgeronGeneral", "Dary", "Intergalactic", "AtomicLuck", "HackedTheServer", "Fishmaster", "FailureChallenged", "TeaEarlGreyHot", "RunninOnEmpty", "FinFan", "Ghosted", "GrowmojiMaster", "BiggestBreaker", "Crafty", "GuildLeader", "StarBling", "InterstellarChampion", "SuperScience", "Berserk", "TheSpecial", "CrazyFarmer", "Millionaire", "Void", "MadShopper", "Showoff", "SuperSupporter", "ProvidersWillProvide", "TheDoctor", "Consumer", "ChemicalCreator", "WildFireSavior", "AncestralBeing", "BossedAround", "MasterBuilder", "MasterChef", "MasterFarmer", "MasterSurgeon", "MasterStarCaptain", "MasterFisher", "ChemicalCrusader", "ViciousVictory", "Ascended", "Descended", "AHigherPower", "BossGhostToast", "AngelOfMercy", "AscendedUniverse", "DescendedUniverse", "PowerOverwhelming", "JackOfAllTrades", "BigShowoff", "MedicalMarvel", "InterstellarTycoon", "CelebrateGoodTimes", "LifeOfTheParty", "FirstBirthday", "GrowtopianOfTheYear", "SecondBirthday", "FifthAnniversary", "SixthAnniversary", "SeventhAnniversary", "EightAnniversary", "Heartbreaker", "StupidCupid", "FourLeaves", "LittleGreenMan", "GotLuckyCharms", "SixteenDozen", "BouncingBabyBunny", "ADeadRabbit", "EggHunter", "BashCinco", "LaVidaDeLaFiesta", "Gorro", "Champeon", "TooManyPineapples", "FreshAir", "TheLastCelebration", "SummerGrillin", "BrightFuture", "HarvesterOfWorlds", "Sacrifice", "CostumeContest", "SpiritOfGiving", "DeerHunter", "BigDonor", "CrachShot", "DiscipleOfGrowganoth", "ConcentratedPowerOfWill", "SevenYearsGoodLuck", "Ringu", "Wasted", "DeathRacer", "TheBrutalestBounce", "SpikySurvivor"
+};
+
 }
 
 namespace AchievementCatalog {
@@ -74,7 +86,23 @@ const std::vector<AchievementStatRule>& GetStatRules()
 
 const std::vector<string>& GetKnownAchievements()
 {
-    return kKnownAchievements;
+    static std::vector<string> merged;
+    if(merged.empty()) {
+        merged.reserve(kKnownAchievements.size() + kReferenceAchievementKeys.size());
+
+        auto appendUnique = [&](const std::vector<string>& src) {
+            for(const string& name : src) {
+                if(std::find(merged.begin(), merged.end(), name) == merged.end()) {
+                    merged.push_back(name);
+                }
+            }
+        };
+
+        appendUnique(kKnownAchievements);
+        appendUnique(kReferenceAchievementKeys);
+    }
+
+    return merged;
 }
 
 bool IsKnownAchievement(const string& achievementName)
@@ -83,7 +111,8 @@ bool IsKnownAchievement(const string& achievementName)
         return false;
     }
 
-    return std::find(kKnownAchievements.begin(), kKnownAchievements.end(), achievementName) != kKnownAchievements.end();
+    const std::vector<string>& known = GetKnownAchievements();
+    return std::find(known.begin(), known.end(), achievementName) != known.end();
 }
 
 void ApplyStatAchievements(GamePlayer* pPlayer, const string& statName, uint64 statValue)
@@ -100,8 +129,6 @@ void ApplyStatAchievements(GamePlayer* pPlayer, const string& statName, uint64 s
         if(statValue >= rule.threshold) {
             pPlayer->GiveAchievement(rule.achievementName);
         }
-
-        return;
     }
 }
 
@@ -113,6 +140,18 @@ void ApplyGemAchievements(GamePlayer* pPlayer, int32 currentGems)
 
     if(currentGems >= 1000) {
         pPlayer->GiveAchievement("Packrat (Classic)");
+    }
+    if(currentGems >= 10000) {
+        pPlayer->GiveAchievement("Hoarder");
+    }
+    if(currentGems >= 100000) {
+        pPlayer->GiveAchievement("OlMoneybags");
+    }
+    if(currentGems >= 500000) {
+        pPlayer->GiveAchievement("FilthyRich");
+    }
+    if(currentGems >= 1000000) {
+        pPlayer->GiveAchievement("OneMeeelion");
     }
 }
 

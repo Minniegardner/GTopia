@@ -359,6 +359,55 @@ bool SpawnGhostNearPlayer(GamePlayer* pPlayer, World* pWorld)
     return SpawnGhostAt(pWorld, { pos.x + 16.0f, pos.y + 16.0f });
 }
 
+void PullGhostsTowardPlayer(World* pWorld, const Vector2Float& playerPos, const Vector2Float& beamTilePos)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    GhostWorldState& state = GetState(pWorld);
+    if(state.entities.empty()) {
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    const float lineLength = std::sqrt(
+        std::pow((beamTilePos.x + 16.0f) - playerPos.x, 2.0f) +
+        std::pow((beamTilePos.y + 16.0f) - playerPos.y, 2.0f)
+    );
+
+    for(auto& [entityID, entity] : state.entities) {
+        (void)entityID;
+        if(entity.jar) {
+            continue;
+        }
+
+        const Vector2Float currentPos = GetGhostLerpPos(entity, nowMS);
+        const float d1 = std::sqrt(std::pow(currentPos.x - playerPos.x, 2.0f) + std::pow(currentPos.y - playerPos.y, 2.0f));
+        const float d2 = std::sqrt(std::pow(currentPos.x - beamTilePos.x, 2.0f) + std::pow(currentPos.y - beamTilePos.y, 2.0f));
+        const float distance = std::abs((d1 + d2) - lineLength);
+
+        if(distance >= 20.0f) {
+            continue;
+        }
+
+        const float ratio = 0.6f;
+        Vector2Float newPos = {
+            currentPos.x + ratio * (playerPos.x - currentPos.x),
+            currentPos.y + ratio * (playerPos.y - currentPos.y)
+        };
+        newPos = ClampWorldPos(pWorld, newPos);
+
+        entity.pos = currentPos;
+        entity.lastPos = currentPos;
+        entity.destPos = newPos;
+        entity.lastMoveMS = nowMS;
+        entity.speed = 40.0f;
+
+        SendGhostNpcPacket(pWorld, entity, GHOST_NPC_ACTION_MOVE, entity.lastPos, entity.destPos, entity.speed);
+    }
+}
+
 void ClearWorldGhosts(World* pWorld)
 {
     if(!pWorld) {

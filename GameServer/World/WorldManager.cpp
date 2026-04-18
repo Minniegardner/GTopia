@@ -7,6 +7,8 @@
 #include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
 
+#include <filesystem>
+
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
 #include "../Event/UDP/GamePacket/PlayerCollect.h"
 #include "../Event/UDP/GamePacket/UseDoorRequest.h"
@@ -357,6 +359,94 @@ void WorldManager::SaveWorldToDatabase(World* pWorld, bool closeWorld)
          * send master to delete session
          */
     }
+}
+
+uint32 WorldManager::RepairLegacyMagplantWorlds(bool createBackup, bool dryRun)
+{
+    const string worldSavePath = GetContext()->GetGameConfig()->worldSavePath;
+    if(worldSavePath.empty()) {
+        return 0;
+    }
+
+    std::error_code ec;
+    if(!std::filesystem::exists(worldSavePath, ec) || !std::filesystem::is_directory(worldSavePath, ec)) {
+        return 0;
+    }
+
+    uint32 repairedFiles = 0;
+    for(const auto& entry : std::filesystem::directory_iterator(worldSavePath, ec)) {
+        if(ec || !entry.is_regular_file()) {
+            continue;
+        }
+
+        const std::filesystem::path filePath = entry.path();
+        const string fileName = filePath.filename().string();
+        if(fileName.rfind("world_", 0) != 0 || filePath.extension().string() != ".bin") {
+            continue;
+        }
+
+        File inFile;
+        if(!inFile.Open(filePath.string())) {
+            continue;
+        }
+
+        const uint32 fileSize = inFile.GetSize();
+        if(fileSize == 0) {
+            inFile.Close();
+            continue;
+        }
+
+        std::vector<uint8> inputData(fileSize);
+        if(inFile.Read(inputData.data(), fileSize) != fileSize) {
+            inFile.Close();
+            continue;
+        }
+        inFile.Close();
+
+        MemoryBuffer readBuffer(inputData.data(), fileSize);
+        World repairWorld;
+        if(!repairWorld.Serialize(readBuffer, false, true)) {
+            continue;
+        }
+
+        MemoryBuffer sizeBuffer;
+        if(!repairWorld.Serialize(sizeBuffer, true, true)) {
+            continue;
+        }
+
+        const uint32 outSize = sizeBuffer.GetOffset();
+        std::vector<uint8> outputData(outSize);
+        MemoryBuffer writeBuffer(outputData.data(), outSize);
+        if(!repairWorld.Serialize(writeBuffer, true, true)) {
+            continue;
+        }
+
+        if(inputData.size() == outputData.size() && memcmp(inputData.data(), outputData.data(), inputData.size()) == 0) {
+            continue;
+        }
+
+        repairedFiles++;
+        if(dryRun) {
+            continue;
+        }
+
+        if(createBackup) {
+            const std::filesystem::path backupPath = filePath.string() + ".bak_magplantfix";
+            if(!std::filesystem::exists(backupPath, ec)) {
+                std::filesystem::copy_file(filePath, backupPath, std::filesystem::copy_options::overwrite_existing, ec);
+            }
+        }
+
+        File outFile;
+        if(!outFile.Open(filePath.string(), FILE_MODE_WRITE)) {
+            continue;
+        }
+
+        outFile.Write(outputData.data(), outSize);
+        outFile.Close();
+    }
+
+    return repairedFiles;
 }
 
 void WorldManager::ForceSaveAllWorlds()

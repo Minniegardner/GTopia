@@ -144,6 +144,26 @@ std::vector<PlayerSession*> GameServer::FindPlayerSessionsByNamePrefix(const str
         return matches;
     }
 
+    bool isNumericQuery = true;
+    for(char c : query) {
+        if(c < '0' || c > '9') {
+            isNumericQuery = false;
+            break;
+        }
+    }
+
+    if(isNumericQuery) {
+        uint32 userID = 0;
+        if(ToUInt(query, userID) == TO_INT_SUCCESS) {
+            auto it = m_sessionCache.find(userID);
+            if(it != m_sessionCache.end()) {
+                return { &it->second };
+            }
+
+            return matches;
+        }
+    }
+
     const string queryLower = ToLower(query);
 
     for(auto& [_, session] : m_sessionCache) {

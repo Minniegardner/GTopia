@@ -319,6 +319,15 @@ void SpawnPrizeDrop(World* pWorld, TileInfo* pTile, const PrizeDrop& prize)
     pWorld->DropObject(pTile, obj, true);
 }
 
+bool IsLuckyInLovePotionActive(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return false;
+    }
+
+    return pPlayer->GetCharData().HasPlayMod(PLAYMOD_TYPE_LUCKY_IN_LOVE);
+}
+
 bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, ItemInfo* pTileItem)
 {
     if(!pPlayer || !pWorld || !pTile || !pTileItem || pTileItem->type != ITEM_TYPE_PROVIDER) {
@@ -330,16 +339,24 @@ bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, Ite
         return false;
     }
 
-    const uint64 nowMS = Time::GetSystemTime();
-    if(pProvider->readyTime != 0 && nowMS < pProvider->readyTime) {
-        return true;
-    }
-
     uint32 cooldownSec = pTileItem->growTime;
     if(cooldownSec == 0) {
         cooldownSec = 1800;
     }
-    pProvider->readyTime = (uint32)(nowMS + (uint64)cooldownSec * 1000ull);
+
+    const uint64 cooldownMS64 = (uint64)cooldownSec * 1000ull;
+    const uint32 cooldownMS = cooldownMS64 > UINT32_MAX ? UINT32_MAX : (uint32)cooldownMS64;
+    const uint32 nowMS = (uint32)Time::GetSystemTime();
+
+    // Keep provider cooldown in elapsed-time form (last harvest timestamp), which is robust to uint32 tick wrap.
+    if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile) && pProvider->readyTime != 0) {
+        const uint32 elapsedMS = nowMS - pProvider->readyTime;
+        if(elapsedMS < cooldownMS) {
+            return true;
+        }
+    }
+
+    pProvider->readyTime = nowMS;
 
     switch(pTileItem->id) {
         case ITEM_ID_ATM_MACHINE: {
@@ -350,6 +367,11 @@ bool TryHarvestProvider(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, Ite
 
         case ITEM_ID_AWKWARD_FRIENDLY_UNICORN: {
             SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetAwkwardUnicornDrop());
+            break;
+        }
+
+        case ITEM_ID_TACKLE_BOX: {
+            SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetTackleBoxDrop());
             break;
         }
 
@@ -841,7 +863,7 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
                 ->AddLabel("This will change your GrowID `4permanently``. You can't change it again for `460 days``.")
                 ->AddLabel("Your `wBirth Certificate`` will be consumed if you press `5Change It``.")
                 ->AddLabel("Choose an appropriate name or `6we will change it for you!``")
-                ->AddTextInput("new_name", "Enter your new name:", "", 32)
+                ->AddTextInput("NewName", "Enter your new name:", "", 32)
                 ->EndDialog("BirthCertificate", "Change it!", "Cancel");
 
             pPlayer->SendOnDialogRequest(db.Get());
@@ -1136,7 +1158,15 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
     }
 
     if(pPacket->itemID == ITEM_ID_FIST) {
-        if(pPlayer->GetInventory().GetClothByPart(BODY_PART_HAND) == ITEM_ID_FIRE_HOSE) {
+        const uint16 handItem = pPlayer->GetInventory().GetClothByPart(BODY_PART_HAND);
+
+        if(handItem == ITEM_ID_NEUTRON_GUN) {
+            const Vector2Float tilePosFloat = { tilePos.x * 32.0f, tilePos.y * 32.0f };
+            GhostAlgorithm::PullGhostsTowardPlayer(pWorld, pPlayer->GetWorldPos(), tilePosFloat);
+            return;
+        }
+
+        if(handItem == ITEM_ID_FIRE_HOSE) {
             if(pTile->HasFlag(TILE_FLAG_ON_FIRE)) {
                 pTile->RemoveFlag(TILE_FLAG_ON_FIRE);
                 pWorld->SendParticleEffectToAll(tilePos.x * 32, tilePos.y * 32, 149);
@@ -1239,12 +1269,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
             if(!pTileItem->HasFlag(ITEM_FLAG_DROPLESS)) {
                 if(pTileItem->id == ITEM_ID_GOLDEN_BOOTY_CHEST) {
-                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetGBCDrop(false));
+                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetGBCDrop(IsLuckyInLovePotionActive(pPlayer)));
                 }
                 else if(pTileItem->id == ITEM_ID_SUPER_GOLDEN_BOOTY_CHEST) {
-                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetSGBCDrop(false));
+                    SpawnPrizeDrop(pWorld, pTile, GetPrizeManager()->GetSGBCDrop(IsLuckyInLovePotionActive(pPlayer)));
                 }
-
                 if(pTileItem->type == ITEM_TYPE_SEED) {
                     uint8 seedCount = (uint8)(1 + (rand() % 2));
                     if(pTile->HasFlag(TILE_FLAG_WILL_SPAWN_SEEDS_TOO)) {

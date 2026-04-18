@@ -53,6 +53,27 @@ bool ParseIntField(ParsedTextPacket<8>& packet, uint32 key, int32& out)
     return ToInt(string(pField->value, pField->size), out) == TO_INT_SUCCESS;
 }
 
+bool ParseBoolField(ParsedTextPacket<8>& packet, uint32 key, bool& out)
+{
+    auto pField = packet.Find(key);
+    if(!pField) {
+        return false;
+    }
+
+    string value(pField->value, pField->size);
+    if(value == "1" || ToLower(value) == "true") {
+        out = true;
+        return true;
+    }
+
+    if(value == "0" || ToLower(value) == "false") {
+        out = false;
+        return true;
+    }
+
+    return false;
+}
+
 bool IsBirthCertNameValid(const string& name)
 {
     if(name.size() < 3 || name.size() > 18) {
@@ -70,6 +91,48 @@ bool IsBirthCertNameValid(const string& name)
     }
 
     return true;
+}
+
+void ShowBirthCertificateDialog(GamePlayer* pPlayer, const string& message = "", const string& prefillName = "")
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    pPlayer->ClearBirthCertificatePendingName();
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wChange your GrowID``", ITEM_ID_BIRTH_CERTIFICATE, true)
+        ->AddSpacer();
+
+    if(!message.empty()) {
+        db.AddLabel(message);
+    }
+
+    db.AddLabel("This will change your GrowID `4permanently``. You can't change it again for `460 days``.")
+        ->AddLabel("Your `wBirth Certificate`` will be consumed if you press `5Change It``.")
+        ->AddLabel("Choose an appropriate name or `6we will change it for you!``")
+        ->AddTextInput("NewName", "Enter your new name:", prefillName, 32)
+        ->EndDialog("BirthCertificate", "Change it!", "Cancel");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowBirthCertificateConfirmDialog(GamePlayer* pPlayer, const string& newName)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wChange your GrowID``", ITEM_ID_BIRTH_CERTIFICATE, true)
+        ->AddLabel("`4Are you absolutely sure you want to use up 1 `2Birth Certificate`` to permanently change your name to \"`9" + newName + "``\"?")
+        ->AddLabel("This will change your GrowID `4permanently``. You can't change it again for `460 days``.<CR>Your `wBirth Certificate`` will be consumed if you press `5Change It``.<CR>Capitalization will be exactly as shown above.<CR>Choose an appropriate name or `6we will change it for you!``")
+        ->EndDialog("BirthCertificateConfirm", "Change it!", "Cancel");
+
+    pPlayer->SendOnDialogRequest(db.Get());
 }
 
 void ShowCrazyJimMainMenu(GamePlayer* pPlayer)
@@ -895,11 +958,16 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("BirthCertificate"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            if(!pButtonClicked || string(pButtonClicked->value, pButtonClicked->size) != "Change It") {
+            if(!pButtonClicked) {
                 return;
             }
 
-            auto pNewName = packet.Find(CompileTimeHashString("new_name"));
+            const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked != "Change It" && buttonClicked != "Change it!" && buttonClicked != "Change it") {
+                return;
+            }
+
+            auto pNewName = packet.Find(CompileTimeHashString("NewName"));
             if(!pNewName) {
                 return;
             }
@@ -918,12 +986,12 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             if(!IsBirthCertNameValid(newName)) {
-                pPlayer->SendOnTalkBubble("`4Oops!`` Your GrowID must be 3-18 chars, with letters and numbers only.", true);
+                ShowBirthCertificateDialog(pPlayer, "`4Oops!`` Your GrowID must be 3-18 chars, with letters and numbers only.", newName);
                 return;
             }
 
             if(ToUpper(newName) == ToUpper(pPlayer->GetRawName())) {
-                pPlayer->SendOnTalkBubble("`4Oops!`` That's already your name.", true);
+                ShowBirthCertificateDialog(pPlayer, "`4Oops!`` That's already your name.", newName);
                 return;
             }
 
@@ -931,9 +999,59 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
+            pPlayer->SetBirthCertificatePendingName(newName);
+            ShowBirthCertificateConfirmDialog(pPlayer, newName);
+            break;
+        }
+
+        case CompileTimeHashString("BirthCertificateConfirm"): {
+            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+            if(!pButtonClicked) {
+                return;
+            }
+
+            const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+            if(buttonClicked != "Change It" && buttonClicked != "Change it!" && buttonClicked != "Change it") {
+                return;
+            }
+
+            string newName = pPlayer->GetBirthCertificatePendingName();
+            if(newName.empty()) {
+                return;
+            }
+            RemoveExtraWhiteSpaces(newName);
+
+            if(!pPlayer->HasGrowID()) {
+                pPlayer->SendOnTalkBubble("`4You need a GrowID first!", true);
+                return;
+            }
+
+            if(pPlayer->GetCharData().HasPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED)) {
+                pPlayer->SendOnTalkBubble("You can't change your `$GrowID`` again so soon!", true);
+                return;
+            }
+
+            if(!IsBirthCertNameValid(newName)) {
+                pPlayer->ClearBirthCertificatePendingName();
+                ShowBirthCertificateDialog(pPlayer, "`4Oops!`` Your GrowID must be 3-18 chars, with letters and numbers only.", newName);
+                return;
+            }
+
+            if(ToUpper(newName) == ToUpper(pPlayer->GetRawName())) {
+                pPlayer->ClearBirthCertificatePendingName();
+                ShowBirthCertificateDialog(pPlayer, "`4Oops!`` That's already your name.", newName);
+                return;
+            }
+
+            if(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_BIRTH_CERTIFICATE) == 0) {
+                pPlayer->ClearBirthCertificatePendingName();
+                return;
+            }
+
             pPlayer->ModifyInventoryItem(ITEM_ID_BIRTH_CERTIFICATE, -1);
             pPlayer->GetLoginDetail().tankIDName = newName;
             pPlayer->AddPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED);
+            pPlayer->SetCustomStatValue("BirthCertLastUseMS", Time::GetSystemTime());
 
             QueryRequest req = MakePlayerGrowIDRename(pPlayer->GetUserID(), newName, pPlayer->GetNetID());
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GROWID_RENAME, req);
@@ -945,7 +1063,9 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pWorld->SendNameChangeToAll(pPlayer);
             }
 
+            pPlayer->SendOnPlayPositioned("audio/piano_nice.wav");
             pPlayer->SendOnTalkBubble("`wYou are now known as `#" + pPlayer->GetRawName() + "``!", true);
+            pPlayer->ClearBirthCertificatePendingName();
             break;
         }
 
@@ -1177,6 +1297,17 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
             else if(buttonClicked == "FriendAll") {
                 pPlayer->SendFriendMenu("FriendAll");
+            }
+            else if(buttonClicked == "FriendsOptions") {
+                pPlayer->SendFriendMenu("FriendsOptions");
+            }
+            else if(buttonClicked == "GotoFriendsMenuAndApplyOptions") {
+                bool showFriendNotifications = false;
+                if(ParseBoolField(packet, CompileTimeHashString("checkbox_notifications"), showFriendNotifications)) {
+                    pPlayer->SetShowFriendNotification(showFriendNotifications);
+                }
+
+                pPlayer->SendFriendMenu("GotoFriendsMenu");
             }
             else if(buttonClicked == "SeeSent") {
                 pPlayer->SendOnConsoleMessage("`oSent requests are shown in wrench interactions.``");

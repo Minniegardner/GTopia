@@ -1,5 +1,17 @@
 # GTopia Feature Patch Summary - 2026-04-13
 
+## Progress Checklist (Strict Parity)
+- [x] Fix Birth Certificate no-op caused by button text mismatch in dialog return handler.
+- [x] Mark Birth Certificate successful use time (`BirthCertLastUseMS`) after rename success.
+- [x] Add Birth Certificate success SFX (`audio/piano_nice.wav`) on successful rename.
+- [x] Align provider cooldown logic to elapsed-time (`last harvest`) form with wrap-safe tick math.
+- [x] Add provider cooldown bypass for privileged tile access (closest available owner-equivalent path).
+- [x] Add Birth Certificate two-step confirm dialog parity (`BirthCertificateConfirm`) and consume item only on confirm success.
+- [ ] Add strict duplicate-name check parity path and exact error dialog parity for every validation branch.
+- [x] Add Tackle Box provider harvest drop flow (`ITEM_ID_TACKLE_BOX` -> `GetTackleBoxDrop`) in runtime gameplay path.
+- [ ] Complete friend cross-subserver notification actions (request/accept/login/logout).
+- [ ] Complete neutron gun + ghost interaction/effect parity pass.
+
 ## What Changed
 - Added reference-style machine interaction flow for vending and Magplant-class blocks.
 - Aligned dialog names and control flow with ReferensiSrc style:

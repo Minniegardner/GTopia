@@ -125,6 +125,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/InvSee.cpp
     ${GAME_COMMAND}/ItemInfo.cpp
     ${GAME_COMMAND}/ReplaceBlocks.cpp
+    ${GAME_COMMAND}/RepairMagplantWorlds.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp

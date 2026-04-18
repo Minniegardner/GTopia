@@ -81,6 +81,9 @@ public:
     void SetMagplantPos(Vector2Int pos);
     void SetPendingDoorWarpID(const string& doorID) { m_pendingDoorWarpID = doorID; }
     string ConsumePendingDoorWarpID() { string doorID = m_pendingDoorWarpID; m_pendingDoorWarpID.clear(); return doorID; }
+    void SetBirthCertificatePendingName(const string& name) { m_birthCertificatePendingName = name; }
+    const string& GetBirthCertificatePendingName() const { return m_birthCertificatePendingName; }
+    void ClearBirthCertificatePendingName() { m_birthCertificatePendingName.clear(); }
 
     uint32 GetDailyRewardStreak() const { return m_dailyRewardStreak; }
     void SetDailyRewardStreak(uint32 streak) { m_dailyRewardStreak = streak; }
@@ -153,6 +156,10 @@ public:
 
     bool IsFriendWith(uint32 userID) const;
     uint32 CountOnlineFriends() const;
+    bool IsShowFriendNotification() const;
+    void SetShowFriendNotification(bool enabled);
+    bool ShouldProcessFriendAlert(uint32 sourceUserID, bool loggedIn, uint64 nowMS);
+    void NotifyFriendsStatusChange(bool loggedIn);
     bool IsFriendRequestSentTo(uint32 userID) const;
     bool IsFriendRequestReceivedFrom(uint32 userID) const;
     void SendFriendRequestTo(GamePlayer* otherPlayer);
@@ -262,6 +269,7 @@ private:
     Vector2Float m_worldPos;
     Vector2Int m_magplantPos = { -1, -1 };
     string m_pendingDoorWarpID = "";
+    string m_birthCertificatePendingName = "";
 
     Timer m_lastDbSaveTime;
 
@@ -288,6 +296,7 @@ private:
     std::unordered_set<uint32> m_sentFriendRequestUserIDs = {};
     std::unordered_set<uint32> m_receivedFriendRequestUserIDs = {};
     std::unordered_set<uint32> m_ignoredUserIDs = {};
+    std::unordered_map<uint64, uint64> m_friendAlertDebounce = {};
     uint32 m_lastWhisperUserID = 0;
     uint64 m_lastWhisperAtMS = 0;
     uint64 m_mutedUntilMS = 0;

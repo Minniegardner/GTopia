@@ -23,6 +23,7 @@ public:
     PrizeDrop GetAwkwardUnicornDrop();
     PrizeDrop GetGBCDrop(bool potion = false);
     PrizeDrop GetSGBCDrop(bool potion = false);
+    PrizeDrop GetTackleBoxDrop();
     PrizeDrop GetChemStationDrop();
 
 private:
@@ -38,6 +39,7 @@ private:
     std::vector<std::pair<uint16, double>> m_gbcDropsPotion;
     std::vector<std::pair<uint16, double>> m_sgbcDrops;
     std::vector<std::pair<uint16, double>> m_sgbcDropsPotion;
+    std::vector<std::pair<uint16, double>> m_tackleBoxDrops;
     std::vector<std::pair<uint16, double>> m_chemStationDrops;
 };
 

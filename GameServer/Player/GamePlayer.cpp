@@ -76,6 +76,7 @@ namespace {
 constexpr uint64 kTradeChangeThrottleMS = 1800;
 constexpr uint8 kTradeMaxOfferItems = 4;
 constexpr uint64 kTradeRequestExpireMS = 15000;
+constexpr uint64 kFriendAlertDebounceWindowMS = 3500;
 
 bool IsTradeSystemItem(uint16 itemID)
 {
@@ -996,6 +997,20 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
 
 void GamePlayer::SendFriendMenu(const string& action)
 {
+    if(action == "FriendsOptions") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+          ->AddLabelWithIcon("Friend Options", ITEM_ID_DUMB_FRIEND, true)
+          ->AddSpacer()
+          ->AddCheckbox("checkbox_notifications", "Show friend notifications", IsShowFriendNotification())
+          ->AddSpacer()
+          ->AddButton("GotoFriendsMenuAndApplyOptions", "Back")
+          ->EndDialog("FriendMenu", "", "Close");
+
+        SendOnDialogRequest(db.Get());
+        return;
+    }
+
     const bool showAll = (action == "FriendAll");
     const uint32 friendsOnline = CountOnlineFriends();
 
@@ -1043,6 +1058,7 @@ void GamePlayer::SendFriendMenu(const string& action)
     }
 
     db.AddButton("FriendAll", "Show offline and ignored too")
+            ->AddButton("FriendsOptions", "Friend Options")
       ->AddButton("SeeSent", "Sent Friend Requests (`$" + ToString((uint32)m_sentFriendRequestUserIDs.size()) + "``)")
       ->AddButton("SeeReceived", "Received Friend Requests (`$" + ToString((uint32)m_receivedFriendRequestUserIDs.size()) + "``)")
       ->AddButton("GotoSocialPortal", "Back")
@@ -1076,6 +1092,76 @@ uint32 GamePlayer::CountOnlineFriends() const
     }
 
     return onlineFriends;
+}
+
+bool GamePlayer::IsShowFriendNotification() const
+{
+    auto it = m_stats.find("ShowFriendNotification");
+    if(it == m_stats.end()) {
+        return true;
+    }
+
+    return it->second != 0;
+}
+
+void GamePlayer::SetShowFriendNotification(bool enabled)
+{
+    m_stats["ShowFriendNotification"] = enabled ? 1 : 0;
+}
+
+bool GamePlayer::ShouldProcessFriendAlert(uint32 sourceUserID, bool loggedIn, uint64 nowMS)
+{
+    if(sourceUserID == 0) {
+        return true;
+    }
+
+    const uint64 key = ((uint64)sourceUserID << 1) | (loggedIn ? 1ull : 0ull);
+    auto it = m_friendAlertDebounce.find(key);
+    if(it != m_friendAlertDebounce.end()) {
+        const uint64 elapsed = nowMS >= it->second ? (nowMS - it->second) : 0;
+        if(elapsed < kFriendAlertDebounceWindowMS) {
+            return false;
+        }
+    }
+
+    m_friendAlertDebounce[key] = nowMS;
+    return true;
+}
+
+void GamePlayer::NotifyFriendsStatusChange(bool loggedIn)
+{
+    const string myName = GetRawName();
+    if(myName.empty()) {
+        return;
+    }
+
+    const string consoleMsg = loggedIn
+        ? "`3FRIEND ALERT : `w" + myName + " `ohas `2logged on`o."
+        : "`!FRIEND ALERT : `w" + myName + " `ohas `4logged off`o.";
+
+    for(uint32 friendUserID : m_friendUserIDs) {
+        if(friendUserID == 0) {
+            continue;
+        }
+
+        GamePlayer* pLocalFriend = GetGameServer()->GetPlayerByUserID(friendUserID);
+        if(pLocalFriend && pLocalFriend->HasState(PLAYER_STATE_IN_GAME) && pLocalFriend->IsShowFriendNotification() &&
+            pLocalFriend->ShouldProcessFriendAlert(GetUserID(), loggedIn, Time::GetSystemTime())) {
+            pLocalFriend->PlaySFX(loggedIn ? "friend_logon.wav" : "friend_logoff.wav", 2000);
+            pLocalFriend->SendOnConsoleMessage(consoleMsg);
+        }
+
+        // Use userID query for global bridge; Master resolver handles numeric exact match.
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            loggedIn ? TCP_CROSS_ACTION_FRIEND_LOGIN : TCP_CROSS_ACTION_FRIEND_LOGOUT,
+            GetUserID(),
+            myName,
+            ToString(friendUserID),
+            true,
+            "",
+            0
+        );
+    }
 }
 
 bool GamePlayer::IsFriendRequestSentTo(uint32 userID) const
@@ -1827,6 +1913,10 @@ void GamePlayer::ResetDailyRewardProgressIfNewDay(uint32 currentEpochDay)
 void GamePlayer::LogOff()
 {
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
+
+    if(isInGame) {
+        NotifyFriendsStatusChange(false);
+    }
 
     RemoveState(PLAYER_STATE_IN_GAME);
     m_loggingOff = true;

@@ -162,7 +162,22 @@ bool TrySuckerCheck(World* pWorld, WorldObject& obj)
             pData->itemCount += (int32)obj.count;
 
             const Vector2Int tilePos = pTile->GetPos();
-            pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
+
+            GameUpdatePacket effectPacket;
+            effectPacket.type = NET_GAME_PACKET_ITEM_EFFECT;
+            effectPacket.field2 = 0; // ParticleID
+            effectPacket.netID = -1; // TargetNetID
+            effectPacket.delay = 200;
+            effectPacket.posX = (tilePos.x * 32.0f) + 16.0f;
+            effectPacket.posY = (tilePos.y * 32.0f) + 16.0f;
+            effectPacket.field9 = obj.pos.x; // DestX
+            effectPacket.field10 = obj.pos.y; // DestY
+
+            const uint16 clientItemID = (uint16)GetItemInfoManager()->GetClientIDByItemID(obj.itemID);
+            effectPacket.tileX = (uint32)clientItemID;
+            effectPacket.tileY = (uint32)clientItemID;
+
+            pWorld->SendGamePacketToAll(&effectPacket);
             pWorld->SendTileUpdate(pTile);
             return true;
         }

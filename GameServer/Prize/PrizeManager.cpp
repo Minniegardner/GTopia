@@ -40,6 +40,7 @@ bool PrizeManager::Init()
     m_gbcDropsPotion.clear();
     m_sgbcDrops.clear();
     m_sgbcDropsPotion.clear();
+    m_tackleBoxDrops.clear();
     m_chemStationDrops.clear();
 
     AddOddsFromRefStyle(m_awkwardUnicornDrops, ITEM_ID_CLOUDS, 6);
@@ -111,6 +112,14 @@ bool PrizeManager::Init()
 
     AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_STAINED_GLASS_HEARTWINGS, 12000);
     AddOddsFromRefStyle(m_sgbcDrops, ITEM_ID_SCEPTER_OF_THE_HONOR_GUARD, 20900);
+
+    AddOdds(m_tackleBoxDrops, ITEM_ID_WIGGLY_WORM, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_SHINY_FLASHY_THING, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_SALMON_EGGS, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_FISHING_FLY, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_SHRIMP_LURE, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_MEGA_PELLET_BAIT, 1.0);
+    AddOdds(m_tackleBoxDrops, ITEM_ID_URANIUM_GLOWING_LURE, 1.0);
 
     AddOddsFromRefStyle(m_chemStationDrops, ITEM_ID_CHEMICAL_G, 3);
     AddOddsFromRefStyle(m_chemStationDrops, ITEM_ID_CHEMICAL_R, 4.5);
@@ -190,6 +199,16 @@ PrizeDrop PrizeManager::GetSGBCDrop(bool potion)
 
     PrizeDrop out;
     out.itemID = PickByOdds(potion ? m_sgbcDropsPotion : m_sgbcDrops);
+    out.amount = 1;
+    return out;
+}
+
+PrizeDrop PrizeManager::GetTackleBoxDrop()
+{
+    Init();
+
+    PrizeDrop out;
+    out.itemID = PickByOdds(m_tackleBoxDrops);
     out.amount = 1;
     return out;
 }

@@ -41,5 +41,7 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
     pPlayer->SendOnConsoleMessage("Use `/news` to check the latest server updates.");
 
+    pPlayer->NotifyFriendsStatusChange(true);
+
     pPlayer->SendOnRequestWorldSelectMenu("");
 }

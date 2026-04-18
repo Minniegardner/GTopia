@@ -392,15 +392,75 @@ void TileExtra_Mannequin::Serialize(MemoryBuffer& memBuffer, bool write, bool da
 void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
-    memBuffer.ReadWrite(itemLimit, write);
-    uint8 remoteFlag = remote ? 1 : 0;
     uint8 magneticFlag = magnetic ? 1 : 0;
-    memBuffer.ReadWrite(remoteFlag, write);
-    memBuffer.ReadWrite(magneticFlag, write);
-    memBuffer.ReadWrite(itemCount, write);
+    uint8 remoteFlag = remote ? 1 : 0;
+
+    // Keep the same field order as GrowtopiaV1 to avoid packet/world decode mismatch.
     memBuffer.ReadWrite(itemID, write);
+    memBuffer.ReadWrite(itemCount, write);
+    memBuffer.ReadWrite(magneticFlag, write);
+    memBuffer.ReadWrite(remoteFlag, write);
+    memBuffer.ReadWrite(itemLimit, write);
 
     if(!write) {
+        const uint16 parsedItemID = itemID;
+        const int32 parsedItemCount = itemCount;
+        const int32 parsedItemLimit = itemLimit;
+        const uint8 parsedMagneticFlag = magneticFlag;
+        const uint8 parsedRemoteFlag = remoteFlag;
+
+        auto IsDecodedStateValid = [&](uint16 inItemID, int32 inItemCount, int32 inItemLimit, uint8 inMagnetic, uint8 inRemote) -> bool {
+            if(inMagnetic > 1 || inRemote > 1) {
+                return false;
+            }
+
+            int32 expectedItemLimit = 5000;
+            if(pTile) {
+                const uint16 machineID = pTile->GetFG();
+                if(machineID == ITEM_ID_UNSTABLE_TESSERACT || machineID == ITEM_ID_GAIAS_BEACON) {
+                    expectedItemLimit = 1500;
+                }
+            }
+
+            if(inItemLimit < 0 || inItemLimit > expectedItemLimit) {
+                return false;
+            }
+
+            if(inItemCount < 0 || inItemCount > inItemLimit) {
+                return false;
+            }
+
+            if(inItemID != ITEM_ID_BLANK && !GetItemInfoManager()->GetItemByID(inItemID)) {
+                return false;
+            }
+
+            return true;
+        };
+
+        if(!IsDecodedStateValid(parsedItemID, parsedItemCount, parsedItemLimit, parsedMagneticFlag, parsedRemoteFlag)) {
+            const uint32 parsedCountU = (uint32)parsedItemCount;
+            const uint32 parsedLimitU = (uint32)parsedItemLimit;
+
+            const int32 legacyItemLimit = (int32)(((uint32)parsedItemID & 0xFFFFu) | ((parsedCountU & 0xFFFFu) << 16));
+            const uint8 legacyRemote = (uint8)((parsedCountU >> 16) & 0xFFu);
+            const uint8 legacyMagnetic = (uint8)((parsedCountU >> 24) & 0xFFu);
+            const int32 legacyItemCount = (int32)(
+                ((uint32)parsedMagneticFlag) |
+                ((uint32)parsedRemoteFlag << 8) |
+                ((parsedLimitU & 0xFFu) << 16) |
+                (((parsedLimitU >> 8) & 0xFFu) << 24)
+            );
+            const uint16 legacyItemID = (uint16)((parsedLimitU >> 16) & 0xFFFFu);
+
+            if(IsDecodedStateValid(legacyItemID, legacyItemCount, legacyItemLimit, legacyMagnetic, legacyRemote)) {
+                itemID = legacyItemID;
+                itemCount = legacyItemCount;
+                itemLimit = legacyItemLimit;
+                magneticFlag = legacyMagnetic;
+                remoteFlag = legacyRemote;
+            }
+        }
+
         if(itemLimit < 0) {
             itemLimit = 0;
         }
@@ -418,8 +478,8 @@ void TileExtra_Magplant::Serialize(MemoryBuffer& memBuffer, bool write, bool dat
             itemCount = 0;
         }
 
-        magnetic = magneticFlag != 0;
         remote = remoteFlag != 0;
+        magnetic = magneticFlag != 0;
     }
 }
 

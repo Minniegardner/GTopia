@@ -37,6 +37,7 @@ public:
 
     void UpdateWorlds();
     void SaveWorldToDatabase(World* pWorld, bool closeWorld);
+    uint32 RepairLegacyMagplantWorlds(bool createBackup = true, bool dryRun = false);
 
     void ForceSaveAllWorlds();
 

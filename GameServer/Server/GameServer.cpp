@@ -114,6 +114,7 @@ string GetWeekdayName(uint32 day)
 #include "../Command/InvSee.h"
 #include "../Command/ItemInfo.h"
 #include "../Command/ReplaceBlocks.h"
+#include "../Command/RepairMagplantWorlds.h"
 #include "../World/WorldManager.h"
 
 GameServer::GameServer()
@@ -311,6 +312,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<InvSee>();
     RegisterCommand<ItemInfoCmd>();
     RegisterCommand<ReplaceBlocks>();
+    RegisterCommand<RepairMagplantWorlds>();
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
@@ -417,6 +419,26 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
             case TCP_CROSS_ACTION_WARN: {
                 pTarget->SendOnTextOverlay("`4WARNING:`` " + payloadText);
                 pTarget->SendOnConsoleMessage("`4Warning from ``" + sourceRawName + "``: " + payloadText);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_FRIEND_LOGIN:
+            case TCP_CROSS_ACTION_FRIEND_LOGOUT: {
+                if(!pTarget->IsShowFriendNotification()) {
+                    break;
+                }
+
+                const bool loggedIn = actionType == TCP_CROSS_ACTION_FRIEND_LOGIN;
+                if(!pTarget->ShouldProcessFriendAlert(sourceUserID, loggedIn, Time::GetSystemTime())) {
+                    break;
+                }
+
+                pTarget->PlaySFX(loggedIn ? "friend_logon.wav" : "friend_logoff.wav", 2000);
+                pTarget->SendOnConsoleMessage(
+                    (loggedIn ? "`3FRIEND ALERT : `w" : "`!FRIEND ALERT : `w") +
+                    sourceRawName +
+                    (loggedIn ? " `ohas `2logged on`o." : " `ohas `4logged off`o.")
+                );
                 break;
             }
         }
