@@ -4,6 +4,8 @@
 #include "Algorithm/GhostAlgorithm.h"
 #include "Prize/PrizeManager.h"
 #include "Utils/DialogBuilder.h"
+#include "../../../Component/FossilComponent.h"
+#include "../../../Component/GeigerComponent.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
 #include "../../../Server/MasterBroadway.h"
@@ -764,37 +766,8 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
 
     switch(pItem->id) {
         case ITEM_ID_FOSSIL_BRUSH: {
-            RectFloat searchRect((float)tilePos.x * 32.0f, (float)tilePos.y * 32.0f, (float)(tilePos.x + 1) * 32.0f, (float)(tilePos.y + 1) * 32.0f);
-            auto objects = pWorld->GetObjectManager()->GetObjectsInRectByItemID(searchRect, ITEM_ID_FOSSIL);
-
-            WorldObject* pFossil = nullptr;
-            for(WorldObject* pObject : objects) {
-                if(pObject && pObject->itemID == ITEM_ID_FOSSIL && pObject->count == 1) {
-                    pFossil = pObject;
-                    break;
-                }
-            }
-
-            if(!pFossil) {
-                pPlayer->SendOnTalkBubble("`wYou can only brush Fossils that have never been picked up!", true);
-                return;
-            }
-
-            WorldObject polished;
-            polished.itemID = ITEM_ID_POLISHED_FOSSIL;
-            polished.count = 1;
-            polished.pos = pFossil->pos;
-
-            pWorld->RemoveObject(pFossil->objectID);
-            pWorld->DropObject(polished);
-
-            pPlayer->ModifyInventoryItem(ITEM_ID_FOSSIL_BRUSH, -1);
-            pPlayer->SendOnTalkBubble("`wYou polished the `2Fossil`w, using up 1 `2Fossil Brush`w.", true);
-
-            uint8 gemsToDrop = (uint8)(rand() % 13);
-            if(gemsToDrop > 0) {
-                pPlayer->AddGems(gemsToDrop);
-                pPlayer->SendOnSetBux();
+            if(!FossilComponent::TryHandlePrepAction(pPlayer, pWorld, pTile)) {
+                pPlayer->SendOnTalkBubble("`wUse this on a Fossil Prep Station with an untouched Fossil on the tile.", true);
             }
             return;
         }
@@ -1241,6 +1214,7 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             }
 
             uint8 punchDamage = (uint8)pPlayer->GetCharData().GetPunchDamage();
+            FossilComponent::OnFossilRockPunched(pPlayer, pWorld, pTile, pTileItem);
             if(pTileItem->type == ITEM_TYPE_SEED) {
                 TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
                 if(pSeedExtra && pTileItem->growTime > 0) {
@@ -1349,6 +1323,8 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
                 else if(!pTileItem->HasFlag(ITEM_FLAG_SEEDLESS)) {
                     SpawnFarmableDrops(pWorld, pTile, pTileItem);
                 }
+
+                GeigerComponent::TrySpawnRadioactiveDrop(pPlayer, pWorld, pTile, pTileItem);
             }
     
             pWorld->SendTileApplyDamage(tilePos.x, tilePos.y, (int32)pPlayer->GetCharData().GetPunchDamage(), pPlayer->GetNetID());

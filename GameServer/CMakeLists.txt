@@ -26,6 +26,7 @@ set(GAME_SERVER "${GAME_ROOT}/Server")
 set(GAME_EVENT "${GAME_ROOT}/Event")
 set(GAME_WORLD "${GAME_ROOT}/World")
 set(GAME_COMMAND "${GAME_ROOT}/Command")
+set(GAME_COMPONENT "${GAME_ROOT}/Component")
 set(GAME_DIALOG "${GAME_PLAYER}/Dialog")
 set(GAME_STORE "${GAME_ROOT}/Store")
 set(GAME_PRIZE "${GAME_ROOT}/Prize")
@@ -116,6 +117,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/KickAll.cpp
     ${GAME_COMMAND}/Summon.cpp
     ${GAME_COMMAND}/Suspend.cpp
+    ${GAME_COMMAND}/Maintenance.cpp
     ${GAME_COMMAND}/PBan.cpp
     ${GAME_COMMAND}/GrowIDCmd.cpp
     ${GAME_COMMAND}/SuperBroadcast.cpp
@@ -127,6 +129,10 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/ItemInfo.cpp
     ${GAME_COMMAND}/ReplaceBlocks.cpp
     ${GAME_COMMAND}/RepairMagplantWorlds.cpp
+
+    ${GAME_COMPONENT}/KickAllComponent.cpp
+    ${GAME_COMPONENT}/FossilComponent.cpp
+    ${GAME_COMPONENT}/GeigerComponent.cpp
 
     ${SOURCE_WORLD}/TileExtra.cpp
     ${SOURCE_WORLD}/TileInfo.cpp

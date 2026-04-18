@@ -261,6 +261,30 @@ protected:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
 };
 
+class TileExtra_FossilPrep : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_FOSSIL_PREP;
+
+    TileExtra_FossilPrep() : TileExtra(TYPE) {}
+
+    uint32 uses = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
+class TileExtra_GeigerCharger : public TileExtra {
+public:
+    static constexpr uint8 TYPE = TILE_EXTRA_TYPE_GEIGER_CHARGER;
+
+    TileExtra_GeigerCharger() : TileExtra(TYPE) {}
+
+    uint32 charges = 0;
+
+protected:
+    void Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion) override;
+};
+
 enum eTileExtraLockFlag
 {
     TILE_EXTRA_LOCK_FLAG_IGNORE_AIR = 1 << 0,

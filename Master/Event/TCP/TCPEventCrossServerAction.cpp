@@ -22,7 +22,7 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
     const string payloadText = data[8].GetString();
     const uint64 payloadNumber = data.size() >= 10 ? (uint64)data[9].GetUINT() : 0;
 
-    if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST) {
+    if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST || actionType == TCP_CROSS_ACTION_MAINTENANCE) {
         if(payloadText.empty()) {
             GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, "");
             return;

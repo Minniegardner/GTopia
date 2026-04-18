@@ -1,6 +1,8 @@
 #include "KickAll.h"
 #include "Utils/StringUtils.h"
 #include "../Server/GameServer.h"
+#include "../World/WorldManager.h"
+#include "../Component/KickAllComponent.h"
 
 const CommandInfo& KickAll::GetInfo()
 {
@@ -27,18 +29,16 @@ void KickAll::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto players = GetGameServer()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
-    uint32 kicked = 0;
-
-    for(GamePlayer* pTarget : players) {
-        if(!pTarget || pTarget == pPlayer) {
-            continue;
-        }
-
-        pTarget->SendOnConsoleMessage("`4You were kicked by ``" + pPlayer->GetDisplayName() + "``.");
-        pTarget->LogOff();
-        ++kicked;
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
     }
 
-    pPlayer->SendOnConsoleMessage("`oKicked `w" + ToString(kicked) + "`` player(s) from this world.");
+    uint32 kicked = 0;
+    string resultMessage;
+    KickAllComponent::Execute(pPlayer, pWorld, kicked, resultMessage);
+
+    if(!resultMessage.empty()) {
+        pPlayer->SendOnConsoleMessage(resultMessage);
+    }
 }

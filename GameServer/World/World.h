@@ -83,6 +83,8 @@ public:
 
     void SetWaitingForClose(bool waiting) { m_waitingForClose = waiting; }
     bool IsWaitingForClose() const { return m_waitingForClose; }
+    uint64 GetLastKickAllMS() const { return m_lastKickAllMS; }
+    void SetLastKickAllMS(uint64 value) { m_lastKickAllMS = value; }
 
     // Ban system methods (1:1 from GrowtopiaV1)
     void AddBannedPlayer(const WorldBanContext& banCtx);
@@ -106,6 +108,7 @@ private:
 
     std::deque<SteamActivationEntry> m_steamActivationQueue;
     uint64 m_lastSteamActivationTick = 0;
+    uint64 m_lastKickAllMS = 0;
 
     bool m_waitingForClose;
 };

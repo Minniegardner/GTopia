@@ -105,6 +105,7 @@ string GetWeekdayName(uint32 day)
 #include "../Command/KickAll.h"
 #include "../Command/Summon.h"
 #include "../Command/Suspend.h"
+#include "../Command/Maintenance.h"
 #include "../Command/PBan.h"
 #include "../Command/GrowIDCmd.h"
 #include "../Command/SuperBroadcast.h"
@@ -304,6 +305,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<KickAll>();
     RegisterCommand<Summon>();
     RegisterCommand<Suspend>();
+    RegisterCommand<Maintenance>();
     RegisterCommand<PBan>();
     RegisterCommand<GrowIDCmd>();
     RegisterCommand<SuperBroadcast>();
@@ -320,6 +322,7 @@ void GameServer::RegisterEvents()
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
 {
     ServerBase::UpdateGameLogic(maxTimeMS);
+    UpdateMaintenance();
     UpdatePlayers();
     GetWorldManager()->UpdateWorlds();
 }
@@ -431,6 +434,11 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
                 break;
             }
 
+            case TCP_CROSS_ACTION_MAINTENANCE: {
+                InitiateMaintenance(payloadText, sourceUserID, sourceRawName, false);
+                break;
+            }
+
             case TCP_CROSS_ACTION_FRIEND_LOGIN:
             case TCP_CROSS_ACTION_FRIEND_LOGOUT: {
                 if(!pTarget->IsShowFriendNotification()) {
@@ -501,6 +509,10 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
 
             case TCP_CROSS_ACTION_PBAN:
                 pSource->SendOnConsoleMessage("`oApplied account ban to ``" + targetName + "`` across subserver.");
+                break;
+
+            case TCP_CROSS_ACTION_MAINTENANCE:
+                pSource->SendOnConsoleMessage("`oMaintenance countdown started across subservers.");
                 break;
         }
 
@@ -690,6 +702,117 @@ string GameServer::GetDailyEventStatusLine() const
     return msg;
 }
 
+bool GameServer::InitiateMaintenance(const string& message, uint32 sourceUserID, const string& sourceRawName, bool propagateToSubServers)
+{
+    if(m_isMaintenance) {
+        return false;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    m_isMaintenance = true;
+    m_isMarkedForMaintenance = false;
+    m_hasMaintenanceAnnouncement = message.empty();
+    m_sentMaintenance30 = false;
+    m_sentMaintenance10 = false;
+    m_sentMaintenanceZero = false;
+    m_maintenanceEndTimeMS = nowMS + 10ull * 60ull * 1000ull;
+    m_nextMaintenanceMinute = 9;
+    m_nextMaintenanceMinuteTimeMS = nowMS + 60ull * 1000ull;
+    m_maintenanceMessage = message;
+    m_maintenanceSourceUserID = sourceUserID;
+    m_maintenanceSourceRawName = sourceRawName;
+
+    if(!message.empty()) {
+        BroadcastMaintenanceMessage("** Global System Message: `4" + message, true);
+        m_hasMaintenanceAnnouncement = true;
+    }
+
+    BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 `ominutes", true);
+
+    if(propagateToSubServers && GetMasterBroadway()->IsConnected()) {
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_MAINTENANCE,
+            sourceUserID,
+            sourceRawName,
+            "ALL",
+            true,
+            message,
+            10
+        );
+    }
+
+    return true;
+}
+
+void GameServer::BroadcastMaintenanceMessage(const string& message, bool playBeep)
+{
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(!pPlayer) {
+            continue;
+        }
+
+        pPlayer->SendOnConsoleMessage(message);
+        if(playBeep) {
+            pPlayer->PlaySFX("beep.wav", 0);
+        }
+    }
+}
+
+void GameServer::ForceDisconnectAllPlayers()
+{
+    std::vector<GamePlayer*> players;
+    players.reserve(m_playerCache.size());
+
+    for(auto& [_, pPlayer] : m_playerCache) {
+        if(pPlayer) {
+            players.push_back(pPlayer);
+        }
+    }
+
+    for(GamePlayer* pPlayer : players) {
+        pPlayer->LogOff();
+    }
+}
+
+void GameServer::UpdateMaintenance()
+{
+    if(!m_isMaintenance) {
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+
+    while(m_nextMaintenanceMinute > 1 && nowMS >= m_nextMaintenanceMinuteTimeMS) {
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4" + ToString(m_nextMaintenanceMinute) + " `ominutes", true);
+        --m_nextMaintenanceMinute;
+        m_nextMaintenanceMinuteTimeMS += 60ull * 1000ull;
+    }
+
+    const uint64 remainingMS = nowMS >= m_maintenanceEndTimeMS ? 0 : (m_maintenanceEndTimeMS - nowMS);
+
+    if(!m_isMarkedForMaintenance && remainingMS <= 60ull * 1000ull) {
+        m_isMarkedForMaintenance = true;
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `41 `ominute", true);
+    }
+
+    if(!m_sentMaintenance30 && remainingMS <= 30ull * 1000ull) {
+        m_sentMaintenance30 = true;
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `430 seconds", true);
+    }
+
+    if(!m_sentMaintenance10 && remainingMS <= 10ull * 1000ull) {
+        m_sentMaintenance10 = true;
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 seconds", true);
+    }
+
+    if(!m_sentMaintenanceZero && remainingMS == 0) {
+        m_sentMaintenanceZero = true;
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4ZERO seconds! Should be back up in a minute or so. BYE!", true);
+        ForceDisconnectAllPlayers();
+        GetContext()->Shutdown();
+    }
+}
+
 void GameServer::Kill()
 {
     ServerBase::Kill();
@@ -707,4 +830,4 @@ void GameServer::Kill()
     m_playerCache.clear();
 }
 
-GameServer* GetGameServer() { return GameServer::GetInstance(); }
+GameServer* GetGameServer() { return GameServer::GetInstance(); }GameServer* GetGameServer() { return GameServer::GetInstance(); }

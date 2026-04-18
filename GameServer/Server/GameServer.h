@@ -29,6 +29,9 @@ public:
 public:
     void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
     void HandleCrossServerAction(VariantVector&& data);
+    bool InitiateMaintenance(const string& message, uint32 sourceUserID = 0, const string& sourceRawName = "", bool propagateToSubServers = true);
+    bool IsMaintenance() const { return m_isMaintenance; }
+    bool IsMarkedForMaintenance() const { return m_isMarkedForMaintenance; }
     GamePlayer* GetPlayerByUserID(uint32 userID);
     GamePlayer* GetPlayerByRawName(const string& playerName);
     std::vector<GamePlayer*> FindPlayersByNamePrefix(const string& query, bool sameWorldOnly = false, uint32 worldID = 0) const;
@@ -36,6 +39,9 @@ public:
     const std::vector<const CommandInfo*>& GetCommandInfos() const { return m_commandInfos; }
 
     void UpdatePlayers();
+    void UpdateMaintenance();
+    void BroadcastMaintenanceMessage(const string& message, bool playBeep = true);
+    void ForceDisconnectAllPlayers();
     void ForceSaveAllPlayers();
     void OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 eventSeed, bool announceToPlayers);
     string GetDailyEventStatusLine() const;
@@ -74,6 +80,18 @@ private:
     std::vector<const CommandInfo*> m_commandInfos;
 
     Timer m_playersLastUpdateTime;
+    bool m_isMaintenance = false;
+    bool m_isMarkedForMaintenance = false;
+    bool m_hasMaintenanceAnnouncement = false;
+    bool m_sentMaintenance30 = false;
+    bool m_sentMaintenance10 = false;
+    bool m_sentMaintenanceZero = false;
+    uint64 m_maintenanceEndTimeMS = 0;
+    uint64 m_nextMaintenanceMinuteTimeMS = 0;
+    int32 m_nextMaintenanceMinute = 10;
+    string m_maintenanceMessage;
+    uint32 m_maintenanceSourceUserID = 0;
+    string m_maintenanceSourceRawName;
 };
 
 GameServer* GetGameServer();

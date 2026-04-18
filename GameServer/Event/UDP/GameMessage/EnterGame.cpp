@@ -8,6 +8,15 @@ void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     if(!pPlayer || !pPlayer->HasState(PLAYER_STATE_ENTERING_GAME)) {
         return;
     }
+
+    if(GetGameServer()->IsMaintenance()) {
+        Role* pRole = pPlayer->GetRole();
+        if(!pRole || !pRole->HasPerm(ROLE_PERM_MAINTENANCE_EXCEPTION)) {
+            pPlayer->RemoveState(PLAYER_STATE_ENTERING_GAME);
+            pPlayer->SendLogonFailWithLog(pPlayer->GetRawName() + " is currently under maintenance. Please come back later.");
+            return;
+        }
+    }
     
     pPlayer->RemoveState(PLAYER_STATE_ENTERING_GAME);
     pPlayer->SetState(PLAYER_STATE_IN_GAME);

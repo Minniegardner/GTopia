@@ -16,6 +16,7 @@
 #include "Dialog/RegisterDialog.h"
 #include "Utils/DialogBuilder.h"
 #include "../Server/GameServer.h"
+#include "../Component/GeigerComponent.h"
 #include "Proton/ProtonUtils.h"
 #include <algorithm>
 #include <cmath>
@@ -155,6 +156,11 @@ string BuildSuspendedLoginMessage(const string& targetName, uint64 remainingSeco
     }
 
     return "`4Sorry, this account (`w" + targetName + "`4) has been suspended from GTopia.";
+}
+
+string BuildMaintenanceLoginMessage(const string& targetName)
+{
+    return targetName + " is currently under maintenance. Please come back later.";
 }
 
 bool IsTradeSystemItem(uint16 itemID)
@@ -947,29 +953,134 @@ void GamePlayer::SendWrenchSelf(std::string page)
 {
     World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
 
+    if(page == "set_online_status") {
+        SetShowFriendNotification(!IsShowFriendNotification());
+        SendOnConsoleMessage(string("`oFriend notifications are now ") + (IsShowFriendNotification() ? "`2enabled``." : "`4disabled``."));
+        page = "PlayerInfo";
+    }
+    else if(page == "ske_titles") {
+        page = "Titles";
+    }
+    else if(page == "view_owned_worlds") {
+        page = "Worlds";
+    }
+    else if(page == "alist") {
+        page = "PlayerStats";
+    }
+    else if(page == "goals" || page == "bonus" || page == "emojis" || page == "marvelous_missions") {
+        SendOnConsoleMessage("`oThis menu is still being expanded in this source.``");
+        page = "PlayerInfo";
+    }
+    else if(page == "notebook_edit") {
+        SendOnConsoleMessage("`oNotebook feature is not yet available in this source build.``");
+        page = "PlayerInfo";
+    }
+    else if(page == "billboard_edit") {
+        SendOnConsoleMessage("`oBillboard editor is not yet available in this source build.``");
+        page = "PlayerInfo";
+    }
+    else if(page == "change_password") {
+        SendOnConsoleMessage("`oPassword change is handled through account tools in this source.``");
+        page = "PlayerInfo";
+    }
+
+    const Vector2Float worldPos = GetWorldPos();
+    const int32 tileX = (int32)(worldPos.x / 32.0f) + 1;
+    const int32 tileY = (int32)(worldPos.y / 32.0f) + 1;
+
+    string standingNote = "C";
+    switch(((tileY - 1) % 14 + 14) % 14) {
+        case 0: standingNote = "B"; break;
+        case 1: standingNote = "A"; break;
+        case 2: standingNote = "G"; break;
+        case 3: standingNote = "F"; break;
+        case 4: standingNote = "E"; break;
+        case 5: standingNote = "D"; break;
+        case 6: standingNote = "C"; break;
+        case 7: standingNote = "B"; break;
+        case 8: standingNote = "A"; break;
+        case 9: standingNote = "G"; break;
+        case 10: standingNote = "F"; break;
+        case 11: standingNote = "E"; break;
+        case 12: standingNote = "D"; break;
+        case 13: standingNote = "C"; break;
+    }
+
+    string activeEffects = "add_label_with_icon|small|`wNothing!``|left|2|\n";
+    auto& updateMods = m_characterData.GetReqUpdatePlayMods();
+    if(!updateMods.empty()) {
+        activeEffects.clear();
+        for(const auto& mod : updateMods) {
+            PlayMod* pMod = GetPlayModManager()->GetPlayMod(mod.modType);
+            if(!pMod) {
+                continue;
+            }
+
+            string line = "add_label_with_icon|small|`w" + pMod->GetName() + "``";
+            if(mod.durationMS > 0) {
+                const uint64 elapsed = mod.timer.GetElapsedTime();
+                const uint64 leftMS = elapsed >= mod.durationMS ? 0 : ((uint64)mod.durationMS - elapsed);
+                line += " (`o" + Time::ConvertTimeToStr(leftMS) + " left``)";
+            }
+
+            line += "|left|" + ToString((uint32)pMod->GetDisplayItem()) + "|\n";
+            activeEffects += line;
+        }
+
+        if(activeEffects.empty()) {
+            activeEffects = "add_label_with_icon|small|`wNothing!``|left|2|\n";
+        }
+    }
+
+    const string worldName = pWorld ? pWorld->GetWorlName() : "EXIT";
+    const uint32 worldPlayers = pWorld ? pWorld->GetPlayerCount() : 0;
+    const uint32 bagSlots = GetInventory().GetSize();
+
     DialogBuilder db;
     db.SetDefaultColor('o');
 
     if(page.empty() || page == "PlayerInfo") {
-        db.AddLabelWithIcon("`w" + GetDisplayName() + "``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oCurrent world: `w" + ToString(GetCurrentWorld()) + "``")
-        ->AddLabel("`oLevel: `w" + ToString(GetLevel()) + "``")
-        ->AddLabel("`oXP: `w" + ToString(GetXP()) + "``")
+        db.EmbedData("netID", GetNetID())
+        ->EmbedData("worldName", worldName)
+        ->AddLabelWithIcon("`2" + GetDisplayName() + "``", ITEM_ID_WRENCH, true)
+        ->AddTextBox("`oLevel: `w" + ToString(GetLevel()) + "`` (`w" + ToString(GetXP()) + "`` / `w" + ToString(GetLevel() * 1500) + "``)")
+        ->AddButton("change_password", "`oChange Password")
+        ->AddCustomLine("set_custom_spacing|x:5;y:10|")
+        ->AddCustomLine("add_custom_button|ske_titles|image:interface/large/gui_wrench_title.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|set_online_status|image:interface/large/gui_wrench_online_status_1green.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|notebook_edit|image:interface/large/gui_wrench_notebook.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|billboard_edit|image:interface/large/gui_wrench_edit_billboard.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|goals|image:interface/large/gui_wrench_goals_quests.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|bonus|image:interface/large/gui_wrench_daily_bonus_active.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|view_owned_worlds|image:interface/large/gui_wrench_my_worlds.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|alist|image:interface/large/gui_wrench_achievements.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|emojis|image:interface/large/gui_wrench_growmojis.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_button|marvelous_missions|image:interface/large/gui_wrench_marvelous_missions.rttex;image_size:400,260;width:0.19;|")
+        ->AddCustomLine("add_custom_break|")
         ->AddSpacer()
-        ->AddButton("PlayerInfo", "Player Info")
+        ->AddTextBox("`wActive effects:``", false)
+        ->AddCustomLine(activeEffects)
+        ->AddSpacer()
+        ->AddTextBox("`oYou have `w" + ToString(bagSlots) + "`` backpack slots.``")
+        ->AddTextBox("`oCurrent world: `w" + worldName + "`` (`w" + ToString(tileX) + "``, `w" + ToString(tileY) + "``) (`w" + ToString(worldPlayers) + "`` person).``")
+        ->AddTextBox("`oYou are standing on the note `w\"" + standingNote + "\"``.")
+        ->AddTextBox("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
+        ->AddSpacer()
         ->AddButton("SocialProfile", "Social Profile")
         ->AddButton("PlayerStats", "Player Stats")
         ->AddButton("Settings", "Settings")
-        ->AddSpacer()
-        ->AddButton("Worlds", "My Worlds")
         ->AddButton("Titles", "Title Settings")
-        ->EndDialog("WrenchSelf", "", "Continue");
+        ->AddButton("Worlds", "My Worlds")
+        ->EndDialog("WrenchSelf", "", "Continue")
+        ->AddQuickExit();
     }
     else if(page == "SocialProfile") {
         db.AddLabelWithIcon("`wSocial Profile``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oFriend and messaging shortcuts are available through wrenching other players.")
-        ->AddLabel("`oUse this menu to navigate your own profile tabs.")
+        ->AddLabel("`oFriends online: `w" + ToString(CountOnlineFriends()) + "``")
+        ->AddLabel("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
+        ->AddLabel("`oUse wrench on a player to send PM, trade, add friend, ignore, or moderate actions.")
         ->AddSpacer()
+        ->AddButton("set_online_status", "Toggle Friend Notifications")
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
@@ -987,9 +1098,10 @@ void GamePlayer::SendWrenchSelf(std::string page)
     }
     else if(page == "Settings") {
         db.AddLabelWithIcon("`wSettings``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oWrench settings are currently lightweight in this source.")
-        ->AddLabel("`oUse Titles and Worlds tabs for currently supported options.")
+        ->AddLabel("`oToggle profile options and shortcut actions from here.")
+        ->AddCheckBox("checkbox_friend_alert", "Show friend notifications", IsShowFriendNotification())
         ->AddSpacer()
+        ->AddButton("set_online_status", "Quick Toggle Notifications")
         ->AddButton("PlayerInfo", "Back")
         ->EndDialog("WrenchSelf", "", "Continue");
     }
@@ -1002,7 +1114,7 @@ void GamePlayer::SendWrenchSelf(std::string page)
     }
     else if(page == "Worlds") {
         db.AddLabelWithIcon("`wMy Worlds``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oYour current world is `w" + ToString(GetCurrentWorld()) + "``.");
+        ->AddLabel("`oYour current world is `w" + worldName + "``.");
 
         if(pWorld) {
             db.AddLabel("`oPlayers inside: `w" + ToString(pWorld->GetPlayerCount()) + "``");
@@ -1751,6 +1863,11 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         return;
     }
 
+    if(GetGameServer()->IsMaintenance() && !m_pRole->HasPerm(ROLE_PERM_MAINTENANCE_EXCEPTION)) {
+        SendLogonFailWithLog(BuildMaintenanceLoginMessage(GetRawName()));
+        return;
+    }
+
     m_inventory.SetVersion(m_loginDetail.protocol);
     string dbInv = result.result->GetField("Inventory", 0).GetString();
     if(!dbInv.empty()) {
@@ -2045,6 +2162,13 @@ void GamePlayer::LogOff()
 void GamePlayer::Update()
 {
     UpdatePlayMods();
+
+    if(m_currentWorldID != 0) {
+        World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
+        if(pWorld) {
+            GeigerComponent::UpdatePlayerScan(this, pWorld);
+        }
+    }
 
     if(m_currentWorldID != 0) {
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);

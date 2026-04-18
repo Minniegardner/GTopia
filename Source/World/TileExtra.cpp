@@ -65,6 +65,12 @@ uint8 GetTileExtraType(uint8 itemType)
         case ITEM_TYPE_MANNEQUIN:
             return TILE_EXTRA_TYPE_MANNEQUIN;
 
+        case ITEM_TYPE_FOSSIL_PREP:
+            return TILE_EXTRA_TYPE_FOSSIL_PREP;
+
+        case ITEM_TYPE_GEIGERCHARGE:
+            return TILE_EXTRA_TYPE_GEIGER_CHARGER;
+
         default:
             return TILE_EXTRA_TYPE_NONE;
     }
@@ -112,6 +118,12 @@ TileExtra* TileExtra::Create(uint8 tileExtraType)
 
         case TILE_EXTRA_TYPE_CHEMTANK:
             return new TileExtra_Chemsynth();
+
+        case TILE_EXTRA_TYPE_FOSSIL_PREP:
+            return new TileExtra_FossilPrep();
+
+        case TILE_EXTRA_TYPE_GEIGER_CHARGER:
+            return new TileExtra_GeigerCharger();
 
         case TILE_EXTRA_TYPE_LOCK:
             return new TileExtra_Lock(); 
@@ -497,6 +509,18 @@ void TileExtra_Chemsynth::Serialize(MemoryBuffer& memBuffer, bool write, bool da
         color = static_cast<ChemsynthColor>(currentColor);
         targetColor = static_cast<ChemsynthColor>(currentTargetColor);
     }
+}
+
+void TileExtra_FossilPrep::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(uses, write);
+}
+
+void TileExtra_GeigerCharger::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(charges, write);
 }
 
 void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo *pTile, uint16 worldVersion)

@@ -10,6 +10,8 @@
 #include "DoorDialog.h"
 #include "MachineDialog.h"
 #include "ChemsynthDialog.h"
+#include "../../Component/FossilComponent.h"
+#include "../../Component/GeigerComponent.h"
 
 namespace {
 
@@ -77,6 +79,16 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
         pItem->id == ITEM_ID_CHEMSYNTH_PROCESSOR || pItem->id == ITEM_ID_CHEMSYNTH_TANK
     ) {
         ChemsynthDialog::Request(pPlayer, pTile);
+        return;
+    }
+
+    if(pItem->type == ITEM_TYPE_FOSSIL_PREP || pItem->id == ITEM_ID_FOSSIL_PREP_STATION) {
+        FossilComponent::RequestPrepDialog(pPlayer, pTile);
+        return;
+    }
+
+    if(pItem->type == ITEM_TYPE_GEIGERCHARGE || pItem->id == ITEM_ID_GEIGER_CHARGER) {
+        GeigerComponent::RequestChargerDialog(pPlayer, pTile);
         return;
     }
 }

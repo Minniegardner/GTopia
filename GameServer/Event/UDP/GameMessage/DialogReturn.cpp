@@ -13,6 +13,8 @@
 #include "../../../Server/GameServer.h"
 #include "../../../Server/MasterBroadway.h"
 #include "../../../Player/Dialog/RegisterDialog.h"
+#include "../../Component/FossilComponent.h"
+#include "../../Component/GeigerComponent.h"
 #include "../../../Context.h"
 #include "../../../World/WorldManager.h"
 #include "../../../../Source/World/TileInfo.h"
@@ -392,8 +394,20 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
             if(buttonClicked == "PlayerInfo" || buttonClicked == "SocialProfile" || buttonClicked == "PlayerStats" ||
-                buttonClicked == "Settings" || buttonClicked == "Titles" || buttonClicked == "Worlds")
+                buttonClicked == "Settings" || buttonClicked == "Titles" || buttonClicked == "Worlds" ||
+                buttonClicked == "ske_titles" || buttonClicked == "set_online_status" ||
+                buttonClicked == "notebook_edit" || buttonClicked == "billboard_edit" ||
+                buttonClicked == "goals" || buttonClicked == "bonus" ||
+                buttonClicked == "view_owned_worlds" || buttonClicked == "alist" ||
+                buttonClicked == "emojis" || buttonClicked == "marvelous_missions" ||
+                buttonClicked == "change_password")
             {
+                if(buttonClicked == "Settings") {
+                    bool showFriendNotifications = pPlayer->IsShowFriendNotification();
+                    ParseBoolField(packet, CompileTimeHashString("checkbox_friend_alert"), showFriendNotifications);
+                    pPlayer->SetShowFriendNotification(showFriendNotifications);
+                }
+
                 pPlayer->SendWrenchSelf(buttonClicked);
             }
             break;
@@ -1020,6 +1034,70 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             break;
         }
+
+            case CompileTimeHashString("FossilPrepEdit"): {
+                auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+                if(!pButtonClicked) {
+                    return;
+                }
+
+                string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+                if(buttonClicked != "Prep") {
+                    return;
+                }
+
+                int32 tileX = 0;
+                int32 tileY = 0;
+                if(!ParseIntField(packet, CompileTimeHashString("tilex"), tileX) ||
+                    !ParseIntField(packet, CompileTimeHashString("tiley"), tileY)) {
+                    return;
+                }
+
+                World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+                if(!pWorld) {
+                    return;
+                }
+
+                TileInfo* pTile = pWorld->GetTileManager()->GetTile(tileX, tileY);
+                if(!pTile) {
+                    return;
+                }
+
+                FossilComponent::TryHandlePrepAction(pPlayer, pWorld, pTile);
+                break;
+            }
+
+            case CompileTimeHashString("GeigerChargerEdit"): {
+                auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+                if(!pButtonClicked) {
+                    return;
+                }
+
+                string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+                if(buttonClicked != "Charge") {
+                    return;
+                }
+
+                int32 tileX = 0;
+                int32 tileY = 0;
+                if(!ParseIntField(packet, CompileTimeHashString("tilex"), tileX) ||
+                    !ParseIntField(packet, CompileTimeHashString("tiley"), tileY)) {
+                    return;
+                }
+
+                World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+                if(!pWorld) {
+                    return;
+                }
+
+                TileInfo* pTile = pWorld->GetTileManager()->GetTile(tileX, tileY);
+                if(!pTile) {
+                    return;
+                }
+
+                GeigerComponent::TryChargeCounter(pPlayer, pWorld, pTile);
+                break;
+            }
 
         case CompileTimeHashString("MannequinEdit"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
