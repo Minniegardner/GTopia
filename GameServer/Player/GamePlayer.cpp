@@ -1052,7 +1052,7 @@ void GamePlayer::SendFriendMenu(const string& action)
         db.SetDefaultColor('o')
           ->AddLabelWithIcon("Friend Options", ITEM_ID_DUMB_FRIEND, true)
           ->AddSpacer()
-          ->AddCheckbox("checkbox_notifications", "Show friend notifications", IsShowFriendNotification())
+          ->AddCheckBox("checkbox_notifications", "Show friend notifications", IsShowFriendNotification())
           ->AddSpacer()
           ->AddButton("GotoFriendsMenuAndApplyOptions", "Back")
           ->EndDialog("FriendMenu", "", "Close");
