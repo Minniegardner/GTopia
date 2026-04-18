@@ -1018,7 +1018,8 @@ void GamePlayer::SendWrenchSelf(std::string page)
 
             string line = "add_label_with_icon|small|`w" + pMod->GetName() + "``";
             if(mod.durationMS > 0) {
-                const uint64 elapsed = mod.timer.GetElapsedTime();
+                Timer timer = mod.timer;
+                const uint64 elapsed = timer.GetElapsedTime();
                 const uint64 leftMS = elapsed >= mod.durationMS ? 0 : ((uint64)mod.durationMS - elapsed);
                 line += " (`o" + Time::ConvertTimeToStr(leftMS) + " left``)";
             }
@@ -1034,7 +1035,7 @@ void GamePlayer::SendWrenchSelf(std::string page)
 
     const string worldName = pWorld ? pWorld->GetWorlName() : "EXIT";
     const uint32 worldPlayers = pWorld ? pWorld->GetPlayerCount() : 0;
-    const uint32 bagSlots = GetInventory().GetSize();
+    const uint32 bagSlots = GetInventory().GetCapacity();
 
     DialogBuilder db;
     db.SetDefaultColor('o');
