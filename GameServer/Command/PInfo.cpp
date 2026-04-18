@@ -1,5 +1,6 @@
 #include "PInfo.h"
 #include "Utils/StringUtils.h"
+#include "../Context.h"
 #include "../Server/GameServer.h"
 
 const CommandInfo& PInfo::GetInfo()
