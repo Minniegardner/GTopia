@@ -57,6 +57,26 @@ const char* GetDailyEventName(uint32 eventType)
         default: return "None";
     }
 }
+
+uint16 ResolveConfigServerPort(uint32 serverID)
+{
+    GameConfig* pCfg = GetContext()->GetGameConfig();
+    if(!pCfg) {
+        return 0;
+    }
+
+    for(const auto& server : pCfg->servers) {
+        if(server.id == serverID && server.udpPort != 0) {
+            return server.udpPort;
+        }
+    }
+
+    if(!pCfg->servers.empty() && pCfg->servers[0].udpPort != 0) {
+        return (uint16)(pCfg->servers[0].udpPort + serverID);
+    }
+
+    return 0;
+}
 }
 
 
@@ -250,6 +270,10 @@ void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID
 
 void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, const string& worldName, uint32 userID, uint32 loginToken, uint32 serverIDForPacket)
 {
+    if(serverPort == 0) {
+        serverPort = ResolveConfigServerPort(serverID);
+    }
+
     VariantVector data(10);
 
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;

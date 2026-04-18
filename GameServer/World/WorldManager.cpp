@@ -27,6 +27,12 @@ uint16 ResolveRedirectPort(uint32 targetServerID, uint16 announcedPort)
         return 0;
     }
 
+    for(const auto& server : pCfg->servers) {
+        if(server.id == targetServerID && server.udpPort != 0) {
+            return server.udpPort;
+        }
+    }
+
     return (uint16)(udpBase + targetServerID);
 }
 }
