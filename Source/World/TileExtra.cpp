@@ -23,6 +23,7 @@ uint8 GetTileExtraType(uint8 itemType)
     switch(itemType) {
         case ITEM_TYPE_USER_DOOR: case ITEM_TYPE_DOOR:
         case ITEM_TYPE_PORTAL: case ITEM_TYPE_SUNGATE:
+        case ITEM_TYPE_FRIENDS_ENTRANCE:
             return TILE_EXTRA_TYPE_DOOR;
 
         case ITEM_TYPE_SIGN:

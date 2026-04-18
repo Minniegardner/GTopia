@@ -44,7 +44,7 @@ void DoorDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
+    if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE && pItem->type != ITEM_TYPE_FRIENDS_ENTRANCE)) {
         return;
     }
 

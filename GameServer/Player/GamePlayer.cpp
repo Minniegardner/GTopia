@@ -84,6 +84,31 @@ constexpr const char* kPBanStatSetAt = "PBAN_SET_AT";
 constexpr const char* kPBanStatDuration = "PBAN_DURATION";
 constexpr const char* kPBanStatPerma = "PBAN_PERMA";
 
+string FormatBanCountdown(uint64 totalSeconds)
+{
+    uint64 days = totalSeconds / 86400ull;
+    totalSeconds %= 86400ull;
+
+    uint64 hours = totalSeconds / 3600ull;
+    totalSeconds %= 3600ull;
+
+    uint64 mins = totalSeconds / 60ull;
+    uint64 secs = totalSeconds % 60ull;
+
+    string out;
+    if(days > 0) {
+        out += ToString(days) + " days, ";
+    }
+    if(hours > 0 || !out.empty()) {
+        out += ToString(hours) + " hours, ";
+    }
+    if(mins > 0 || !out.empty()) {
+        out += ToString(mins) + " mins, ";
+    }
+    out += ToString(secs) + " secs";
+    return out;
+}
+
 bool TryParsePBanTargetUserID(const string& target, uint32& outUserID)
 {
     if(target.empty() || target[0] != '#') {
@@ -123,9 +148,13 @@ string BuildAncientsBanConsole(const string& targetName)
     return "`#**`$ The Ancients`o have used `#Ban `oon " + targetName + "`o!`# **";
 }
 
-string BuildSuspendedLoginMessage(const string& targetName)
+string BuildSuspendedLoginMessage(const string& targetName, uint64 remainingSeconds, bool permanentBan)
 {
-    return "`4Sorry, but this account (`w" + targetName + "`4) has been suspended from GTopia.";
+    if(!permanentBan && remainingSeconds > 0) {
+        return "`4Sorry, this account has been temporarily suspended.`` This suspension will be removed in `w" + FormatBanCountdown(remainingSeconds) + "``.";
+    }
+
+    return "`4Sorry, this account (`w" + targetName + "`4) has been suspended from GTopia.";
 }
 
 bool IsTradeSystemItem(uint16 itemID)
@@ -1675,7 +1704,7 @@ void GamePlayer::CheckingLoginSession(VariantVector&& result)
 
     bool sessionAgreed = result[2].GetBool();
     if(!sessionAgreed) {
-        SendLogonFailWithLog("`4OOPS! ``Please re-connect server says you're not belong to this server");
+        SendLogonFailWithLog("`oServer requesting you relog-on");
         return;
     }
 
@@ -1755,7 +1784,8 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     const uint64 nowEpochSec = Time::GetTimeSinceEpoch();
     if(pbanActive != 0) {
         if(isPermanentlyBanned || nowEpochSec < pbanUntil) {
-            SendLogonFailWithLog(BuildSuspendedLoginMessage(GetRawName()));
+            const uint64 remainingSeconds = isPermanentlyBanned ? 0 : (pbanUntil - nowEpochSec);
+            SendLogonFailWithLog(BuildSuspendedLoginMessage(GetRawName(), remainingSeconds, isPermanentlyBanned));
             return;
         }
 
@@ -2369,6 +2399,12 @@ void GamePlayer::BeginPBanRequest(const string& target, int32 durationSec, const
 
     uint32 targetUserID = 0;
     if(TryParsePBanTargetUserID(target, targetUserID)) {
+        GamePlayer* pLocalTarget = GetGameServer()->GetPlayerByUserID(targetUserID);
+        if(pLocalTarget) {
+            FinalizePBanResolvedTarget(targetUserID, pLocalTarget->GetRawName());
+            return;
+        }
+
         QueryRequest req = MakeGetPlayerBasicByID(targetUserID, GetNetID());
         req.extraData.resize(1);
         req.extraData[0] = PLAYER_SUB_PBAN_BY_USERID;
@@ -2382,10 +2418,87 @@ void GamePlayer::BeginPBanRequest(const string& target, int32 durationSec, const
         return;
     }
 
+    auto localMatches = GetGameServer()->FindPlayersByNamePrefix(target, false, 0);
+    if(localMatches.size() == 1 && localMatches[0]) {
+        FinalizePBanResolvedTarget(localMatches[0]->GetUserID(), localMatches[0]->GetRawName());
+        return;
+    }
+
     QueryRequest req = MakeFindPlayersByNamePrefix(target, GetNetID());
     req.extraData.resize(1);
     req.extraData[0] = PLAYER_SUB_PBAN_BY_PREFIX;
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_FIND_BY_NAME_PREFIX, req);
+}
+
+void GamePlayer::FinalizePBanResolvedTarget(uint32 targetUserID, const string& resolvedTargetName)
+{
+    if(targetUserID == 0) {
+        m_pendingPBan.active = false;
+        SendOnConsoleMessage("`4Oops:`` Invalid target for /pban.");
+        return;
+    }
+
+    if(targetUserID == GetUserID()) {
+        m_pendingPBan.active = false;
+        SendOnConsoleMessage("Nope, you can't use that on yourself.");
+        return;
+    }
+
+    const uint32 nowEpochSec = (uint32)Time::GetTimeSinceEpoch();
+    const uint32 untilEpochSec = BuildPBanUntilEpochSec(m_pendingPBan.durationSec);
+    const uint32 persistedDurationSec = m_pendingPBan.durationSec < 0 ? 0u : (uint32)m_pendingPBan.durationSec;
+
+    QueryRequest updateReq = MakeAppendPlayerPBanStatsByID(targetUserID, untilEpochSec, nowEpochSec, persistedDurationSec, NET_ID_FALLBACK);
+    DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_APPEND_PBAN_STATS_BY_ID, updateReq);
+
+    GamePlayer* pLocalTarget = GetGameServer()->GetPlayerByUserID(targetUserID);
+    if(pLocalTarget) {
+        pLocalTarget->ApplyAccountBan(m_pendingPBan.durationSec, m_pendingPBan.reason, GetRawName(), false);
+    }
+    else {
+        const uint64 payloadDuration = m_pendingPBan.durationSec < 0 ? (uint64)UINT32_MAX : (uint64)m_pendingPBan.durationSec;
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_PBAN,
+            GetUserID(),
+            GetRawName(),
+            ToString(targetUserID),
+            true,
+            m_pendingPBan.reason,
+            payloadDuration
+        );
+    }
+
+    const string displayTargetName = resolvedTargetName.empty() ? "Unknown" : resolvedTargetName;
+    const string superBroadcast = BuildAncientsSuspendBroadcast(displayTargetName);
+    const string ancientConsole = BuildAncientsBanConsole(displayTargetName);
+
+    GetMasterBroadway()->SendCrossServerActionRequest(
+        TCP_CROSS_ACTION_SUPER_BROADCAST,
+        GetUserID(),
+        GetRawName(),
+        "ALL",
+        true,
+        superBroadcast,
+        0
+    );
+
+    GetMasterBroadway()->SendCrossServerActionRequest(
+        TCP_CROSS_ACTION_SUPER_BROADCAST,
+        GetUserID(),
+        GetRawName(),
+        "ALL",
+        true,
+        ancientConsole,
+        0
+    );
+
+    SendOnConsoleMessage(
+        m_pendingPBan.durationSec < 0
+            ? "`oApplied permanent account ban to ``" + displayTargetName + "`` (`9#" + ToString(targetUserID) + "``)."
+            : "`oApplied account ban to ``" + displayTargetName + "`` (`9#" + ToString(targetUserID) + "``) for `w" + ToString(m_pendingPBan.durationSec) + "`` second(s)."
+    );
+
+    m_pendingPBan.active = false;
 }
 
 void GamePlayer::HandlePBanRequestResult(QueryTaskResult&& result)
@@ -2444,73 +2557,7 @@ void GamePlayer::HandlePBanRequestResult(QueryTaskResult&& result)
         return;
     }
 
-    if(targetUserID == 0) {
-        m_pendingPBan.active = false;
-        SendOnConsoleMessage("`4Oops:`` Invalid target for /pban.");
-        return;
-    }
-
-    if(targetUserID == GetUserID()) {
-        m_pendingPBan.active = false;
-        SendOnConsoleMessage("Nope, you can't use that on yourself.");
-        return;
-    }
-
-    const uint32 nowEpochSec = (uint32)Time::GetTimeSinceEpoch();
-    const uint32 untilEpochSec = BuildPBanUntilEpochSec(m_pendingPBan.durationSec);
-    const uint32 persistedDurationSec = m_pendingPBan.durationSec < 0 ? 0u : (uint32)m_pendingPBan.durationSec;
-
-    QueryRequest updateReq = MakeAppendPlayerPBanStatsByID(targetUserID, untilEpochSec, nowEpochSec, persistedDurationSec, NET_ID_FALLBACK);
-    DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_APPEND_PBAN_STATS_BY_ID, updateReq);
-
-    GamePlayer* pLocalTarget = GetGameServer()->GetPlayerByUserID(targetUserID);
-    if(pLocalTarget && pLocalTarget->HasState(PLAYER_STATE_IN_GAME)) {
-        pLocalTarget->ApplyAccountBan(m_pendingPBan.durationSec, m_pendingPBan.reason, GetRawName(), false);
-    }
-    else {
-        const uint64 payloadDuration = m_pendingPBan.durationSec < 0 ? (uint64)UINT32_MAX : (uint64)m_pendingPBan.durationSec;
-        GetMasterBroadway()->SendCrossServerActionRequest(
-            TCP_CROSS_ACTION_PBAN,
-            GetUserID(),
-            GetRawName(),
-            ToString(targetUserID),
-            true,
-            m_pendingPBan.reason,
-            payloadDuration
-        );
-    }
-
-    const string resolvedName = targetName.empty() ? ("#" + ToString(targetUserID)) : targetName;
-    const string superBroadcast = BuildAncientsSuspendBroadcast(resolvedName);
-    const string ancientConsole = BuildAncientsBanConsole(resolvedName);
-
-    GetMasterBroadway()->SendCrossServerActionRequest(
-        TCP_CROSS_ACTION_SUPER_BROADCAST,
-        GetUserID(),
-        GetRawName(),
-        "ALL",
-        true,
-        superBroadcast,
-        0
-    );
-
-    GetMasterBroadway()->SendCrossServerActionRequest(
-        TCP_CROSS_ACTION_SUPER_BROADCAST,
-        GetUserID(),
-        GetRawName(),
-        "ALL",
-        true,
-        ancientConsole,
-        0
-    );
-
-    SendOnConsoleMessage(
-        m_pendingPBan.durationSec < 0
-            ? "`oApplied permanent account ban to ``" + resolvedName + "`` (`9#" + ToString(targetUserID) + "``)."
-            : "`oApplied account ban to ``" + resolvedName + "`` (`9#" + ToString(targetUserID) + "``) for `w" + ToString(m_pendingPBan.durationSec) + "`` second(s)."
-    );
-
-    m_pendingPBan.active = false;
+    FinalizePBanResolvedTarget(targetUserID, targetName);
 }
 
 void GamePlayer::ApplyAccountBan(int32 durationSec, const string& reason, const string& sourceRawName, bool sendWorldMessage)
@@ -2531,7 +2578,7 @@ void GamePlayer::ApplyAccountBan(int32 durationSec, const string& reason, const 
         }
     }
 
-    SendOnConsoleMessage(BuildSuspendedLoginMessage(GetRawName()));
+    SendOnConsoleMessage(BuildSuspendedLoginMessage(GetRawName(), durationSec < 0 ? 0u : (uint64)std::max<int32>(0, durationSec), durationSec < 0));
     if(!reason.empty()) {
         SendOnConsoleMessage("`oReason: `w" + reason + "``");
     }

@@ -62,7 +62,7 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
         return;
     }
 
-    if(pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_USER_DOOR || pItem->type == ITEM_TYPE_PORTAL || pItem->type == ITEM_TYPE_SUNGATE) {
+    if(pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_USER_DOOR || pItem->type == ITEM_TYPE_PORTAL || pItem->type == ITEM_TYPE_SUNGATE || pItem->type == ITEM_TYPE_FRIENDS_ENTRANCE) {
         DoorDialog::Request(pPlayer, pTile);
         return;
     }

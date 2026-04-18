@@ -23,13 +23,19 @@ TileInfo* FindDoorByID(World* pWorld, const string& doorID)
             }
 
             ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-            if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
-                continue;
-            }
-
-            TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
-            if(pDoor && ToUpper(pDoor->id) == doorID) {
-                return pTile;
+            if(pItem) {
+                if(pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_USER_DOOR || pItem->type == ITEM_TYPE_PORTAL || pItem->type == ITEM_TYPE_SUNGATE || pItem->type == ITEM_TYPE_FRIENDS_ENTRANCE) {
+                    TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
+                    if(pDoor && ToUpper(pDoor->id) == doorID) {
+                        return pTile;
+                    }
+                }
+                else if(pItem->type == ITEM_TYPE_SIGN && (pItem->id == ITEM_ID_PATH_MARKER || pItem->id == ITEM_ID_OBJECTIVE_MARKER || pItem->id == ITEM_ID_CARNIVAL_LANDING)) {
+                    TileExtra_Sign* pSign = pTile->GetExtra<TileExtra_Sign>();
+                    if(pSign && ToUpper(pSign->text) == doorID) {
+                        return pTile;
+                    }
+                }
             }
         }
     }
@@ -51,7 +57,7 @@ void UseDoorRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacke
     }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
+    if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE && pItem->type != ITEM_TYPE_FRIENDS_ENTRANCE)) {
         return;
     }
 
@@ -78,39 +84,51 @@ void UseDoorRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacke
     }
 
     Vector2Int targetPos = pTile->GetPos();
-    if(!pDoor->text.empty()) {
-        string target = pDoor->text;
-        RemoveAllSpaces(target);
-        target = ToUpper(target);
+    string target = pDoor->text;
+    RemoveAllSpaces(target);
+    target = ToUpper(target);
 
-        if(target.find(':') == string::npos) {
+    auto splitPos = target.find(':');
+    if(splitPos == string::npos) {
+        if(!target.empty()) {
             pPlayer->SetPendingDoorWarpID("");
             GetWorldManager()->PlayerJoinRequest(pPlayer, target);
             return;
         }
+    }
+    else {
+        string worldName = target.substr(0, splitPos);
+        string doorID = target.substr(splitPos + 1);
+        if(!worldName.empty()) {
+            pPlayer->SetPendingDoorWarpID(ToUpper(doorID));
+            GetWorldManager()->PlayerJoinRequest(pPlayer, worldName);
+            return;
+        }
 
-        auto splitPos = target.find(':');
-        if(splitPos != string::npos) {
-            string worldName = target.substr(0, splitPos);
-            string doorID = target.substr(splitPos + 1);
-            if(!worldName.empty()) {
-                pPlayer->SetPendingDoorWarpID(ToUpper(doorID));
-                GetWorldManager()->PlayerJoinRequest(pPlayer, worldName);
-                return;
+        if(!doorID.empty()) {
+            TileInfo* pTargetDoor = FindDoorByID(pWorld, ToUpper(doorID));
+            if(pTargetDoor) {
+                targetPos = pTargetDoor->GetPos();
             }
-
-            if(!doorID.empty()) {
-                TileInfo* pTargetDoor = FindDoorByID(pWorld, ToUpper(doorID));
-                if(pTargetDoor) {
-                    targetPos = pTargetDoor->GetPos();
-                }
-                else {
-                    TileInfo* pMainDoorTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
-                    if(pMainDoorTile) {
-                        targetPos = pMainDoorTile->GetPos();
-                    }
+            else {
+                TileInfo* pMainDoorTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
+                if(pMainDoorTile) {
+                    targetPos = pMainDoorTile->GetPos();
                 }
             }
+        }
+        else {
+            TileInfo* pMainDoorTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
+            if(pMainDoorTile) {
+                targetPos = pMainDoorTile->GetPos();
+            }
+        }
+    }
+
+    if(target.empty()) {
+        TileInfo* pMainDoorTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
+        if(pMainDoorTile) {
+            targetPos = pMainDoorTile->GetPos();
         }
     }
 

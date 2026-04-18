@@ -6,6 +6,33 @@
 #include "../Server/ServerManager.h"
 #include "../Server/GameServer.h"
 #include "Proton/ProtonUtils.h"
+#include "Packet/GamePacket.h"
+
+namespace {
+
+void SendConsoleAndFail(GamePlayer* pPlayer, const string& consoleMessage)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    if(!consoleMessage.empty()) {
+        pPlayer->SendOnConsoleMessage(consoleMessage);
+    }
+
+    pPlayer->SendLogonFailWithLog("");
+}
+
+void SendConsoleOnly(GamePlayer* pPlayer, const string& consoleMessage)
+{
+    if(!pPlayer || consoleMessage.empty()) {
+        return;
+    }
+
+    pPlayer->SendOnConsoleMessage(consoleMessage);
+}
+
+}
 
 GamePlayer::GamePlayer(ENetPeer* pPeer)
 : Player(pPeer)
@@ -52,6 +79,18 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25> &packet)
     if(!m_loginDetail.Serialize(packet, this, false)) {
         SendLogonFailWithLog("`4HUH?! ``Are you sure everything is alright?");
         return;
+    }
+
+    if(m_loginDetail.tankIDName.empty()) {
+        if(m_loginDetail.requestedName.size() < 3) {
+            SendConsoleAndFail(this, "`oYou'll need a name `$3 chars`o or longer to play online with. (select cancel and enter a longer name)``");
+            return;
+        }
+
+        if(m_loginDetail.requestedName.size() > 28) {
+            SendConsoleAndFail(this, "`oIs that guest name length even possible? Contact the devs!``");
+            return;
+        }
     }
 
     m_state = PLAYER_STATE_LOGIN_GETTING_ACCOUNT;
@@ -117,7 +156,8 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
 
     if(!result.result) {
-        SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
+        m_state = PLAYER_STATE_LOGIN_REQUEST;
+        SendConsoleOnly(this, "`oServer requesting you relog-on");
         return;
     }
 
@@ -132,16 +172,30 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_COUNT_ACC_IP, req);
         }
         else {
-            SendLogonFailWithLog("`4Unable to log on:`` That `wGrowID`` doesn't seem valid, or the password is wrong. If you don't have one, press `wCancel``, un-check `w'I have a GrowID'``, then click `wConnect``.");
+            m_state = PLAYER_STATE_LOGIN_REQUEST;
+            SendConsoleOnly(this, "`oWrong GrowID or Password``");
             return;
         }
 
         return;
     }
 
-    if(GetGameServer()->GetPlayerSessionByUserID(m_userID)) { // add ALREADY ON THINGGGGGGG
-        SendLogonFailWithLog("`#You are still online, please wait few seconds and re-login again.");
-        return;
+    if(PlayerSession* pCachedSession = GetGameServer()->GetPlayerSessionByUserID(m_userID)) {
+        if(pCachedSession->serverID != 0) {
+            GetServerManager()->SendCrossServerActionExecute(
+                pCachedSession->serverID,
+                TCP_CROSS_ACTION_KICK,
+                m_userID,
+                0,
+                "SYSTEM",
+                "",
+                0,
+                pCachedSession->name
+            );
+        }
+
+        GetGameServer()->DeletePlayerSession(m_userID);
+        SendOnConsoleMessage("`4ALREADY ON: `oThis account is already online, kicking it off so you could log on.");
     }
 
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;

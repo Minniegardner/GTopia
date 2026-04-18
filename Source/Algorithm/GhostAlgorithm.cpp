@@ -2,6 +2,7 @@
 
 #include "../Item/ItemUtils.h"
 #include "../Packet/GamePacket.h"
+#include "../Packet/NetPacket.h"
 #include "../Player/PlayMod.h"
 #include "../Utils/Timer.h"
 #include "../World/TileInfo.h"
@@ -95,9 +96,9 @@ void SendGhostNpcPacket(World* pWorld, const GhostEntity& entity, uint8 action, 
 
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_NPC;
-    packet.field0 = action;
-    packet.field1 = entity.jar ? GHOST_NPC_TYPE_JAR : GHOST_NPC_TYPE_NORMAL;
-    packet.netID = (int32)entity.id;
+    packet.field0 = entity.jar ? GHOST_NPC_TYPE_JAR : GHOST_NPC_TYPE_NORMAL;
+    packet.field1 = (uint8)(entity.id & 0xFF);
+    packet.field2 = action;
     packet.posX = fromPos.x;
     packet.posY = fromPos.y;
     packet.field9 = toPos.x;
@@ -216,7 +217,7 @@ void HandleGhostJarCapture(World* pWorld, GhostWorldState& state, const GhostEnt
     }
 
     GamePlayer* pPlacer = GetGameServer()->GetPlayerByUserID(jarEntity.placedByUserID);
-    if(!pPlacer || pPlacer->GetCurrentWorld() != pWorld->GetID()) {
+    if(!pPlacer) {
         return;
     }
 
@@ -560,6 +561,33 @@ void UpdateWorldGhosts(World* pWorld)
 
     if(!AnyGhostLeft(state)) {
         pWorld->SetWorldFlag(WORLD_FLAG_HAUNTED, false);
+    }
+}
+
+void SyncWorldGhostsToPlayer(World* pWorld, GamePlayer* pPlayer)
+{
+    if(!pWorld || !pPlayer || pPlayer->GetCurrentWorld() != pWorld->GetID()) {
+        return;
+    }
+
+    GhostWorldState& state = GetState(pWorld);
+    if(state.entities.empty()) {
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    for(const auto& [_, entity] : state.entities) {
+        const Vector2Float pos = GetGhostLerpPos(entity, nowMS);
+
+        GameUpdatePacket packet;
+        packet.type = NET_GAME_PACKET_NPC;
+        packet.field0 = entity.jar ? GHOST_NPC_TYPE_JAR : GHOST_NPC_TYPE_NORMAL;
+        packet.field1 = (uint8)(entity.id & 0xFF);
+        packet.field2 = GHOST_NPC_ACTION_ADD;
+        packet.posX = pos.x;
+        packet.posY = pos.y;
+
+        SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
     }
 }
 

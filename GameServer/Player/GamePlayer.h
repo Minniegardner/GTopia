@@ -58,6 +58,7 @@ public:
     void HandleRenderWorld(VariantVector&& result);
     void HandleCreateGrowID(QueryTaskResult&& result);
     void HandlePBanRequestResult(QueryTaskResult&& result);
+    void FinalizePBanResolvedTarget(uint32 targetUserID, const string& resolvedTargetName);
 
     void SaveToDatabase();
     void LogOff();

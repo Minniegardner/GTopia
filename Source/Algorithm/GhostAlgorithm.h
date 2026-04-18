@@ -16,4 +16,5 @@ void ClearWorldGhosts(World* pWorld);
 void DestroyWorldState(uint32 worldID);
 bool HasWorldGhosts(World* pWorld);
 void UpdateWorldGhosts(World* pWorld);
+void SyncWorldGhostsToPlayer(World* pWorld, GamePlayer* pPlayer);
 }

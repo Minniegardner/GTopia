@@ -6,6 +6,7 @@
 #include "Math/Rect.h"
 #include "Math/Math.h"
 #include "Utils/StringUtils.h"
+#include "Algorithm/GhostAlgorithm.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/GameServer.h"
 #include <array>
@@ -201,13 +202,21 @@ TileInfo* FindDoorByIDInWorld(World* pWorld, const string& doorID)
             }
 
             ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-            if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
+            if(!pItem) {
                 continue;
             }
 
-            TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
-            if(pDoor && ToUpper(pDoor->id) == doorID) {
-                return pTile;
+            if(pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_USER_DOOR || pItem->type == ITEM_TYPE_PORTAL || pItem->type == ITEM_TYPE_SUNGATE || pItem->type == ITEM_TYPE_FRIENDS_ENTRANCE) {
+                TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
+                if(pDoor && ToUpper(pDoor->id) == doorID) {
+                    return pTile;
+                }
+            }
+            else if(pItem->type == ITEM_TYPE_SIGN && (pItem->id == ITEM_ID_PATH_MARKER || pItem->id == ITEM_ID_OBJECTIVE_MARKER || pItem->id == ITEM_ID_CARNIVAL_LANDING)) {
+                TileExtra_Sign* pSign = pTile->GetExtra<TileExtra_Sign>();
+                if(pSign && ToUpper(pSign->text) == doorID) {
+                    return pTile;
+                }
             }
         }
     }
@@ -361,6 +370,8 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
             pWorldPlayer->SendCharacterState(pPlayer);
         }
     }
+
+    GhostAlgorithm::SyncWorldGhostsToPlayer(this, pPlayer);
 
     const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
     const string worldInfoSuffix = GetWorldInfoSuffix(this);

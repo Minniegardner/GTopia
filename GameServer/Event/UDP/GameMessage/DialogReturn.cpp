@@ -169,7 +169,7 @@ void ShowCrazyJimDailyQuest(GamePlayer* pPlayer)
         ->AddLabel("and", true)
         ->AddLabelWithIcon("`2" + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + "``", (uint16)dq.questItemTwoID)
         ->AddSpacer()
-        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the rewards from my personal collection! But hurry, this offer is only good until midnight, and only one turn-in per person!")
+        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the `2Growtokens`` from my personal collection!  But hurry, this offer is only good until midnight, and only one `2Growtoken`` per person!")
         ->AddLabel("You have " + ToString(pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID)) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID)) + " " + GetItemNameSafe(dq.questItemTwoID) + ".")
         ->AddButton("GotoCrazyJimMainMenu", "Back");
 
@@ -189,17 +189,46 @@ void ShowRemoveGhostDialog(GamePlayer* pPlayer, World* pWorld)
         return;
     }
 
-    if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
-        pPlayer->SendOnTalkBubble("Well, there really ain't no ghosts in there for us to remove. Come back later when it does.", true);
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wRemove Ghost``", ITEM_ID_GHOST_BE_GONE, true, true)
+        ->AddLabel(
+            GhostAlgorithm::HasWorldGhosts(pWorld)
+                ? "Wanna remove ghost? It's gonna cost you `515 World Locks `ofor our services."
+                : "Well, there really ain't no ghosts in there for us to remove. Come back later when it does."
+        );
+
+    if(GhostAlgorithm::HasWorldGhosts(pWorld)) {
+        db.AddButton("RemoveGhost", "Yes remove ghost.");
+    }
+
+    db.EndDialog("TelephoneEdit", "", "Hang Up");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowRemoveGhostConfirmDialog(GamePlayer* pPlayer, World* pWorld)
+{
+    if(!pPlayer || !pWorld) {
         return;
     }
 
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wRemove Ghost``", ITEM_ID_GHOST_BE_GONE, true, true)
-        ->AddLabel("Wanna remove ghost? It's gonna cost you `515 World Locks `ofor our services.")
-        ->AddButton("RemoveGhostConfirm", "Yes remove ghost.")
-        ->EndDialog("RemoveGhostConfirm", "", "Nevermind");
+        ->AddLabel(
+            GhostAlgorithm::HasWorldGhosts(pWorld)
+                ? "Your total comes to `515`` World Locks. Will that be all tonight?"
+                : "Well, there really ain't no ghosts in there for us to remove. Come back later when it does."
+        );
+
+    if(GhostAlgorithm::HasWorldGhosts(pWorld)) {
+        db.AddLabel("You have " + ToString(pPlayer->GetInventory().GetCountOfItem(ITEM_ID_WORLD_LOCK)) + " World Locks.")
+            ->AddButton("RemoveGhostConfirm", "Thank you!")
+            ->AddButton("", "Nevermind");
+    }
+
+    db.EndDialog("TelephoneEdit", "", "Hang Up");
 
     pPlayer->SendOnDialogRequest(db.Get());
 }
@@ -250,18 +279,12 @@ void ShowTelephoneQuestDialog(GamePlayer* pPlayer)
         ->AddLabel("and", true)
         ->AddLabelWithIcon("`2" + ToString(dq.questItemTwoAmount) + " " + GetItemNameSafe(dq.questItemTwoID) + "``", (uint16)dq.questItemTwoID)
         ->AddSpacer()
-        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the rewards from my personal collection! But hurry, this offer is only good until midnight, and only one turn-in per person!")
+        ->AddLabel("You shove all that through the phone (it works, I've tried it), and I will hand you one of the `2Growtokens`` from my personal collection!  But hurry, this offer is only good until midnight, and only one `2Growtoken`` per person!")
         ->AddSpacer();
 
     const uint64 countOne = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemOneID);
     const uint64 countTwo = pPlayer->GetInventory().GetCountOfItem((uint16)dq.questItemTwoID);
     db.AddLabel("You have " + ToString(countOne) + " " + GetItemNameSafe(dq.questItemOneID) + " and " + ToString(countTwo) + " " + GetItemNameSafe(dq.questItemTwoID) + ".");
-
-    const uint64 collectOne = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_COLLECT", currentEpochDay, (uint16)dq.questItemOneID));
-    const uint64 collectTwo = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_COLLECT", currentEpochDay, (uint16)dq.questItemTwoID));
-    const uint64 breakOne = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_BREAK", currentEpochDay, (uint16)dq.questItemOneID));
-    const uint64 breakTwo = pPlayer->GetCustomStatValue(BuildDailyQuestStatKey("DQ_BREAK", currentEpochDay, (uint16)dq.questItemTwoID));
-    db.AddLabel("Today's tracked progress: collect " + ToString(collectOne) + "/" + ToString(dq.questItemOneAmount) + " + " + ToString(collectTwo) + "/" + ToString(dq.questItemTwoAmount) + ", break " + ToString(breakOne) + " + " + ToString(breakTwo) + ".");
 
     if(countOne >= dq.questItemOneAmount && countTwo >= dq.questItemTwoAmount) {
         db.AddButton("GotoCrazyJimTurnInDailyQuest", "`2Turn in quest items");
@@ -705,26 +728,17 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         case CompileTimeHashString("DonationEdit"): {
-            auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            if(!pButtonClicked) {
-                return;
-            }
-
-            const string buttonClicked(pButtonClicked->value, pButtonClicked->size);
-            if(buttonClicked != "Give" && buttonClicked != "Give the item(s)") {
-                return;
+            string buttonClicked;
+            if(const auto* pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"))) {
+                buttonClicked.assign(pButtonClicked->value, pButtonClicked->size);
             }
 
             int32 tileX = 0;
             int32 tileY = 0;
             int32 tileItemID = 0;
-            int32 donateItemID = 0;
-            int32 amount = 0;
             if(!ParseIntField(packet, CompileTimeHashString("tilex"), tileX) ||
                 !ParseIntField(packet, CompileTimeHashString("tiley"), tileY) ||
-                !ParseIntField(packet, CompileTimeHashString("TileItemID"), tileItemID) ||
-                !ParseIntField(packet, CompileTimeHashString("ItemIDToDonate"), donateItemID) ||
-                !ParseIntField(packet, CompileTimeHashString("Amount"), amount))
+                !ParseIntField(packet, CompileTimeHashString("TileItemID"), tileItemID))
             {
                 return;
             }
@@ -742,6 +756,117 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             TileExtra_DonationBox* pDonation = pTile->GetExtra<TileExtra_DonationBox>();
             if(!pDonation) {
+                return;
+            }
+
+            if(buttonClicked == "ClearAll") {
+                if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+                    return;
+                }
+
+                auto it = pDonation->donatedItems.begin();
+                while(it != pDonation->donatedItems.end()) {
+                    ItemInfo* pDonatedItem = GetItemInfoManager()->GetItemByID(it->itemID);
+                    if(!pDonatedItem) {
+                        it = pDonation->donatedItems.erase(it);
+                        continue;
+                    }
+
+                    if(!pPlayer->GetInventory().HaveRoomForItem(it->itemID, it->amount)) {
+                        pPlayer->SendOnConsoleMessage("`4" + ToString(it->amount) + " " + string(pDonatedItem->name) + " won't fit in my inventory.``");
+                        ++it;
+                        continue;
+                    }
+
+                    pPlayer->ModifyInventoryItem(it->itemID, it->amount);
+
+                    const string pickupMsg =
+                        "`7[```5[```w" + pPlayer->GetRawName() +
+                        "`w picked up `5" + ToString(it->amount) + "`` `2" + string(pDonatedItem->name) +
+                        "`` from " + it->username + "``, how nice!`5]```7]``";
+                    pWorld->SendTalkBubbleAndConsoleToAll(pickupMsg, false, pPlayer);
+
+                    it = pDonation->donatedItems.erase(it);
+                }
+
+                if(pDonation->donatedItems.empty()) {
+                    pTile->RemoveFlag(TILE_FLAG_IS_ON);
+                }
+
+                pWorld->SendTileUpdate(pTile);
+                pPlayer->PlaySFX("page_turn.wav");
+                return;
+            }
+
+            int32 selectedItemID = -1;
+            if(!ParseIntField(packet, CompileTimeHashString("SelectedItem"), selectedItemID)) {
+                ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemID);
+            }
+
+            if(selectedItemID > 0) {
+                ItemInfo* pSelectedItem = GetItemInfoManager()->GetItemByID((uint16)selectedItemID);
+                if(!pSelectedItem) {
+                    return;
+                }
+
+                if(pDonation->donatedItems.size() >= 20) {
+                    pPlayer->SendOnTalkBubble("The donation box is already full!", true);
+                    return;
+                }
+
+                int32 donatedByPlayer = 0;
+                for(const TileExtra_DonatedItem& item : pDonation->donatedItems) {
+                    if(item.userID == pPlayer->GetUserID()) {
+                        ++donatedByPlayer;
+                    }
+                }
+
+                if(donatedByPlayer >= 3 && !pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+                    pPlayer->SendOnTalkBubble("You already donated items 3 times! Try again later.", true);
+                    return;
+                }
+
+                if(pSelectedItem->rarity < 2) {
+                    pPlayer->SendOnTalkBubble("This box only accepts items of rarity 2 and above.", true);
+                    return;
+                }
+
+                if(pSelectedItem->HasFlag(ITEM_FLAG_UNTRADEABLE)) {
+                    pPlayer->SendOnTalkBubble("That's too special to put in there!", true);
+                    return;
+                }
+
+                if(pSelectedItem->id == ITEM_ID_FIST || pSelectedItem->id == ITEM_ID_WRENCH) {
+                    pPlayer->SendOnTalkBubble("You can't put that there.", true);
+                    return;
+                }
+
+                DialogBuilder db;
+                db.SetDefaultColor('o')
+                    ->AddLabelWithIcon("`w" + string(pSelectedItem->name) + "``", pSelectedItem->id, true)
+                    ->AddLabel("How many to put in the box as a gift? (Note: You will `4LOSE`` the items you give!)")
+                    ->AddTextInput("Amount", "Count:", ToString(pPlayer->GetInventory().GetCountOfItem(pSelectedItem->id)), 3)
+                    ->AddTextInput("Comment", "Optional Note:", "", 128)
+                    ->EmbedData("tilex", tileX)
+                    ->EmbedData("tiley", tileY)
+                    ->EmbedData("TileItemID", tileItemID)
+                    ->EmbedData("ItemIDToDonate", pSelectedItem->id)
+                    ->AddButton("Give", "`4Give the item(s)``")
+                    ->EndDialog("DonationEdit", "", "Cancel");
+
+                pPlayer->SendOnDialogRequest(db.Get());
+                return;
+            }
+
+            if(buttonClicked != "Give" && buttonClicked != "Give the item(s)") {
+                return;
+            }
+
+            int32 donateItemID = 0;
+            int32 amount = 0;
+            if(!ParseIntField(packet, CompileTimeHashString("ItemIDToDonate"), donateItemID) ||
+                !ParseIntField(packet, CompileTimeHashString("Amount"), amount))
+            {
                 return;
             }
 
@@ -799,6 +924,8 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
+            const bool wasEmpty = pDonation->donatedItems.empty();
+
             string comment;
             auto pComment = packet.Find(CompileTimeHashString("Comment"));
             if(pComment && pComment->size > 0) {
@@ -822,6 +949,16 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             pPlayer->SendOnTalkBubble("`wThanks! You donated `#" + ToString(amount) + "`w `2" + string(pDonateItem->name) + "`w to the box.", true);
 
+            const string placedMsg =
+                "`7[```5[```w" + pPlayer->GetRawName() +
+                " `wplaces `5" + ToString(amount) + "`` `2" + string(pDonateItem->name) +
+                "`` `winto the Donation Box`5]```7]``";
+            pWorld->SendTalkBubbleAndConsoleToAll(placedMsg, false, pPlayer);
+
+            if(wasEmpty) {
+                pTile->SetFlag(TILE_FLAG_IS_ON);
+            }
+
             pWorld->SendTileUpdate(pTile);
             break;
         }
@@ -840,6 +977,11 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 }
                 if(buttonClicked == "GotoCrazyJimTurnInDailyQuest") {
                     TurnInTelephoneQuest(pPlayer);
+                    return;
+                }
+                if(buttonClicked == "RemoveGhost") {
+                    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+                    ShowRemoveGhostConfirmDialog(pPlayer, pWorld);
                     return;
                 }
                 if(buttonClicked == "RemoveGhostConfirm") {
