@@ -60,6 +60,14 @@ enum eTCPPacketResult
     TCP_RESULT_OK
 };
 
+enum eLoginMode
+{
+    LOGIN_MODE_CLIENT_LOGIN = 0,
+    LOGIN_MODE_REDIRECT_LOGIN = 1,
+    LOGIN_MODE_REDIRECT_SUBSERVER = 2,
+    LOGIN_MODE_REDIRECT_SUBSERVER_SILENT = 3
+};
+
 enum eTCPDailyEventType
 {
     TCP_DAILY_EVENT_NONE = 0,

@@ -139,6 +139,24 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
         }
     }
 
+    auto pLoginMode = packet.Find(CompileTimeHashString("lmode"));
+    if(pLoginMode) {
+        uint32 mode = LOGIN_MODE_CLIENT_LOGIN;
+        if(ToUInt(string(pLoginMode->value, pLoginMode->size), mode) == TO_INT_SUCCESS && mode <= LOGIN_MODE_REDIRECT_SUBSERVER_SILENT) {
+            loginMode = (uint8)mode;
+        }
+    }
+
+    auto pDoorID = packet.Find(CompileTimeHashString("doorID"));
+    if(pDoorID) {
+        doorID = string(pDoorID->value, pDoorID->size);
+    }
+
+    auto pUUIDToken = packet.Find(CompileTimeHashString("UUIDToken"));
+    if(pUUIDToken) {
+        uuidToken = string(pUUIDToken->value, pUUIDToken->size);
+    }
+
     if(asGameServer) {
         auto pToken = packet.Find(CompileTimeHashString("token"));
         if(!pToken || ToUInt(string(pToken->value, pToken->size), token) != TO_INT_SUCCESS) {

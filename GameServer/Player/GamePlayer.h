@@ -71,6 +71,9 @@ public:
     void SetCurrentWorld(uint32 worldID) { m_currentWorldID = worldID; }
     uint32 GetCurrentWorld() const { return m_currentWorldID; }
 
+    void SetSwitchingSubserver(bool switching) { m_switchingSubserver = switching; }
+    bool IsSwitchingSubserver() const { return m_switchingSubserver; }
+
     string GetDisplayName();
     string GetRawName();
     string GetSpawnData(bool local);
@@ -278,6 +281,7 @@ private:
     uint32 m_guestID;
 
     bool m_loggingOff;
+    bool m_switchingSubserver = false;
 
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;

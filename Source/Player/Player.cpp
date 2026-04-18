@@ -75,15 +75,15 @@ void Player::SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, con
     SendCallFunctionPacket(data);
 }
 
-void Player::SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP)
+void Player::SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP, const string& doorID, const string& uuidToken, uint8 loginMode)
 {
     VariantVector data(6);
     data[0] = "OnSendToServer";
     data[1] = port;
     data[2] = token;
     data[3] = userID;
-    data[4] = serverIP + "||";
-    data[5] = 1;
+    data[4] = serverIP + "|" + (doorID.empty() ? "0" : doorID) + "|" + (uuidToken.empty() ? "-1" : uuidToken);
+    data[5] = loginMode;
 
     SendCallFunctionPacket(data);
 }

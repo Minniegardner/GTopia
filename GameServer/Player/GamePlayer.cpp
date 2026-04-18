@@ -2136,8 +2136,9 @@ void GamePlayer::ResetDailyRewardProgressIfNewDay(uint32 currentEpochDay)
 void GamePlayer::LogOff()
 {
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
+    bool switchingSubserver = m_switchingSubserver;
 
-    if(isInGame) {
+    if(isInGame && !switchingSubserver) {
         NotifyFriendsStatusChange(false);
     }
 
@@ -2157,7 +2158,9 @@ void GamePlayer::LogOff()
     }
 
     SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log_off\n", m_pPeer);
-    GetMasterBroadway()->SendEndPlayerSession(m_userID);
+    if(!switchingSubserver) {
+        GetMasterBroadway()->SendEndPlayerSession(m_userID);
+    }
 }
 
 void GamePlayer::Update()

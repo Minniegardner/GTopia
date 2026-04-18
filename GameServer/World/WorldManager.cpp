@@ -144,19 +144,45 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
             uint32 serverID = result[3].GetUINT();
             uint32 worldID = result[4].GetUINT();
 
-            World* pWorld = GetWorldByID(worldID);
-            if(!pWorld) {
-                return;
-            }
-
             if(serverID == GetContext()->GetID()) {
-                if(!pWorld->PlayerJoinWorld(pPlayer)) {
+                World* pWorld = GetWorldByID(worldID);
+                if(!pWorld || !pWorld->PlayerJoinWorld(pPlayer)) {
+                    pPlayer->SetJoinWorld(false);
                     pPlayer->SendOnFailedToEnterWorld();
                     pPlayer->SendOnConsoleMessage("Unable to join world");
                 }
             }
             else {
-                // onsendtoserver
+                if(result.size() < 10) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to redirect to target subserver");
+                    return;
+                }
+
+                const string serverIP = result[5].GetString();
+                const uint16 serverPort = (uint16)result[6].GetUINT();
+                string worldName = ToUpper(result[7].GetString());
+                const uint32 userID = result[8].GetUINT();
+                const uint32 loginToken = result[9].GetUINT();
+
+                if(userID != pPlayer->GetUserID() || serverIP.empty() || serverPort == 0 || worldName.empty() || loginToken == 0) {
+                    pPlayer->SetJoinWorld(false);
+                    pPlayer->SendOnFailedToEnterWorld();
+                    pPlayer->SendOnConsoleMessage("Unable to redirect to target subserver");
+                    return;
+                }
+
+                string doorID = ToUpper(pPlayer->ConsumePendingDoorWarpID());
+                string redirectDoor = worldName;
+                if(!doorID.empty()) {
+                    redirectDoor += ":" + doorID;
+                }
+
+                PlayerLeaveWorld(pPlayer);
+                pPlayer->SetJoinWorld(false);
+                pPlayer->SetSwitchingSubserver(true);
+                pPlayer->SendOnSendToServer(serverPort, loginToken, userID, serverIP, redirectDoor, "-1", LOGIN_MODE_REDIRECT_SUBSERVER_SILENT);
             }
 
             break;
@@ -182,7 +208,7 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
-    GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetNetID(), worldName);
+    GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetNetID(), pPlayer->GetUserID(), worldName);
 }
 
 void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)

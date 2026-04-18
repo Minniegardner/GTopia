@@ -14,6 +14,7 @@ struct WorldPendingPlayer
 {
     uint32 serverID = 0;
     int32 playerNetID = 0;
+    uint32 userID = 0;
 };
 
 struct WorldSession
@@ -26,9 +27,9 @@ struct WorldSession
 
     std::vector<WorldPendingPlayer> pendingPlayers;
 
-    void AddPending(uint32 serverID, int32 netID)
+    void AddPending(uint32 serverID, int32 netID, uint32 userID)
     {
-        pendingPlayers.emplace_back(WorldPendingPlayer{serverID, netID});
+        pendingPlayers.emplace_back(WorldPendingPlayer{serverID, netID, userID});
     }
 };
 
@@ -62,7 +63,7 @@ public:
     void HandleDBWorldExists(QueryTaskResult&& result);
     void HandleDBWorldCreate(QueryTaskResult&& result);
 
-    void CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID);
+    void CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID);
 
     WorldSession* GetWorldByName(const string& worldName);
     WorldSession* GetWorldByID(uint32 worldID);

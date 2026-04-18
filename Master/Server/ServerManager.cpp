@@ -248,17 +248,20 @@ void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID
     SendPacketRaw(serverID, data);
 }
 
-void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, uint32 serverIDForPacket)
+void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, const string& worldName, uint32 userID, uint32 loginToken, uint32 serverIDForPacket)
 {
-    VariantVector data(7);
+    VariantVector data(10);
 
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
-    data[1] = TCP_RESULT_OK;   
+    data[1] = TCP_RESULT_OK;
     data[2] = playerNetID;
     data[3] = serverID;
     data[4] = worldID;
     data[5] = serverIP;
     data[6] = serverPort;
+    data[7] = worldName;
+    data[8] = userID;
+    data[9] = loginToken;
 
     SendPacketRaw(serverIDForPacket, data);
 }

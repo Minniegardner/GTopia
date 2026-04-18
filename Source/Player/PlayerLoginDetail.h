@@ -2,6 +2,7 @@
 
 #include "../Precompiled.h"
 #include "../Packet/PacketUtils.h"
+#include "../Packet/GamePacket.h"
 
 class Player;
 
@@ -30,6 +31,10 @@ struct PlayerLoginDetail
 
     uint32 token = 0;
     uint32 user = 0;
+
+    uint8 loginMode = LOGIN_MODE_CLIENT_LOGIN;
+    string doorID = "";
+    string uuidToken = "";
 
     bool Serialize(ParsedTextPacket<25>& packet, Player* pPlayer, bool asGameServer);
 };
