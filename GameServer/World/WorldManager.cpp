@@ -9,6 +9,28 @@
 
 #include <filesystem>
 
+namespace {
+uint16 ResolveRedirectPort(uint32 targetServerID, uint16 announcedPort)
+{
+    if(announcedPort != 0) {
+        return announcedPort;
+    }
+
+    GameConfig* pCfg = GetContext()->GetGameConfig();
+    if(!pCfg || pCfg->servers.empty()) {
+        return 0;
+    }
+
+    // GameServer loads only [master, self], where master entry has udp_start + 0.
+    const uint16 udpBase = pCfg->servers[0].udpPort;
+    if(udpBase == 0) {
+        return 0;
+    }
+
+    return (uint16)(udpBase + targetServerID);
+}
+}
+
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
 #include "../Event/UDP/GamePacket/PlayerCollect.h"
 #include "../Event/UDP/GamePacket/UseDoorRequest.h"
@@ -161,7 +183,8 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 }
 
                 const string serverIP = result[5].GetString();
-                const uint16 serverPort = (uint16)result[6].GetUINT();
+                const uint16 announcedServerPort = (uint16)result[6].GetUINT();
+                const uint16 serverPort = ResolveRedirectPort(serverID, announcedServerPort);
                 string worldName = ToUpper(result[7].GetString());
                 const uint32 userID = result[8].GetUINT();
                 const uint32 loginToken = result[9].GetUINT();
@@ -181,8 +204,11 @@ void WorldManager::OnHandleTCP(VariantVector&& result)
                 if(serverPort == 0) {
                     pPlayer->SetJoinWorld(false);
                     pPlayer->SendOnFailedToEnterWorld();
-                    pPlayer->SendOnConsoleMessage("`4DEBUG: serverPort is 0");
+                    pPlayer->SendOnConsoleMessage("`4DEBUG: serverPort is 0 (announced=" + ToString((uint32)announcedServerPort) + ", fallback failed for serverID=" + ToString(serverID) + ")");
                     return;
+                }
+                if(announcedServerPort == 0) {
+                    pPlayer->SendOnConsoleMessage("`oDEBUG: serverPort fallback used => " + ToString((uint32)serverPort) + " for serverID " + ToString(serverID));
                 }
                 if(worldName.empty()) {
                     pPlayer->SetJoinWorld(false);
