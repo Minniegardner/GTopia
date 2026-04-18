@@ -4,6 +4,7 @@
 #include "../Context.h"
 #include "../Server/ServerManager.h"
 #include "../Server/GameServer.h"
+#include "Math/Random.h"
 
 namespace {
 bool PreparePlayerSessionTransfer(uint32 userID, uint16 targetServerID, uint32& outLoginToken)
