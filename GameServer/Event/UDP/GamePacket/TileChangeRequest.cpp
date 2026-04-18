@@ -938,15 +938,6 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
             return;
         }
 
-        case ITEM_ID_MIND_GHOST_IN_A_JAR: {
-            if(!GhostAlgorithm::PlaceGhostJar(pPlayer, pWorld, pTile)) {
-                return;
-            }
-
-            pPlayer->ModifyInventoryItem(ITEM_ID_MIND_GHOST_IN_A_JAR, -1);
-            return;
-        }
-
         case ITEM_ID_GHOST_BE_GONE: {
             if(!GhostAlgorithm::HasWorldGhosts(pWorld)) {
                 pPlayer->SendOnTalkBubble("There are no ghosts in this world.", true);

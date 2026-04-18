@@ -15,14 +15,14 @@
 namespace {
 
 enum eGhostNpcType : uint8 {
-    GHOST_NPC_TYPE_NORMAL = 0,
-    GHOST_NPC_TYPE_JAR = 1
+    GHOST_NPC_TYPE_NORMAL = 1,
+    GHOST_NPC_TYPE_JAR = 2
 };
 
 enum eGhostNpcAction : uint8 {
-    GHOST_NPC_ACTION_ADD = 0,
-    GHOST_NPC_ACTION_MOVE = 1,
-    GHOST_NPC_ACTION_REMOVE = 2
+    GHOST_NPC_ACTION_REMOVE = 1,
+    GHOST_NPC_ACTION_ADD = 2,
+    GHOST_NPC_ACTION_MOVE = 3
 };
 
 struct GhostEntity {
