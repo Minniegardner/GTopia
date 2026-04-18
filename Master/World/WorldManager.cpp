@@ -20,6 +20,33 @@ bool PreparePlayerSessionTransfer(uint32 userID, uint16 targetServerID, uint32& 
     outLoginToken = pSession->loginToken;
     return true;
 }
+
+uint16 ResolveServerUDPPort(uint32 serverID, const ServerInfo* pServer)
+{
+    if(pServer && pServer->port != 0) {
+        return pServer->port;
+    }
+
+    GameConfig* pCfg = GetContext()->GetGameConfig();
+    if(!pCfg) {
+        return 0;
+    }
+
+    if(serverID < pCfg->servers.size()) {
+        const ServerConfigSchema& cfg = pCfg->servers[serverID];
+        if(cfg.id == serverID && cfg.udpPort != 0) {
+            return cfg.udpPort;
+        }
+    }
+
+    for(const auto& cfg : pCfg->servers) {
+        if(cfg.id == serverID && cfg.udpPort != 0) {
+            return cfg.udpPort;
+        }
+    }
+
+    return 0;
+}
 }
 
 WorldManager::WorldManager()
@@ -108,12 +135,18 @@ void WorldManager::HandleWorldInit(VariantVector&& result)
             continue;
         }
 
+        const uint16 udpPort = ResolveServerUDPPort(pWorld->serverID, pServer);
+        if(udpPort == 0) {
+            pServerMgr->SendWorldPlayerFailPacket(pending.playerNetID, pending.serverID);
+            continue;
+        }
+
         pServerMgr->SendWorldPlayerSuccessPacket(
             pending.playerNetID,
             pWorld->serverID,
             worldID,
             pServer->wanIP,
-            pServer->port,
+            udpPort,
             pWorld->worldName,
             pending.userID,
             loginToken,
@@ -163,12 +196,18 @@ void WorldManager::HandlePlayerJoinRequest(VariantVector&& result)
             return;
         }
 
+        const uint16 udpPort = ResolveServerUDPPort(pWorld->serverID, pServer);
+        if(udpPort == 0) {
+            GetServerManager()->SendWorldPlayerFailPacket(playerNetID, serverID);
+            return;
+        }
+
         GetServerManager()->SendWorldPlayerSuccessPacket(
             playerNetID,
             pWorld->serverID,
             pWorld->worldID,
             pServer->wanIP,
-            pServer->port,
+            udpPort,
             pWorld->worldName,
             userID,
             loginToken,
@@ -225,7 +264,11 @@ void WorldManager::HandleDBWorldCreate(QueryTaskResult&& result)
 void WorldManager::CreateWorldSessionAndNotice(uint32 worldID, const string& worldName, int32 playerNetID, uint32 serverID, uint32 userID)
 {
     ServerManager* pServerMgr = GetServerManager();
-    ServerInfo* pServer = pServerMgr->GetBestGameServer();
+    // Prefer creating new/empty worlds on the same server where requester currently is.
+    ServerInfo* pServer = pServerMgr->GetServerByID((uint16)serverID);
+    if(!pServer) {
+        pServer = pServerMgr->GetBestGameServer();
+    }
     if(!pServer) {
         pServerMgr->SendWorldPlayerFailPacket(playerNetID, serverID);
         return;
