@@ -830,4 +830,4 @@ void GameServer::Kill()
     m_playerCache.clear();
 }
 
-GameServer* GetGameServer() { return GameServer::GetInstance(); }GameServer* GetGameServer() { return GameServer::GetInstance(); }
+GameServer* GetGameServer() { return GameServer::GetInstance(); }

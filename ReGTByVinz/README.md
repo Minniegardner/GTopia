@@ -33,6 +33,12 @@ fiel.bat
 
 That script updates submodules, configures the client project, and builds it.
 
+Or run directly from the ReGT folder:
+
+```bat
+ReGTByVinz\setup_build_regt.bat
+```
+
 ## Notes
 
 - This is a full login and message pipeline foundation.
