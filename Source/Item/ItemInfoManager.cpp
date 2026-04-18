@@ -459,6 +459,11 @@ ItemsClientData& ItemInfoManager::GetClientData(uint8 platformType)
     return m_itemDataOgg;
 }
 
+uint32 ItemInfoManager::GetClientIDByItemID(uint32 itemID) const
+{
+    return itemID;
+}
+
 void ItemInfoManager::SetupItemExtras()
 {
     for(uint32 i = 0; i < m_items.size(); i += 2) {

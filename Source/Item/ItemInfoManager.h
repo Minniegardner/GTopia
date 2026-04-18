@@ -38,6 +38,7 @@ public:
     ItemInfo* GetItemByID(uint32 itemID);
     ItemInfo* GetItemByName(const string& name);
     uint32 GetItemCount() const { return m_itemCount; }
+    uint32 GetClientIDByItemID(uint32 itemID) const;
 
     ItemsClientData& GetClientData(uint8 platformType);
 
