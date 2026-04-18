@@ -1,10 +1,20 @@
-#include "SignDialog.h"
+#include "PathMarkerDialog.h"
+
 #include "../GamePlayer.h"
-#include "Utils/DialogBuilder.h"
 #include "Item/ItemInfoManager.h"
+#include "Utils/DialogBuilder.h"
 #include "../../World/WorldManager.h"
 
-void SignDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
+namespace {
+
+bool IsPathMarkerItem(uint16 itemID)
+{
+    return itemID == ITEM_ID_OBJECTIVE_MARKER || itemID == ITEM_ID_PATH_MARKER || itemID == ITEM_ID_CARNIVAL_LANDING;
+}
+
+}
+
+void PathMarkerDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
 {
     if(!pPlayer || !pTile || pPlayer->GetCurrentWorld() == 0) {
         return;
@@ -16,11 +26,7 @@ void SignDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem || pItem->type != ITEM_TYPE_SIGN) {
-        return;
-    }
-
-    if(pItem->id == ITEM_ID_OBJECTIVE_MARKER || pItem->id == ITEM_ID_PATH_MARKER || pItem->id == ITEM_ID_CARNIVAL_LANDING) {
+    if(!pItem || pItem->type != ITEM_TYPE_SIGN || !IsPathMarkerItem(pItem->id)) {
         return;
     }
 
@@ -34,7 +40,7 @@ void SignDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wEdit " + pItem->name, pItem->id, true)
         ->AddSpacer()
-        ->AddLabel("What would you like to write on this sign?")
+        ->AddLabel("Enter an ID. You can use this as a destination for Doors.")
         ->AddTextInput("Text", "", pTileExtra->text, 128)
         ->EmbedData("tilex", pTile->GetPos().x)
         ->EmbedData("tiley", pTile->GetPos().y)
@@ -44,7 +50,7 @@ void SignDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     pPlayer->SendOnDialogRequest(db.Get());
 }
 
-void SignDialog::Handle(GamePlayer* pPlayer, const string& text, int32 tileX, int32 tileY)
+void PathMarkerDialog::Handle(GamePlayer* pPlayer, const string& text, int32 tileX, int32 tileY)
 {
     if(!pPlayer || pPlayer->GetCurrentWorld() == 0) {
         return;
@@ -70,7 +76,7 @@ void SignDialog::Handle(GamePlayer* pPlayer, const string& text, int32 tileX, in
     }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem || pItem->type != ITEM_TYPE_SIGN || pItem->id == ITEM_ID_OBJECTIVE_MARKER || pItem->id == ITEM_ID_PATH_MARKER || pItem->id == ITEM_ID_CARNIVAL_LANDING) {
+    if(!pItem || pItem->type != ITEM_TYPE_SIGN || !IsPathMarkerItem(pItem->id)) {
         pPlayer->SendOnTalkBubble("Huh? The sign is gone!", false);
         return;
     }

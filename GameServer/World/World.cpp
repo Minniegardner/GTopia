@@ -32,6 +32,70 @@ bool IsReverseDirection(eSteamDirection lastDir, eSteamDirection nextDir)
         (lastDir == STEAM_DIR_RIGHT && nextDir == STEAM_DIR_LEFT);
 }
 
+void SendFreezeState(GamePlayer* pPlayer, int32 freezeState, int32 delayMS = -1)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    VariantVector data(2);
+    data[0] = "OnSetFreezeState";
+    data[1] = freezeState;
+    pPlayer->SendCallFunctionPacket(data, pPlayer->GetNetID(), delayMS);
+}
+
+void SendSetPos(GamePlayer* pPlayer, const Vector2Float& pos, int32 delayMS)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    VariantVector data(2);
+    data[0] = "OnSetPos";
+    data[1] = pos;
+    pPlayer->SendCallFunctionPacket(data, pPlayer->GetNetID(), delayMS);
+}
+
+Vector2Float ResolveRespawnPosition(World* pWorld, GamePlayer* pTarget)
+{
+    if(!pWorld || !pTarget) {
+        return { 0.0f, 0.0f };
+    }
+
+    Vector2Float respawnPos = pTarget->GetRespawnPos();
+    if(respawnPos.x != 0.0f || respawnPos.y != 0.0f) {
+        return respawnPos;
+    }
+
+    TileInfo* pDoor = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
+    if(!pDoor) {
+        return { 0.0f, 0.0f };
+    }
+
+    const Vector2Int doorPos = pDoor->GetPos();
+    return { doorPos.x * 32.0f, doorPos.y * 32.0f };
+}
+
+void ForceRespawnPlayer(World* pWorld, GamePlayer* pTarget)
+{
+    if(!pWorld || !pTarget) {
+        return;
+    }
+
+    VariantVector killed(2);
+    killed[0] = "OnKilled";
+    killed[1] = 1;
+    pTarget->SendCallFunctionPacket(killed, pTarget->GetNetID());
+    SendFreezeState(pTarget, 2);
+
+    const Vector2Float respawnPos = ResolveRespawnPosition(pWorld, pTarget);
+    pTarget->SetWorldPos(respawnPos.x, respawnPos.y);
+    pTarget->SetRespawnPos(respawnPos.x, respawnPos.y);
+
+    SendSetPos(pTarget, respawnPos, 2000);
+    SendFreezeState(pTarget, 0, 2000);
+}
+
 TileInfo* GetTileByDirection(World* pWorld, const Vector2Int& pos, eSteamDirection dir)
 {
     if(!pWorld) {
@@ -139,6 +203,16 @@ bool TrySuckerCheck(World* pWorld, WorldObject& obj)
                 continue;
             }
 
+            const uint16 machineID = pTile->GetDisplayedItem();
+            if(pData->itemLimit <= 0) {
+                if(machineID == ITEM_ID_MAGPLANT_5000) {
+                    pData->itemLimit = 5000;
+                }
+                else if(machineID == ITEM_ID_UNSTABLE_TESSERACT || machineID == ITEM_ID_GAIAS_BEACON) {
+                    pData->itemLimit = 1500;
+                }
+            }
+
             if(pData->itemLimit <= 0) {
                 continue;
             }
@@ -147,7 +221,10 @@ bool TrySuckerCheck(World* pWorld, WorldObject& obj)
                 pData->itemCount = 0;
             }
 
-            const uint16 machineID = pTile->GetDisplayedItem();
+            if(pData->itemCount > pData->itemLimit) {
+                pData->itemCount = pData->itemLimit;
+            }
+
             if(!IsSuckerItemCompatible(machineID, obj.itemID)) {
                 continue;
             }
@@ -374,12 +451,19 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     GhostAlgorithm::SyncWorldGhostsToPlayer(this, pPlayer);
 
     const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
-    const string worldInfoSuffix = GetWorldInfoSuffix(this);
-    const string worldLabel = worldInfoSuffix.empty() ? ("`w" + GetWorlName() + "``") : ("`w" + GetWorlName() + worldInfoSuffix);
-    pPlayer->SendOnConsoleMessage(
-        "World " + worldLabel + " entered. There are `w" + ToString(otherPlayersHere) +
-        "`` other people here, `w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` online."
-    );
+    const string enteredBubble = "`5<`w" + pPlayer->GetRawName() + " `5entered, `w" + ToString(otherPlayersHere) + "`` `5others here>```w";
+    const string enteredMessage = "`5<``" + pPlayer->GetRawName() + " `5entered, `w" + ToString(otherPlayersHere) + "`` `5others here>``";
+
+    pPlayer->PlaySFX("audio/door_open.wav");
+    for(GamePlayer* pWorldPlayer : m_players) {
+        if(!pWorldPlayer || pWorldPlayer == pPlayer) {
+            continue;
+        }
+
+        pWorldPlayer->SendOnTalkBubble(enteredBubble, true, pPlayer);
+        pWorldPlayer->SendOnConsoleMessage(enteredMessage);
+        pWorldPlayer->PlaySFX("audio/door_open.wav");
+    }
 
     TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
     TileExtra_Lock* pLockExtra = pLockTile ? pLockTile->GetExtra<TileExtra_Lock>() : nullptr;
@@ -411,10 +495,23 @@ void World::PlayerLeaverWorld(GamePlayer* pPlayer)
 
     int32 playerIdx = -1;
 
+    const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
+    const string leftBubble = "`5<`w" + pPlayer->GetRawName() + " `5left, `w" + ToString(otherPlayersHere) + "`` `5others here>```w";
+    const string leftMessage = "`5<``" + pPlayer->GetRawName() + " `5left, `w" + ToString(otherPlayersHere) + "`` `5others here>``";
+
     for(uint16 i = 0; i < m_players.size(); ++i) {
         GamePlayer* pWorldPlayer = m_players[i];
+        if(!pWorldPlayer) {
+            continue;
+        }
 
-        pWorldPlayer->SendOnRemove(pPlayer->GetNetID());
+        if(pWorldPlayer != pPlayer) {
+            pWorldPlayer->SendOnRemove(pPlayer->GetNetID());
+        }
+
+        pWorldPlayer->SendOnTalkBubble(leftBubble, true, pPlayer);
+        pWorldPlayer->SendOnConsoleMessage(leftMessage);
+        pWorldPlayer->PlaySFX("audio/door_shut.wav");
 
         if(pWorldPlayer == pPlayer) {
             playerIdx = i;
@@ -1136,11 +1233,11 @@ void World::PullPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
 
     const Vector2Float invokerPos = pInvoker->GetWorldPos();
     pTarget->SetWorldPos(invokerPos.x, invokerPos.y);
-    pTarget->SetRespawnPos(invokerPos.x, invokerPos.y);
+    pTarget->SendOnSetPos(invokerPos.x, invokerPos.y);
     pTarget->SendPositionToWorldPlayers();
-    pTarget->SendOnTextOverlay("You were pulled by " + pInvoker->GetDisplayName());
+    pTarget->SendOnTextOverlay("You were pulled by " + pInvoker->GetRawName());
 
-    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `5pulls `w" + pTarget->GetDisplayName() + "`o!");
+    SendConsoleMessageToAll(pInvoker->GetRawName() + " `5pulls `w" + pTarget->GetRawName() + "`o!");
     for(GamePlayer* pWorldPlayer : m_players) {
         if(pWorldPlayer) {
             pWorldPlayer->SendOnPlayPositioned("audio/object_spawn.wav", pTarget);
@@ -1154,9 +1251,8 @@ void World::KickPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
         return;
     }
 
-    pTarget->SendOnConsoleMessage("`4You were kicked by ``" + pInvoker->GetDisplayName() + "``.");
-    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `4kicks `w" + pTarget->GetDisplayName() + "`o!");
-    ForceLeavePlayer(pTarget);
+    ForceRespawnPlayer(this, pTarget);
+    SendConsoleMessageToAll(pInvoker->GetRawName() + " `4kicks `w" + pTarget->GetRawName() + "`o!");
 }
 
 void World::ForceLeavePlayer(GamePlayer* pTarget)

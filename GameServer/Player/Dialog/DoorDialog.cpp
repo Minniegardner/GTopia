@@ -61,7 +61,7 @@ void DoorDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
         ->AddCheckBox("IsPublic", "Is open to public", pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC))
         ->EmbedData("tilex", pTile->GetPos().x)
         ->EmbedData("tiley", pTile->GetPos().y)
-        ->EndDialog("door_edit", "OK", "Cancel");
+        ->EndDialog("DoorEdit", "OK", "Cancel");
 
     pPlayer->SendOnDialogRequest(db.Get());
 }

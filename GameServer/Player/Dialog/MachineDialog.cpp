@@ -948,6 +948,28 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             return;
         }
 
+        if(pData->itemLimit <= 0) {
+            if(pTile->GetDisplayedItem() == ITEM_ID_MAGPLANT_5000) {
+                pData->itemLimit = 5000;
+            }
+            else if(pTile->GetDisplayedItem() == ITEM_ID_UNSTABLE_TESSERACT || pTile->GetDisplayedItem() == ITEM_ID_GAIAS_BEACON) {
+                pData->itemLimit = 1500;
+            }
+        }
+
+        if(pData->itemCount < 0) {
+            pData->itemCount = 0;
+        }
+
+        if(pData->itemLimit > 0 && pData->itemCount > pData->itemLimit) {
+            pData->itemCount = pData->itemLimit;
+        }
+
+        if(pData->itemID != ITEM_ID_BLANK && !GetItemInfoManager()->GetItemByID(pData->itemID)) {
+            pData->itemID = ITEM_ID_BLANK;
+            pData->itemCount = 0;
+        }
+
         auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
         string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
 
@@ -1031,8 +1053,9 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         int32 addAmount = 0;
         if(ParseIntField(packet, CompileTimeHashString("AddAmount"), addAmount)) {
-            if(addAmount > 200) {
-                addAmount = 200;
+            const int32 maxAddInput = std::max<int32>(200, pData->itemLimit > 0 ? pData->itemLimit : 200);
+            if(addAmount > maxAddInput) {
+                addAmount = maxAddInput;
             }
 
             if(addAmount < 1) {
@@ -1070,8 +1093,9 @@ void MachineDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         int32 takeAmount = 0;
         if(ParseIntField(packet, CompileTimeHashString("TakeAmount"), takeAmount)) {
-            if(takeAmount > 200) {
-                takeAmount = 200;
+            const int32 maxTakeInput = std::max<int32>(200, pData->itemLimit > 0 ? pData->itemLimit : 200);
+            if(takeAmount > maxTakeInput) {
+                takeAmount = maxTakeInput;
             }
 
             if(takeAmount > pData->itemCount) {

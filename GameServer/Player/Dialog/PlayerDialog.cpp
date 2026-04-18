@@ -7,6 +7,7 @@
 #include "../../World/WorldManager.h"
 
 #include "SignDialog.h"
+#include "PathMarkerDialog.h"
 #include "LockDialog.h"
 #include "DoorDialog.h"
 #include "MachineDialog.h"
@@ -139,7 +140,16 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
     }
 
     if(pItem->type == ITEM_TYPE_SIGN) {
-        SignDialog::Request(pPlayer, pTile);
+        if(
+            pItem->id == ITEM_ID_OBJECTIVE_MARKER ||
+            pItem->id == ITEM_ID_PATH_MARKER ||
+            pItem->id == ITEM_ID_CARNIVAL_LANDING
+        ) {
+            PathMarkerDialog::Request(pPlayer, pTile);
+        }
+        else {
+            SignDialog::Request(pPlayer, pTile);
+        }
         return;
     }
 

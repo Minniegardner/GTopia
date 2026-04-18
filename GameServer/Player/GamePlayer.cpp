@@ -20,6 +20,7 @@
 #include "Proton/ProtonUtils.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <sstream>
 
@@ -79,6 +80,10 @@ constexpr uint64 kTradeChangeThrottleMS = 1800;
 constexpr uint8 kTradeMaxOfferItems = 4;
 constexpr uint64 kTradeRequestExpireMS = 15000;
 constexpr uint64 kFriendAlertDebounceWindowMS = 3500;
+constexpr const char* kFriendStatPrefix = "FRIEND_UID_";
+constexpr const char* kFriendReqOutPrefix = "FRIEND_REQ_OUT_";
+constexpr const char* kFriendReqInPrefix = "FRIEND_REQ_IN_";
+constexpr const char* kIgnoredStatPrefix = "IGNORED_UID_";
 constexpr const char* kPBanStatActive = "PBAN_ACTIVE";
 constexpr const char* kPBanStatUntil = "PBAN_UNTIL";
 constexpr const char* kPBanStatSetAt = "PBAN_SET_AT";
@@ -848,6 +853,11 @@ void GamePlayer::ConfirmOffer()
         return;
     }
 
+    if(pTarget->GetTradingWithUserID() != GetUserID()) {
+        CancelTrade(false);
+        return;
+    }
+
     SetTradeConfirmed(true);
     SetTradeConfirmedAt(Time::GetSystemTime());
 
@@ -860,7 +870,36 @@ void GamePlayer::ConfirmOffer()
         return;
     }
 
-    for(const auto& offer : pTarget->GetTradeOffers()) {
+    if(!pTarget->IsTradeAccepted()) {
+        CancelTrade(false);
+        return;
+    }
+
+    // Snapshot offers to avoid state mutation during validation.
+    const std::vector<TradeOffer> myOffers = GetTradeOffers();
+    const std::vector<TradeOffer> targetOffers = pTarget->GetTradeOffers();
+
+    auto hasInvalidOffer = [](const std::vector<TradeOffer>& offers) {
+        for(const TradeOffer& offer : offers) {
+            if(offer.Amount == 0 || !IsTradeItemAllowed(offer.ID)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    if(hasInvalidOffer(myOffers) || hasInvalidOffer(targetOffers)) {
+        const std::string message = "`4Trade cancelled - invalid items were detected in the offer.";
+        SendOnConsoleMessage(message);
+        SendOnTextOverlay(message);
+        pTarget->SendOnConsoleMessage(message);
+        pTarget->SendOnTextOverlay(message);
+        CancelTrade(false);
+        return;
+    }
+
+    for(const auto& offer : targetOffers) {
         if(GetInventory().GetCountOfItem(offer.ID) < offer.Amount) {
             const std::string message = "`4Trade cancelled - the other player doesn't have enough items anymore.";
             SendOnConsoleMessage(message);
@@ -872,7 +911,7 @@ void GamePlayer::ConfirmOffer()
         }
     }
 
-    for(const auto& offer : GetTradeOffers()) {
+    for(const auto& offer : myOffers) {
         if(pTarget->GetInventory().GetCountOfItem(offer.ID) < offer.Amount) {
             const std::string message = "`4Trade cancelled - the other player doesn't have enough items anymore.";
             SendOnConsoleMessage(message);
@@ -884,16 +923,42 @@ void GamePlayer::ConfirmOffer()
         }
     }
 
-    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
-    std::string myOffersSummary = BuildTradeOfferSummary(GetTradeOffers());
-    std::string theirOffersSummary = BuildTradeOfferSummary(pTarget->GetTradeOffers());
+    for(const auto& offer : targetOffers) {
+        const TradeReceiveState receiveState = GetTradeReceiveState(this, offer.ID, offer.Amount);
+        if(receiveState != TradeReceiveState::OK) {
+            const std::string message = "`4Trade cancelled - your backpack cannot receive the other player's offer.";
+            SendOnConsoleMessage(message);
+            SendOnTextOverlay(message);
+            pTarget->SendOnConsoleMessage(message);
+            pTarget->SendOnTextOverlay(message);
+            CancelTrade(false);
+            return;
+        }
+    }
 
-    for(const auto& offer : pTarget->GetTradeOffers()) {
+    for(const auto& offer : myOffers) {
+        const TradeReceiveState receiveState = GetTradeReceiveState(pTarget, offer.ID, offer.Amount);
+        if(receiveState != TradeReceiveState::OK) {
+            const std::string message = "`4Trade cancelled - the other player's backpack cannot receive your offer.";
+            SendOnConsoleMessage(message);
+            SendOnTextOverlay(message);
+            pTarget->SendOnConsoleMessage(message);
+            pTarget->SendOnTextOverlay(message);
+            CancelTrade(false);
+            return;
+        }
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(GetCurrentWorld());
+    std::string myOffersSummary = BuildTradeOfferSummary(myOffers);
+    std::string theirOffersSummary = BuildTradeOfferSummary(targetOffers);
+
+    for(const auto& offer : targetOffers) {
         pTarget->ModifyInventoryItem(offer.ID, -(int16)offer.Amount);
         ModifyInventoryItem(offer.ID, offer.Amount);
     }
 
-    for(const auto& offer : GetTradeOffers()) {
+    for(const auto& offer : myOffers) {
         ModifyInventoryItem(offer.ID, -(int16)offer.Amount);
         pTarget->ModifyInventoryItem(offer.ID, offer.Amount);
     }
@@ -904,8 +969,8 @@ void GamePlayer::ConfirmOffer()
         pWorld->PlaySFXForEveryone("keypad_hit.wav");
     }
 
-    AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(GetTradeOffers()), pTarget->GetRawName()));
-    pTarget->AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(pTarget->GetTradeOffers()), GetRawName()));
+    AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(myOffers), pTarget->GetRawName()));
+    pTarget->AddTradeHistory(fmt::format("Traded {} with {}", BuildTradeHistorySummary(targetOffers), GetRawName()));
 
     SetLastTradedAt(Time::GetSystemTime());
     pTarget->SetLastTradedAt(Time::GetSystemTime());
@@ -1041,39 +1106,44 @@ void GamePlayer::SendWrenchSelf(std::string page)
     db.SetDefaultColor('o');
 
     if(page.empty() || page == "PlayerInfo") {
-        db.EmbedData("netID", GetNetID())
-        ->EmbedData("worldName", worldName)
-        ->AddLabelWithIcon("`2" + GetDisplayName() + "``", ITEM_ID_WRENCH, true)
-        ->AddTextBox("`oLevel: `w" + ToString(GetLevel()) + "`` (`w" + ToString(GetXP()) + "`` / `w" + ToString(GetLevel() * 1500) + "``)")
-        ->AddButton("change_password", "`oChange Password")
-        ->AddCustomLine("set_custom_spacing|x:5;y:10|")
-        ->AddCustomLine("add_custom_button|ske_titles|image:interface/large/gui_wrench_title.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|set_online_status|image:interface/large/gui_wrench_online_status_1green.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|notebook_edit|image:interface/large/gui_wrench_notebook.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|billboard_edit|image:interface/large/gui_wrench_edit_billboard.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|goals|image:interface/large/gui_wrench_goals_quests.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|bonus|image:interface/large/gui_wrench_daily_bonus_active.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|view_owned_worlds|image:interface/large/gui_wrench_my_worlds.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|alist|image:interface/large/gui_wrench_achievements.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|emojis|image:interface/large/gui_wrench_growmojis.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_button|marvelous_missions|image:interface/large/gui_wrench_marvelous_missions.rttex;image_size:400,260;width:0.19;|")
-        ->AddCustomLine("add_custom_break|")
-        ->AddSpacer()
-        ->AddTextBox("`wActive effects:``", false)
-        ->AddCustomLine(activeEffects)
-        ->AddSpacer()
-        ->AddTextBox("`oYou have `w" + ToString(bagSlots) + "`` backpack slots.``")
-        ->AddTextBox("`oCurrent world: `w" + worldName + "`` (`w" + ToString(tileX) + "``, `w" + ToString(tileY) + "``) (`w" + ToString(worldPlayers) + "`` person).``")
-        ->AddTextBox("`oYou are standing on the note `w\"" + standingNote + "\"``.")
-        ->AddTextBox("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
-        ->AddSpacer()
-        ->AddButton("SocialProfile", "Social Profile")
-        ->AddButton("PlayerStats", "Player Stats")
-        ->AddButton("Settings", "Settings")
-        ->AddButton("Titles", "Title Settings")
-        ->AddButton("Worlds", "My Worlds")
-        ->EndDialog("WrenchSelf", "", "Continue")
-        ->AddQuickExit();
+        const uint32 onlineFriends = CountOnlineFriends();
+
+        db.EmbedData("invitedGuildID", 0)
+            ->EmbedData("worldName", worldName)
+            ->EmbedData("netID", GetNetID())
+            ->AddCustomLine("add_player_info|`2" + GetDisplayName() + "``|" + ToString(GetLevel()) + "|" + ToString(GetXP()) + "|" + ToString(GetLevel() * 1500) + "|")
+            ->AddSpacer()
+            ->AddButton("change_password", "`oChange Password")
+            ->AddButton("open_social_portal", "`oSocial Portal")
+            ->AddCustomLine("set_custom_spacing|x:5;y:10|")
+            ->AddCustomLine("add_custom_button|ske_titles|image:interface/large/gui_wrench_title.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|set_online_status|image:interface/large/gui_wrench_online_status_1green.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|notebook_edit|image:interface/large/gui_wrench_notebook.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|billboard_edit|image:interface/large/gui_wrench_edit_billboard.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|goals|image:interface/large/gui_wrench_goals_quests.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|bonus|image:interface/large/gui_wrench_daily_bonus_active.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|view_owned_worlds|image:interface/large/gui_wrench_my_worlds.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|alist|image:interface/large/gui_wrench_achievements.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|emojis|image:interface/large/gui_wrench_growmojis.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_button|marvelous_missions|image:interface/large/gui_wrench_marvelous_missions.rttex;image_size:400,260;width:0.19;|")
+            ->AddCustomLine("add_custom_break|")
+            ->AddSpacer()
+            ->AddTextBox("`wActive effects:``", false)
+            ->AddCustomLine(activeEffects)
+            ->AddSpacer()
+            ->AddTextBox("`oYou have `w" + ToString(bagSlots) + "`` backpack slots.``")
+            ->AddTextBox("`oCurrent world: `w" + worldName + "`` (`w" + ToString(tileX) + "``, `w" + ToString(tileY) + "``) (`w" + ToString(worldPlayers) + "`` person).``")
+            ->AddTextBox("`oYou are standing on the note \"`w" + standingNote + "`o\".``")
+            ->AddTextBox("`oFriends online: `w" + ToString(onlineFriends) + "`` / `w" + ToString((uint32)m_friendUserIDs.size()) + "``")
+            ->AddTextBox("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
+            ->AddSpacer()
+            ->AddButton("SocialProfile", "Social Profile")
+            ->AddButton("PlayerStats", "Player Stats")
+            ->AddButton("Settings", "Settings")
+            ->AddButton("Titles", "Title Settings")
+            ->AddButton("Worlds", "My Worlds")
+            ->EndDialog("WrenchSelf", "", "Continue")
+            ->AddQuickExit();
     }
     else if(page == "SocialProfile") {
         db.AddLabelWithIcon("`wSocial Profile``", ITEM_ID_WRENCH, true)
@@ -1129,6 +1199,32 @@ void GamePlayer::SendWrenchSelf(std::string page)
         SendWrenchSelf("PlayerInfo");
         return;
     }
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendSocialPortal()
+{
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wSocial Portal``", ITEM_ID_WRENCH, true)
+        ->AddSpacer()
+        ->AddLabel("`oFriends online: `w" + ToString(CountOnlineFriends()) + "`` / `w" + ToString((uint32)m_friendUserIDs.size()) + "``")
+        ->AddLabel("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
+        ->AddSpacer()
+        ->AddButton("GotoFriendsMenu", "Show Friends")
+        ->AddButton("FriendAll", "Show Offline + Online")
+        ->AddButton("SeeSent", "Sent Friend Requests")
+        ->AddButton("SeeReceived", "Received Friend Requests")
+        ->AddButton("FriendsOptions", "Friend Options")
+        ->AddButton("ToggleFriendNotif", "Toggle Friend Notifications")
+        ->AddSpacer()
+        ->AddButton("GotoGuildMenu", "Guild Menu")
+        ->AddButton("CreateGuild", "Create Guild")
+        ->AddButton("GotoTradeHistory", "Trade History")
+        ->AddButton("BackToWrench", "Back to Wrench")
+        ->AddQuickExit()
+        ->EndDialog("SocialPortal", "", "OK");
 
     SendOnDialogRequest(db.Get());
 }
@@ -1189,6 +1285,59 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
 
 void GamePlayer::SendFriendMenu(const string& action)
 {
+    if(action == "SeeSent") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wSent Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
+            ->AddSpacer();
+
+        if(m_sentFriendRequestUserIDs.empty()) {
+            db.AddLabel("You have no pending sent friend requests.");
+        }
+        else {
+            for(uint32 userID : m_sentFriendRequestUserIDs) {
+                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
+                const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
+                db.AddLabel("`o- ``" + name);
+            }
+        }
+
+        db.AddSpacer()
+            ->AddButton("GotoFriendsMenu", "Back")
+            ->EndDialog("FriendMenu", "", "Close");
+
+        SendOnDialogRequest(db.Get());
+        return;
+    }
+
+    if(action == "SeeReceived") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wReceived Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
+            ->AddSpacer();
+
+        if(m_receivedFriendRequestUserIDs.empty()) {
+            db.AddLabel("You have no pending received friend requests.");
+        }
+        else {
+            for(uint32 userID : m_receivedFriendRequestUserIDs) {
+                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
+                const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
+
+                db.AddLabel("`o" + name)
+                    ->AddButton("friend_accept_" + ToString(userID), "Accept")
+                    ->AddButton("friend_deny_" + ToString(userID), "Deny")
+                    ->AddSpacer();
+            }
+        }
+
+        db.AddButton("GotoFriendsMenu", "Back")
+            ->EndDialog("FriendMenu", "", "Close");
+
+        SendOnDialogRequest(db.Get());
+        return;
+    }
+
     if(action == "FriendsOptions") {
         DialogBuilder db;
         db.SetDefaultColor('o')
@@ -1253,7 +1402,7 @@ void GamePlayer::SendFriendMenu(const string& action)
             ->AddButton("FriendsOptions", "Friend Options")
       ->AddButton("SeeSent", "Sent Friend Requests (`$" + ToString((uint32)m_sentFriendRequestUserIDs.size()) + "``)")
       ->AddButton("SeeReceived", "Received Friend Requests (`$" + ToString((uint32)m_receivedFriendRequestUserIDs.size()) + "``)")
-      ->AddButton("GotoSocialPortal", "Back")
+        ->AddButton("GotoSocialPortal", "Back")
       ->EndDialog("FriendMenu", "", "Close");
 
     SendOnDialogRequest(db.Get());
@@ -1396,6 +1545,10 @@ void GamePlayer::SendFriendRequestTo(GamePlayer* otherPlayer)
 
     m_sentFriendRequestUserIDs.insert(otherUserID);
     otherPlayer->m_receivedFriendRequestUserIDs.insert(GetUserID());
+    SyncSocialDataToStats();
+    otherPlayer->SyncSocialDataToStats();
+    SaveSocialDataToDatabase();
+    otherPlayer->SaveSocialDataToDatabase();
 
     SendOnTalkBubble("`5[``Friend request sent to `w" + otherPlayer->GetDisplayName() + "`` `5]``", true);
     otherPlayer->SendOnConsoleMessage("`3FRIEND REQUEST:`` You've received a friend request from `w" + GetDisplayName() + "``. Wrench this player and choose `wAdd as Friend`` to accept.");
@@ -1448,7 +1601,12 @@ void GamePlayer::DenyFriendRequestFrom(uint32 userID)
     if(pOther) {
         pOther->m_sentFriendRequestUserIDs.erase(GetUserID());
         pOther->m_receivedFriendRequestUserIDs.erase(GetUserID());
+        pOther->SyncSocialDataToStats();
+        pOther->SaveSocialDataToDatabase();
     }
+
+    SyncSocialDataToStats();
+    SaveSocialDataToDatabase();
 }
 
 bool GamePlayer::AddFriendUserID(uint32 userID)
@@ -1457,7 +1615,13 @@ bool GamePlayer::AddFriendUserID(uint32 userID)
         return false;
     }
 
-    return m_friendUserIDs.insert(userID).second;
+    const bool added = m_friendUserIDs.insert(userID).second;
+    if(added) {
+        SyncSocialDataToStats();
+        SaveSocialDataToDatabase();
+    }
+
+    return added;
 }
 
 bool GamePlayer::RemoveFriendUserID(uint32 userID)
@@ -1466,7 +1630,13 @@ bool GamePlayer::RemoveFriendUserID(uint32 userID)
         return false;
     }
 
-    return m_friendUserIDs.erase(userID) > 0;
+    const bool removed = m_friendUserIDs.erase(userID) > 0;
+    if(removed) {
+        SyncSocialDataToStats();
+        SaveSocialDataToDatabase();
+    }
+
+    return removed;
 }
 
 bool GamePlayer::IsIgnoring(uint32 userID) const
@@ -1484,7 +1654,13 @@ bool GamePlayer::AddIgnoredUserID(uint32 userID)
         return false;
     }
 
-    return m_ignoredUserIDs.insert(userID).second;
+    const bool added = m_ignoredUserIDs.insert(userID).second;
+    if(added) {
+        SyncSocialDataToStats();
+        SaveSocialDataToDatabase();
+    }
+
+    return added;
 }
 
 bool GamePlayer::RemoveIgnoredUserID(uint32 userID)
@@ -1493,7 +1669,141 @@ bool GamePlayer::RemoveIgnoredUserID(uint32 userID)
         return false;
     }
 
-    return m_ignoredUserIDs.erase(userID) > 0;
+    const bool removed = m_ignoredUserIDs.erase(userID) > 0;
+    if(removed) {
+        SyncSocialDataToStats();
+        SaveSocialDataToDatabase();
+    }
+
+    return removed;
+}
+
+void GamePlayer::SyncSocialDataToStats()
+{
+    auto shouldErase = [](const string& key) {
+        return key.rfind(kFriendStatPrefix, 0) == 0 ||
+            key.rfind(kFriendReqOutPrefix, 0) == 0 ||
+            key.rfind(kFriendReqInPrefix, 0) == 0 ||
+            key.rfind(kIgnoredStatPrefix, 0) == 0;
+    };
+
+    for(auto it = m_stats.begin(); it != m_stats.end();) {
+        if(shouldErase(it->first)) {
+            it = m_stats.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    for(uint32 userID : m_friendUserIDs) {
+        if(userID != 0) {
+            m_stats[string(kFriendStatPrefix) + ToString(userID)] = 1;
+        }
+    }
+
+    for(uint32 userID : m_sentFriendRequestUserIDs) {
+        if(userID != 0) {
+            m_stats[string(kFriendReqOutPrefix) + ToString(userID)] = 1;
+        }
+    }
+
+    for(uint32 userID : m_receivedFriendRequestUserIDs) {
+        if(userID != 0) {
+            m_stats[string(kFriendReqInPrefix) + ToString(userID)] = 1;
+        }
+    }
+
+    for(uint32 userID : m_ignoredUserIDs) {
+        if(userID != 0) {
+            m_stats[string(kIgnoredStatPrefix) + ToString(userID)] = 1;
+        }
+    }
+}
+
+void GamePlayer::LoadSocialDataFromStats()
+{
+    m_friendUserIDs.clear();
+    m_sentFriendRequestUserIDs.clear();
+    m_receivedFriendRequestUserIDs.clear();
+    m_ignoredUserIDs.clear();
+
+    for(const auto& entry : m_stats) {
+        uint32 userID = 0;
+
+        if(entry.first.rfind(kFriendStatPrefix, 0) == 0) {
+            if(ToUInt(entry.first.substr(strlen(kFriendStatPrefix)), userID) == TO_INT_SUCCESS && userID != 0 && userID != GetUserID()) {
+                m_friendUserIDs.insert(userID);
+            }
+            continue;
+        }
+
+        if(entry.first.rfind(kFriendReqOutPrefix, 0) == 0) {
+            if(ToUInt(entry.first.substr(strlen(kFriendReqOutPrefix)), userID) == TO_INT_SUCCESS && userID != 0 && userID != GetUserID()) {
+                m_sentFriendRequestUserIDs.insert(userID);
+            }
+            continue;
+        }
+
+        if(entry.first.rfind(kFriendReqInPrefix, 0) == 0) {
+            if(ToUInt(entry.first.substr(strlen(kFriendReqInPrefix)), userID) == TO_INT_SUCCESS && userID != 0 && userID != GetUserID()) {
+                m_receivedFriendRequestUserIDs.insert(userID);
+            }
+            continue;
+        }
+
+        if(entry.first.rfind(kIgnoredStatPrefix, 0) == 0) {
+            if(ToUInt(entry.first.substr(strlen(kIgnoredStatPrefix)), userID) == TO_INT_SUCCESS && userID != 0 && userID != GetUserID()) {
+                m_ignoredUserIDs.insert(userID);
+            }
+        }
+    }
+}
+
+void GamePlayer::SaveSocialDataToDatabase()
+{
+    if(m_userID == 0) {
+        return;
+    }
+
+    DatabasePool* pPool = GetContext()->GetDatabasePool();
+    const int32 ownerID = GetNetID();
+
+    QueryRequest deleteFriendsReq = MakeDeletePlayerFriendsReq(m_userID, ownerID);
+    DatabasePlayerExec(pPool, DB_PLAYER_DELETE_FRIENDS, deleteFriendsReq);
+
+    for(uint32 friendUserID : m_friendUserIDs) {
+        if(friendUserID == 0 || friendUserID == m_userID) {
+            continue;
+        }
+
+        QueryRequest insertFriendReq = MakeInsertPlayerFriendReq(m_userID, friendUserID, ownerID);
+        DatabasePlayerExec(pPool, DB_PLAYER_INSERT_FRIEND, insertFriendReq);
+    }
+
+    QueryRequest deleteFriendRequestsReq = MakeDeletePlayerFriendRequestsReq(m_userID, ownerID);
+    DatabasePlayerExec(pPool, DB_PLAYER_DELETE_FRIEND_REQUESTS, deleteFriendRequestsReq);
+
+    for(uint32 targetUserID : m_sentFriendRequestUserIDs) {
+        if(targetUserID == 0 || targetUserID == m_userID) {
+            continue;
+        }
+
+        QueryRequest insertRequestReq = MakeInsertPlayerFriendRequestReq(m_userID, targetUserID, ownerID);
+        DatabasePlayerExec(pPool, DB_PLAYER_INSERT_FRIEND_REQUEST, insertRequestReq);
+    }
+
+    QueryRequest deleteIgnoresReq = MakeDeletePlayerIgnoresReq(m_userID, ownerID);
+    DatabasePlayerExec(pPool, DB_PLAYER_DELETE_IGNORES, deleteIgnoresReq);
+
+    for(uint32 ignoredUserID : m_ignoredUserIDs) {
+        if(ignoredUserID == 0 || ignoredUserID == m_userID) {
+            continue;
+        }
+
+        QueryRequest insertIgnoreReq = MakeInsertPlayerIgnoreReq(m_userID, ignoredUserID, ownerID);
+        DatabasePlayerExec(pPool, DB_PLAYER_INSERT_IGNORE, insertIgnoreReq);
+    }
 }
 
 bool GamePlayer::IsMuted() const
@@ -1660,6 +1970,8 @@ void GamePlayer::LoadStatistics(const std::string& data)
 
         m_stats[key] = (uint64)value;
     }
+
+    LoadSocialDataFromStats();
 }
 
 void GamePlayer::IncreaseStat(const std::string& statName, uint64 amount)
@@ -1761,6 +2073,12 @@ void GamePlayer::OnHandleDatabase(QueryTaskResult&& result)
         const int32 subType = result.extraData[0].GetINT();
         if(subType == PLAYER_SUB_PBAN_BY_PREFIX || subType == PLAYER_SUB_PBAN_BY_USERID) {
             HandlePBanRequestResult(std::move(result));
+            result.Destroy();
+            return;
+        }
+
+        if(subType == PLAYER_SUB_SOCIAL_LOAD) {
+            HandleSocialDataLoad(std::move(result));
             result.Destroy();
             return;
         }
@@ -1929,6 +2247,76 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         }
     }
 
+    RequestSocialDataLoad();
+}
+
+void GamePlayer::RequestSocialDataLoad()
+{
+    SetState(PLAYER_STATE_LOADING_SOCIAL);
+
+    QueryRequest req = MakeGetPlayerSocialDataReq(m_userID, GetNetID());
+    req.extraData.resize(1);
+    req.extraData[0] = PLAYER_SUB_SOCIAL_LOAD;
+    DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_SOCIAL_DATA, req);
+}
+
+void GamePlayer::HandleSocialDataLoad(QueryTaskResult&& result)
+{
+    RemoveState(PLAYER_STATE_LOADING_SOCIAL);
+
+    const bool hadLegacySocialData =
+        !m_friendUserIDs.empty() ||
+        !m_sentFriendRequestUserIDs.empty() ||
+        !m_receivedFriendRequestUserIDs.empty() ||
+        !m_ignoredUserIDs.empty();
+
+    bool loadedFromTable = false;
+    if(result.result) {
+        const uint32 rowCount = result.result->GetRowCount();
+
+        m_friendUserIDs.clear();
+        m_sentFriendRequestUserIDs.clear();
+        m_receivedFriendRequestUserIDs.clear();
+        m_ignoredUserIDs.clear();
+
+        for(uint32 i = 0; i < rowCount; ++i) {
+            const uint32 relationType = result.result->GetField("relation_type", i).GetUINT();
+            const uint32 sourceUserID = result.result->GetField("source_user_id", i).GetUINT();
+            const uint32 targetUserID = result.result->GetField("target_user_id", i).GetUINT();
+
+            if(relationType == 1) {
+                if(targetUserID != 0 && targetUserID != GetUserID()) {
+                    m_friendUserIDs.insert(targetUserID);
+                }
+                continue;
+            }
+
+            if(relationType == 2) {
+                if(sourceUserID == GetUserID() && targetUserID != 0 && targetUserID != GetUserID()) {
+                    m_sentFriendRequestUserIDs.insert(targetUserID);
+                }
+                else if(targetUserID == GetUserID() && sourceUserID != 0 && sourceUserID != GetUserID()) {
+                    m_receivedFriendRequestUserIDs.insert(sourceUserID);
+                }
+                continue;
+            }
+
+            if(relationType == 3) {
+                if(targetUserID != 0 && targetUserID != GetUserID()) {
+                    m_ignoredUserIDs.insert(targetUserID);
+                }
+            }
+        }
+
+        loadedFromTable = rowCount > 0;
+    }
+
+    if(!loadedFromTable && hadLegacySocialData) {
+        SaveSocialDataToDatabase();
+    }
+
+    SyncSocialDataToStats();
+
     SetState(PLAYER_STATE_ENTERING_GAME);
     TransferingPlayerToGame();
 }
@@ -2079,6 +2467,8 @@ void GamePlayer::HandleCreateGrowID(QueryTaskResult&& result)
 
 void GamePlayer::SaveToDatabase()
 {
+    SyncSocialDataToStats();
+
     uint32 invMemSize = m_inventory.GetMemEstimate(true);
     uint8* pInvData = new uint8[invMemSize];
 
@@ -2101,6 +2491,7 @@ void GamePlayer::SaveToDatabase()
     );
     
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_SAVE, req);
+    SaveSocialDataToDatabase();
     SAFE_DELETE_ARRAY(pInvData);
 }
 
@@ -2135,8 +2526,22 @@ void GamePlayer::ResetDailyRewardProgressIfNewDay(uint32 currentEpochDay)
 
 void GamePlayer::LogOff()
 {
+    if(m_loggingOff) {
+        return;
+    }
+
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
     bool switchingSubserver = m_switchingSubserver;
+    const bool canSaveAccount = !switchingSubserver && m_userID != 0 && m_pRole != nullptr;
+
+    if(IsTrading()) {
+        CancelTrade(false);
+    }
+
+    // Persist first on disconnect so runtime cleanup cannot cause account rollback.
+    if(canSaveAccount) {
+        SaveToDatabase();
+    }
 
     if(isInGame && !switchingSubserver) {
         NotifyFriendsStatusChange(false);
@@ -2151,10 +2556,6 @@ void GamePlayer::LogOff()
         if(pWorld) {
             pWorld->PlayerLeaverWorld(this);
         }
-    }
-
-    if(isInGame) {
-        SaveToDatabase();
     }
 
     SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log_off\n", m_pPeer);

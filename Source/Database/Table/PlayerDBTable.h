@@ -22,7 +22,14 @@ enum ePlayerDBQuery
     DB_PLAYER_GROWID_RENAME,
     DB_PLAYER_FIND_BY_NAME_PREFIX,
     DB_PLAYER_GET_BASIC_BY_ID,
-    DB_PLAYER_APPEND_PBAN_STATS_BY_ID
+    DB_PLAYER_APPEND_PBAN_STATS_BY_ID,
+    DB_PLAYER_GET_SOCIAL_DATA,
+    DB_PLAYER_DELETE_FRIENDS,
+    DB_PLAYER_INSERT_FRIEND,
+    DB_PLAYER_DELETE_FRIEND_REQUESTS,
+    DB_PLAYER_INSERT_FRIEND_REQUEST,
+    DB_PLAYER_DELETE_IGNORES,
+    DB_PLAYER_INSERT_IGNORE
 };
 
 void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred = false);
@@ -47,5 +54,12 @@ QueryRequest MakePlayerGrowIDRename(uint32 userID, const string& name, int32 own
 QueryRequest MakeFindPlayersByNamePrefix(const string& prefix, int32 ownerID);
 QueryRequest MakeGetPlayerBasicByID(uint32 userID, int32 ownerID);
 QueryRequest MakeAppendPlayerPBanStatsByID(uint32 userID, uint32 banUntilEpochSec, uint32 banSetAtEpochSec, uint32 durationSec, int32 ownerID);
+QueryRequest MakeGetPlayerSocialDataReq(uint32 userID, int32 ownerID);
+QueryRequest MakeDeletePlayerFriendsReq(uint32 userID, int32 ownerID);
+QueryRequest MakeInsertPlayerFriendReq(uint32 userID, uint32 friendUserID, int32 ownerID);
+QueryRequest MakeDeletePlayerFriendRequestsReq(uint32 userID, int32 ownerID);
+QueryRequest MakeInsertPlayerFriendRequestReq(uint32 requesterUserID, uint32 targetUserID, int32 ownerID);
+QueryRequest MakeDeletePlayerIgnoresReq(uint32 userID, int32 ownerID);
+QueryRequest MakeInsertPlayerIgnoreReq(uint32 userID, uint32 ignoredUserID, int32 ownerID);
 
 void ExecUpdatePlayerIdentifier(DatabasePool* pPool, uint32 userID, const string& mac, const string& vid, const string& sid, const string& rid, const string& gid, int32 hash, int32 ownerID);

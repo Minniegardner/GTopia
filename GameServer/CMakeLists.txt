@@ -78,6 +78,11 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
     ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
     ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
+    ${GAME_EVENT}/UDP/GameMessage/TradeStarted.cpp
+    ${GAME_EVENT}/UDP/GameMessage/TradeCancel.cpp
+    ${GAME_EVENT}/UDP/GameMessage/TradeAccept.cpp
+    ${GAME_EVENT}/UDP/GameMessage/TradeRemove.cpp
+    ${GAME_EVENT}/UDP/GameMessage/TradeModify.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/PlayerCollect.cpp
@@ -145,6 +150,7 @@ set(GAME_FILES PRIVATE
 
     ${GAME_DIALOG}/PlayerDialog.cpp
     ${GAME_DIALOG}/SignDialog.cpp
+    ${GAME_DIALOG}/PathMarkerDialog.cpp
     ${GAME_DIALOG}/TrashDialog.cpp
     ${GAME_DIALOG}/DropDialog.cpp
     ${GAME_DIALOG}/LockDialog.cpp

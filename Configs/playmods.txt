@@ -70,6 +70,7 @@ set_timer|1800|
 
 add_playmod|3722|Slimed|You're covered in ectoplasm!|You got cleaned up.|
 set_skin_color|255,255,255,100|
+set_timer|6|
 
 add_playmod|1280|Recently Name Changed|You're stuck with this name for a while!|You're free to change your name now!|
 set_timer|5184000|

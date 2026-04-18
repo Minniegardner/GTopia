@@ -93,5 +93,4 @@ void Ban::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     pWorld->BanPlayer(pTarget, pPlayer, banHours);
     pWorld->ForceLeavePlayer(pTarget);
-    pPlayer->SendOnConsoleMessage("`oBanned ``" + pTarget->GetDisplayName() + "`` from this world for `w" + ToString(banHours) + "`` hour(s).");
 }

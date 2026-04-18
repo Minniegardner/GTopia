@@ -80,6 +80,4 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     pWorld->PullPlayer(pTarget, pPlayer);
-    pTarget->SendOnConsoleMessage("`oPulled by ``" + pPlayer->GetDisplayName() + "``.");
-    pPlayer->SendOnConsoleMessage("`oPulled ``" + pTarget->GetDisplayName() + "``.");
 }

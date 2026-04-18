@@ -2,6 +2,7 @@
 #include "IO/Log.h"
 
 #include "../../../Player/Dialog/SignDialog.h"
+#include "../../../Player/Dialog/PathMarkerDialog.h"
 #include "../../../Player/Dialog/TrashDialog.h"
 #include "../../../Player/Dialog/DropDialog.h"
 #include "../../../Player/Dialog/LockDialog.h"
@@ -400,12 +401,17 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 buttonClicked == "goals" || buttonClicked == "bonus" ||
                 buttonClicked == "view_owned_worlds" || buttonClicked == "alist" ||
                 buttonClicked == "emojis" || buttonClicked == "marvelous_missions" ||
-                buttonClicked == "change_password")
+                buttonClicked == "change_password" || buttonClicked == "open_social_portal")
             {
                 if(buttonClicked == "Settings") {
                     bool showFriendNotifications = pPlayer->IsShowFriendNotification();
                     ParseBoolField(packet, CompileTimeHashString("checkbox_friend_alert"), showFriendNotifications);
                     pPlayer->SetShowFriendNotification(showFriendNotifications);
+                }
+
+                if(buttonClicked == "open_social_portal") {
+                    pPlayer->SendSocialPortal();
+                    break;
                 }
 
                 pPlayer->SendWrenchSelf(buttonClicked);
@@ -660,10 +666,14 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             break;
         }
 
-        case CompileTimeHashString("sign_edit"): {
+        case CompileTimeHashString("sign_edit"):
+        case CompileTimeHashString("SignEdit"): {
             auto pTileX = packet.Find(CompileTimeHashString("tilex"));
             auto pTileY = packet.Find(CompileTimeHashString("tiley"));
             auto pSignText = packet.Find(CompileTimeHashString("sign_text"));
+            if(!pSignText) {
+                pSignText = packet.Find(CompileTimeHashString("Text"));
+            }
 
             if(!pTileX || !pTileY || !pSignText) {
                 return;
@@ -683,7 +693,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
-            SignDialog::Handle(pPlayer, string(pSignText->value, pSignText->size), tileX, tileY);
+            World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+            TileInfo* pTile = pWorld ? pWorld->GetTileManager()->GetTile(tileX, tileY) : nullptr;
+
+            if(pTile) {
+                const uint16 itemID = pTile->GetDisplayedItem();
+                if(itemID == ITEM_ID_OBJECTIVE_MARKER || itemID == ITEM_ID_PATH_MARKER || itemID == ITEM_ID_CARNIVAL_LANDING) {
+                    PathMarkerDialog::Handle(pPlayer, string(pSignText->value, pSignText->size), tileX, tileY);
+                }
+                else {
+                    SignDialog::Handle(pPlayer, string(pSignText->value, pSignText->size), tileX, tileY);
+                }
+            }
             break;
         }
 
@@ -1398,7 +1419,8 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             break;
         }
 
-        case CompileTimeHashString("door_edit"): {
+        case CompileTimeHashString("door_edit"):
+        case CompileTimeHashString("DoorEdit"): {
             DoorDialog::Handle(pPlayer, packet);
             break;
         }
@@ -1548,6 +1570,55 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             if(buttonClicked == "GotoFriendsMenu") {
                 pPlayer->SendFriendMenu("GotoFriendsMenu");
             }
+            else if(buttonClicked == "FriendAll") {
+                pPlayer->SendFriendMenu("FriendAll");
+            }
+            else if(buttonClicked == "SeeSent") {
+                pPlayer->SendFriendMenu("SeeSent");
+            }
+            else if(buttonClicked == "SeeReceived") {
+                pPlayer->SendFriendMenu("SeeReceived");
+            }
+            else if(buttonClicked == "FriendsOptions") {
+                pPlayer->SendFriendMenu("FriendsOptions");
+            }
+            else if(buttonClicked == "ToggleFriendNotif") {
+                pPlayer->SetShowFriendNotification(!pPlayer->IsShowFriendNotification());
+                pPlayer->SendOnConsoleMessage(string("`oFriend notifications are now ") + (pPlayer->IsShowFriendNotification() ? "`2enabled``." : "`4disabled``."));
+                pPlayer->SendSocialPortal();
+            }
+            else if(buttonClicked == "GotoGuildMenu" || buttonClicked == "CreateGuild") {
+                pPlayer->SendOnConsoleMessage("`oGuild feature is not available in this source build yet.``");
+                pPlayer->SendSocialPortal();
+            }
+            else if(buttonClicked == "GotoTradeHistory") {
+                DialogBuilder db;
+                db.SetDefaultColor('o')
+                    ->AddLabelWithIcon("`wTrade History``", ITEM_ID_WRENCH, true)
+                    ->AddSpacer();
+
+                const auto& history = pPlayer->GetTradeHistory();
+                if(history.empty()) {
+                    db.AddLabel("No recent trade history.");
+                }
+                else {
+                    for(const auto& entry : history) {
+                        db.AddLabel("`o- ``" + entry);
+                    }
+                }
+
+                db.AddSpacer()
+                    ->AddButton("BackToSocialPortal", "Back")
+                    ->EndDialog("SocialPortal", "", "Close");
+
+                pPlayer->SendOnDialogRequest(db.Get());
+            }
+            else if(buttonClicked == "BackToSocialPortal") {
+                pPlayer->SendSocialPortal();
+            }
+            else if(buttonClicked == "BackToWrench") {
+                pPlayer->SendWrenchSelf("PlayerInfo");
+            }
             break;
         }
 
@@ -1559,7 +1630,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
             if(buttonClicked == "GotoSocialPortal") {
-                pPlayer->SendWrenchSelf("SocialProfile");
+                pPlayer->SendSocialPortal();
             }
             else if(buttonClicked == "FriendAll") {
                 pPlayer->SendFriendMenu("FriendAll");
@@ -1576,12 +1647,35 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pPlayer->SendFriendMenu("GotoFriendsMenu");
             }
             else if(buttonClicked == "SeeSent") {
-                pPlayer->SendOnConsoleMessage("`oSent requests are shown in wrench interactions.``");
-                pPlayer->SendFriendMenu("GotoFriendsMenu");
+                pPlayer->SendFriendMenu("SeeSent");
             }
             else if(buttonClicked == "SeeReceived") {
-                pPlayer->SendOnConsoleMessage("`oReceived requests can be accepted from wrench by choosing Add as Friend.``");
-                pPlayer->SendFriendMenu("GotoFriendsMenu");
+                pPlayer->SendFriendMenu("SeeReceived");
+            }
+            else if(buttonClicked.rfind("friend_accept_", 0) == 0) {
+                uint32 userID = 0;
+                if(ToUInt(buttonClicked.substr(14), userID) == TO_INT_SUCCESS && userID != 0) {
+                    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
+                    if(pTarget) {
+                        if(!pPlayer->AcceptFriendRequestFrom(pTarget)) {
+                            pPlayer->SendOnConsoleMessage("`4Unable to accept this friend request right now.``");
+                        }
+                    }
+                    else {
+                        pPlayer->DenyFriendRequestFrom(userID);
+                        pPlayer->SendOnConsoleMessage("`oRequest cleaned up because that player is offline.``");
+                    }
+                }
+
+                pPlayer->SendFriendMenu("SeeReceived");
+            }
+            else if(buttonClicked.rfind("friend_deny_", 0) == 0) {
+                uint32 userID = 0;
+                if(ToUInt(buttonClicked.substr(12), userID) == TO_INT_SUCCESS && userID != 0) {
+                    pPlayer->DenyFriendRequestFrom(userID);
+                }
+
+                pPlayer->SendFriendMenu("SeeReceived");
             }
             break;
         }

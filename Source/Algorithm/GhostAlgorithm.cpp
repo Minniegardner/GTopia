@@ -384,6 +384,7 @@ void ResolveJar(World* pWorld, GhostWorldState& state, const GhostEntity& jar)
 
     RemoveEntity(pWorld, state, capturedGhostID);
     pWorld->SendParticleEffectToAll(jar.pos.x, jar.pos.y, 44, 0, 0);
+    pWorld->PlaySFXForEveryone("audio/terraform.wav", 0);
 
     GamePlayer* pPlacer = GetGameServer()->GetPlayerByUserID(jar.placedByUserID);
     if(!pPlacer) {

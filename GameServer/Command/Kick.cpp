@@ -67,5 +67,4 @@ void Kick::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     pWorld->KickPlayer(pTarget, pPlayer);
-    pPlayer->SendOnConsoleMessage("`oKicked ``" + pTarget->GetDisplayName() + "``.");
 }

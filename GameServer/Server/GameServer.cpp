@@ -75,6 +75,11 @@ string GetWeekdayName(uint32 day)
 #include "../Event/UDP/GameMessage/Buy.h"
 #include "../Event/UDP/GameMessage/Wrench.h"
 #include "../Event/UDP/GameMessage/GrowID.h"
+#include "../Event/UDP/GameMessage/TradeStarted.h"
+#include "../Event/UDP/GameMessage/TradeCancel.h"
+#include "../Event/UDP/GameMessage/TradeAccept.h"
+#include "../Event/UDP/GameMessage/TradeRemove.h"
+#include "../Event/UDP/GameMessage/TradeModify.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
@@ -275,6 +280,11 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<StoreNavigate>(CompileTimeHashString("storenavigate"));
     RegisterMessagePacket<Buy>(CompileTimeHashString("buy"));
     RegisterMessagePacket<GrowID>(CompileTimeHashString("growid"));
+    RegisterMessagePacket<TradeStarted>(CompileTimeHashString("trade_started"));
+    RegisterMessagePacket<TradeCancel>(CompileTimeHashString("trade_cancel"));
+    RegisterMessagePacket<TradeAccept>(CompileTimeHashString("trade_accept"));
+    RegisterMessagePacket<TradeRemove>(CompileTimeHashString("rem_trade"));
+    RegisterMessagePacket<TradeModify>(CompileTimeHashString("mod_trade"));
 
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();

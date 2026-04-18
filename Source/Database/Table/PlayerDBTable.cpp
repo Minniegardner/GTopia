@@ -20,7 +20,14 @@ static TableQuery sQueryTable[] =
     {"UPDATE Players SET Name = ? WHERE ID = ?;", QUERY_FLAG_NONE},
     {"SELECT ID, Name FROM Players WHERE Name LIKE ? ORDER BY Name ASC LIMIT 20;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID, Name FROM Players WHERE ID = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
-    {"UPDATE Players SET StatisticData = CASE WHEN StatisticData IS NULL OR StatisticData = '' THEN CONCAT('PBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) ELSE CONCAT(StatisticData, '\\nPBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) END WHERE ID = ?;", QUERY_FLAG_NONE}
+    {"UPDATE Players SET StatisticData = CASE WHEN StatisticData IS NULL OR StatisticData = '' THEN CONCAT('PBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) ELSE CONCAT(StatisticData, '\\nPBAN_ACTIVE=1\\nPBAN_UNTIL=', ?, '\\nPBAN_SET_AT=', ?, '\\nPBAN_DURATION=', ?, '\\nPBAN_PERMA=', ?) END WHERE ID = ?;", QUERY_FLAG_NONE},
+    {"SELECT relation_type, source_user_id, target_user_id FROM (SELECT 1 AS relation_type, UserID AS source_user_id, FriendUserID AS target_user_id FROM PlayerFriends WHERE UserID = ? UNION ALL SELECT 2 AS relation_type, RequesterUserID AS source_user_id, TargetUserID AS target_user_id FROM PlayerFriendRequests WHERE RequesterUserID = ? OR TargetUserID = ? UNION ALL SELECT 3 AS relation_type, UserID AS source_user_id, IgnoredUserID AS target_user_id FROM PlayerIgnoredUsers WHERE UserID = ?) AS social_rows;", QUERY_FLAG_RETURN_RESULT},
+    {"DELETE FROM PlayerFriends WHERE UserID = ?;", QUERY_FLAG_NONE},
+    {"INSERT IGNORE INTO PlayerFriends (UserID, FriendUserID, CreatedAt) VALUES (?, ?, NOW());", QUERY_FLAG_NONE},
+    {"DELETE FROM PlayerFriendRequests WHERE RequesterUserID = ? OR TargetUserID = ?;", QUERY_FLAG_NONE},
+    {"INSERT IGNORE INTO PlayerFriendRequests (RequesterUserID, TargetUserID, CreatedAt) VALUES (?, ?, NOW());", QUERY_FLAG_NONE},
+    {"DELETE FROM PlayerIgnoredUsers WHERE UserID = ?;", QUERY_FLAG_NONE},
+    {"INSERT IGNORE INTO PlayerIgnoredUsers (UserID, IgnoredUserID, CreatedAt) VALUES (?, ?, NOW());", QUERY_FLAG_NONE}
 };
 
 void DatabasePlayerExec(DatabasePool* pPool, ePlayerDBQuery queryID, QueryRequest& req, bool preapred)
@@ -275,6 +282,83 @@ QueryRequest MakeAppendPlayerPBanStatsByID(uint32 userID, uint32 banUntilEpochSe
     req.data[6] = durationSec;
     req.data[7] = permaFlag;
     req.data[8] = userID;
+    return req;
+}
+
+QueryRequest MakeGetPlayerSocialDataReq(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(4);
+    req.data[0] = userID;
+    req.data[1] = userID;
+    req.data[2] = userID;
+    req.data[3] = userID;
+    return req;
+}
+
+QueryRequest MakeDeletePlayerFriendsReq(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = userID;
+    return req;
+}
+
+QueryRequest MakeInsertPlayerFriendReq(uint32 userID, uint32 friendUserID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = userID;
+    req.data[1] = friendUserID;
+    return req;
+}
+
+QueryRequest MakeDeletePlayerFriendRequestsReq(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = userID;
+    req.data[1] = userID;
+    return req;
+}
+
+QueryRequest MakeInsertPlayerFriendRequestReq(uint32 requesterUserID, uint32 targetUserID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = requesterUserID;
+    req.data[1] = targetUserID;
+    return req;
+}
+
+QueryRequest MakeDeletePlayerIgnoresReq(uint32 userID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(1);
+    req.data[0] = userID;
+    return req;
+}
+
+QueryRequest MakeInsertPlayerIgnoreReq(uint32 userID, uint32 ignoredUserID, int32 ownerID)
+{
+    QueryRequest req;
+    req.ownerID = ownerID;
+
+    req.data.resize(2);
+    req.data[0] = userID;
+    req.data[1] = ignoredUserID;
     return req;
 }
 

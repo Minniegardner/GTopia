@@ -47,3 +47,27 @@ CREATE TABLE `Worlds` (
   KEY `idx_home_server` (`HomeServerID`),
   KEY `idx_name` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `PlayerFriends` (
+  `UserID` int NOT NULL,
+  `FriendUserID` int NOT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`UserID`, `FriendUserID`),
+  KEY `idx_friend_user` (`FriendUserID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `PlayerFriendRequests` (
+  `RequesterUserID` int NOT NULL,
+  `TargetUserID` int NOT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`RequesterUserID`, `TargetUserID`),
+  KEY `idx_friend_request_target` (`TargetUserID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `PlayerIgnoredUsers` (
+  `UserID` int NOT NULL,
+  `IgnoredUserID` int NOT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`UserID`, `IgnoredUserID`),
+  KEY `idx_ignored_user` (`IgnoredUserID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

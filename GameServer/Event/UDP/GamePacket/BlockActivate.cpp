@@ -152,7 +152,14 @@ void BlockActivate::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         case ITEM_TYPE_CHECKPOINT:
         {
             pPlayer->SetRespawnPos(static_cast<float>((pTile->GetPos().x * 32) + 2), static_cast<float>(pTile->GetPos().y * 32));
-            pPlayer->SendOnSetPos((float)pTile->GetPos().x * 32.0f, (float)pTile->GetPos().y * 32.0f);
+
+            const Vector2Int worldSize = pWorld->GetTileManager()->GetSize();
+            const int32 checkpointIndex = (pTile->GetPos().y * worldSize.x) + pTile->GetPos().x;
+
+            VariantVector data(2);
+            data[0] = "SetRespawnPos";
+            data[1] = checkpointIndex;
+            pPlayer->SendCallFunctionPacket(data, pPlayer->GetNetID());
             return;
         }
         case ITEM_TYPE_DONATION_BOX:

@@ -178,10 +178,6 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
         return;
     }
 
-    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
-        return;
-    }
-
     std::vector<TileInfo*> tanks;
     if(!GetTankTiles(pWorld, pProcessorTile, tanks)) {
         CancelChemsynth(pWorld, pProcessorTile);
@@ -197,6 +193,17 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
             wasActive[i] = true;
             activeIndices.push_back(i);
         }
+    }
+
+    // Self-heal saved/runtime desync where processor flag is off but active lanes exist.
+    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(activeIndices.empty()) {
+            return;
+        }
+
+        pProcessorTile->SetFlag(TILE_FLAG_IS_ON);
+        pProcessorTile->RemoveFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
+        pWorld->SendTileUpdate(pProcessorTile);
     }
 
     // Self-heal inconsistent save/runtime states so both active lanes always move.

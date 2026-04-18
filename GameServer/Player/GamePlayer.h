@@ -23,7 +23,8 @@ enum ePlayerState
     PLAYER_STATE_ENTERING_GAME = 1 << 4,
     PLAYER_STATE_IN_GAME = 1 << 5,
     PLAYER_STATE_RENDERING_WORLD = 1 << 6,
-    PLAYER_STATE_CREATING_GROWID = 1 << 7
+    PLAYER_STATE_CREATING_GROWID = 1 << 7,
+    PLAYER_STATE_LOADING_SOCIAL = 1 << 8
 };
 
 enum ePlayerSubState
@@ -32,7 +33,8 @@ enum ePlayerSubState
     PLAYER_SUB_GROWID_CHECK_NAME,
     PLAYER_SUB_GROWID_SUCCESS,
     PLAYER_SUB_PBAN_BY_PREFIX,
-    PLAYER_SUB_PBAN_BY_USERID
+    PLAYER_SUB_PBAN_BY_USERID,
+    PLAYER_SUB_SOCIAL_LOAD
 };
 
 class TileInfo;
@@ -160,6 +162,7 @@ public:
     void SendWrenchSelf(std::string page = "PlayerInfo");
     void SendWrenchOthers(GamePlayer* otherPlayer);
     void SendFriendMenu(const string& action = "GotoFriendsMenu");
+    void SendSocialPortal();
 
     bool IsFriendWith(uint32 userID) const;
     uint32 CountOnlineFriends() const;
@@ -243,6 +246,13 @@ public:
     int32 GetGauntletSwapIndex(int32 slot) const;
     void SetGauntletAvailableSwap(const std::vector<int32>& tiles);
     const std::vector<int32>& GetGauntletAvailableSwap() const { return m_gauntletAvailableSwap; }
+
+private:
+    void SyncSocialDataToStats();
+    void LoadSocialDataFromStats();
+    void RequestSocialDataLoad();
+    void HandleSocialDataLoad(QueryTaskResult&& result);
+    void SaveSocialDataToDatabase();
 
 private:
     struct PendingPBanRequest {
