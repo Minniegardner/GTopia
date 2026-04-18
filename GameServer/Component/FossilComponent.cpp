@@ -2,6 +2,7 @@
 
 #include "../Player/GamePlayer.h"
 #include "../World/World.h"
+#include "Item/ItemInfo.h"
 #include "World/TileInfo.h"
 #include "Utils/DialogBuilder.h"
 
