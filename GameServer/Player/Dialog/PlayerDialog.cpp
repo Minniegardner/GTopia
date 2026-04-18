@@ -4,6 +4,7 @@
 #include "World/TileInfo.h"
 #include "Utils/DialogBuilder.h"
 #include "../../Server/MasterBroadway.h"
+#include "../../World/WorldManager.h"
 
 #include "SignDialog.h"
 #include "LockDialog.h"
@@ -33,6 +34,94 @@ void ShowTelephoneDialog(GamePlayer* pPlayer, TileInfo* pTile)
         ->EmbedData("TileItemID", pTile->GetDisplayedItem())
         ->EndDialog("TelephoneEdit", "Dial", "Hang Up");
 
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void ShowDonationBoxDialog(GamePlayer* pPlayer, TileInfo* pTile)
+{
+    if(!pPlayer || !pTile) {
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    if(!pWorld) {
+        return;
+    }
+
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if(!pItem) {
+        return;
+    }
+
+    TileExtra_DonationBox* pDonation = pTile->GetExtra<TileExtra_DonationBox>();
+    if(!pDonation) {
+        return;
+    }
+
+    const bool hasAccess = pWorld->PlayerHasAccessOnTile(pPlayer, pTile);
+    const size_t donatedCount = pDonation->donatedItems.size();
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`w" + string(pItem->name) + "``", pItem->id, true)
+        ->EmbedData("tilex", pTile->GetPos().x)
+        ->EmbedData("tiley", pTile->GetPos().y)
+        ->EmbedData("TileItemID", pTile->GetDisplayedItem());
+
+    if(hasAccess) {
+        if(donatedCount < 1) {
+            db.AddLabel("The box is currently empty.");
+        }
+        else {
+            db.AddLabel("You have " + ToString(donatedCount) + " gifts waiting:");
+            db.AddSpacer();
+
+            for(const TileExtra_DonatedItem& donated : pDonation->donatedItems) {
+                ItemInfo* pDonatedItem = GetItemInfoManager()->GetItemByID(donated.itemID);
+                const string itemName = pDonatedItem ? string(pDonatedItem->name) : ("Item #" + ToString(donated.itemID));
+                const string checkboxKey = "_dn" + ToString(donated.donateID);
+
+                if(donated.comment.empty()) {
+                    db.AddCheckBox(checkboxKey, itemName + " (`w" + ToString((uint32)donated.amount) + "``) from `w" + donated.username + "``", false);
+                }
+                else {
+                    db.AddCheckBox(checkboxKey, itemName + " (`w" + ToString((uint32)donated.amount) + "``) from `w" + donated.username + "```#- \"" + donated.comment + "\"``", false);
+                }
+            }
+
+            db.AddSpacer()
+                ->AddButton("ClearSelected", "`4Retrieve Selected``")
+                ->AddButton("ClearAll", "`4Retrieve All``")
+                ->AddSpacer();
+        }
+
+        if(donatedCount >= 20) {
+            db.AddLabel("This box already has `w20`` gifts in it, can't add more until you clear them.");
+        }
+        else {
+            db.AddItemPicker("SelectedItem", "`wGive Gift`` (Min rarity: `52``)", "Choose an item to donate");
+        }
+    }
+    else {
+        if(donatedCount < 1) {
+            db.AddLabel("The box is currently empty.");
+        }
+        else {
+            db.AddLabel("You see `w" + ToString(donatedCount) + "`` gifts in the box.");
+        }
+
+        db.AddLabel("Would you like to leave a `9gift`` for the owner?");
+
+        if(donatedCount >= 20) {
+            db.AddLabel("This box already has `w20`` gifts in it, can't add more until you clear them.");
+        }
+        else {
+            db.AddSpacer()
+                ->AddItemPicker("SelectedItem", "`wGive Gift`` (Min rarity: `52``)", "Choose an item to donate");
+        }
+    }
+
+    db.EndDialog("DonationEdit", "", "Cancel");
     pPlayer->SendOnDialogRequest(db.Get());
 }
 
@@ -71,6 +160,11 @@ void PlayerDialog::Handle(GamePlayer* pPlayer, TileInfo* pTile)
 
     if(pItem->type == ITEM_TYPE_VENDING || pItem->id == ITEM_ID_MAGPLANT_5000 || pItem->id == ITEM_ID_UNSTABLE_TESSERACT || pItem->id == ITEM_ID_GAIAS_BEACON) {
         MachineDialog::Request(pPlayer, pTile);
+        return;
+    }
+
+    if(pItem->type == ITEM_TYPE_DONATION_BOX) {
+        ShowDonationBoxDialog(pPlayer, pTile);
         return;
     }
 

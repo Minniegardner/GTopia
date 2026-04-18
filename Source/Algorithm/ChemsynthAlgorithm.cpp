@@ -188,35 +188,47 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
         return;
     }
 
-    std::vector<TileInfo*> tiles;
-    bool foundActive = false;
+    std::array<bool, 10> wasActive{};
+    std::vector<int32> activeIndices;
+    activeIndices.reserve(2);
 
-    for(size_t i = 0; i < tanks.size(); ++i) {
-        TileInfo* pTank = tanks[i];
-        if(!IsTankActive(pTank)) {
+    for(int32 i = 0; i < 10; ++i) {
+        if(IsTankActive(tanks[i])) {
+            wasActive[i] = true;
+            activeIndices.push_back(i);
+        }
+    }
+
+    // Self-heal inconsistent save/runtime states so both active lanes always move.
+    if(activeIndices.empty()) {
+        activeIndices.push_back(0);
+        activeIndices.push_back(5);
+    }
+    else if(activeIndices.size() == 1) {
+        activeIndices.push_back((activeIndices[0] + 5) % 10);
+    }
+    else if(activeIndices.size() > 2) {
+        const int32 primary = activeIndices.front();
+        activeIndices.clear();
+        activeIndices.push_back(primary);
+        activeIndices.push_back((primary + 5) % 10);
+    }
+
+    std::array<bool, 10> nextActive{};
+    for(int32 index : activeIndices) {
+        nextActive[(index + 1) % 10] = true;
+    }
+
+    std::vector<TileInfo*> tiles;
+    tiles.reserve(10);
+
+    for(int32 i = 0; i < 10; ++i) {
+        if(wasActive[i] == nextActive[i]) {
             continue;
         }
 
-        SetTankActive(pTank, false);
-        tiles.push_back(pTank);
-        foundActive = true;
-
-        TileInfo* pNextTank = nullptr;
-        if(i + 1 < tanks.size()) {
-            pNextTank = tanks[i + 1];
-        }
-        else {
-            pNextTank = tanks.front();
-        }
-
-        if(pNextTank) {
-            SetTankActive(pNextTank, true);
-            tiles.push_back(pNextTank);
-        }
-
-        if(i + 1 < tanks.size()) {
-            ++i;
-        }
+        SetTankActive(tanks[i], nextActive[i]);
+        tiles.push_back(tanks[i]);
     }
 
     UpdateTiles(pWorld, tiles);

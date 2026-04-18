@@ -812,6 +812,52 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
+            if(buttonClicked == "ClearSelected") {
+                if(!pWorld->PlayerHasAccessOnTile(pPlayer, pTile)) {
+                    return;
+                }
+
+                auto it = pDonation->donatedItems.begin();
+                while(it != pDonation->donatedItems.end()) {
+                    const string checkboxKey = "_dn" + ToString(it->donateID);
+                    bool selected = false;
+                    if(!ParseBoolField(packet, HashString(checkboxKey), selected) || !selected) {
+                        ++it;
+                        continue;
+                    }
+
+                    ItemInfo* pDonatedItem = GetItemInfoManager()->GetItemByID(it->itemID);
+                    if(!pDonatedItem) {
+                        it = pDonation->donatedItems.erase(it);
+                        continue;
+                    }
+
+                    if(!pPlayer->GetInventory().HaveRoomForItem(it->itemID, it->amount)) {
+                        pPlayer->SendOnConsoleMessage("`4" + ToString(it->amount) + " " + string(pDonatedItem->name) + " won't fit in my inventory.``");
+                        ++it;
+                        continue;
+                    }
+
+                    pPlayer->ModifyInventoryItem(it->itemID, it->amount);
+
+                    const string pickupMsg =
+                        "`7[```5[```w" + pPlayer->GetRawName() +
+                        "`w picked up `5" + ToString(it->amount) + "`` `2" + string(pDonatedItem->name) +
+                        "`` from " + it->username + "``, how nice!`5]```7]``";
+                    pWorld->SendTalkBubbleAndConsoleToAll(pickupMsg, false, pPlayer);
+
+                    it = pDonation->donatedItems.erase(it);
+                }
+
+                if(pDonation->donatedItems.empty()) {
+                    pTile->RemoveFlag(TILE_FLAG_IS_ON);
+                }
+
+                pWorld->SendTileUpdate(pTile);
+                pPlayer->PlaySFX("page_turn.wav");
+                return;
+            }
+
             int32 selectedItemID = -1;
             if(!ParseIntField(packet, CompileTimeHashString("SelectedItem"), selectedItemID)) {
                 ParseIntField(packet, CompileTimeHashString("SelectItem"), selectedItemID);

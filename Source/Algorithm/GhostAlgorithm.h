@@ -9,7 +9,7 @@ class TileInfo;
 
 namespace GhostAlgorithm {
 bool PlaceGhostJar(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile);
-bool SpawnGhostAt(World* pWorld, const Vector2Float& worldPos);
+bool SpawnGhostAt(World* pWorld, const Vector2Float& worldPos, uint8 requestedType = 0);
 bool SpawnGhostNearPlayer(GamePlayer* pPlayer, World* pWorld);
 void PullGhostsTowardPlayer(World* pWorld, const Vector2Float& playerPos, const Vector2Float& beamTilePos);
 void ClearWorldGhosts(World* pWorld);
