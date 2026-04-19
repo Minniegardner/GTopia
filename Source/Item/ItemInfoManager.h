@@ -39,12 +39,14 @@ public:
     ItemInfo* GetItemByName(const string& name);
     uint32 GetItemCount() const { return m_itemCount; }
     uint32 GetClientIDByItemID(uint32 itemID) const;
+    uint32 GetServerIDByClientID(uint32 clientItemID) const;
 
     ItemsClientData& GetClientData(uint8 platformType);
 
     const std::vector<ItemInfo>& GetItems() const { return m_items; } 
 
 private:
+    void RebuildLookupCaches();
     void SetupItemExtras();
     void CreateDefaultSeedForItem(ItemInfo* pItem);
 
@@ -56,6 +58,8 @@ private:
     ItemsClientData m_itemDataOgg;
 
     std::vector<ItemInfo> m_items;
+    std::unordered_map<string, uint32> m_itemNameToID;
+    std::unordered_map<uint32, uint32> m_clientItemToServerItem;
 };
 
 ItemInfoManager* GetItemInfoManager();

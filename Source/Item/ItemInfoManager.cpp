@@ -266,6 +266,7 @@ bool ItemInfoManager::Load(const string& filePath)
     file.Close();
 
     m_itemCount = m_items.size();
+    RebuildLookupCaches();
     SetupItemExtras();
     return true;
 }
@@ -295,6 +296,8 @@ bool ItemInfoManager::LoadByItemsDat(const string& filePath)
     for(uint32 i = 0; i < m_itemCount; ++i) {
         m_items[i].Serialize(memBuffer, false, m_version);
     }
+
+    RebuildLookupCaches();
 
     file.Close();
     SAFE_DELETE_ARRAY(pData);
@@ -357,6 +360,8 @@ void ItemInfoManager::Kill()
     SAFE_DELETE_ARRAY(m_itemDataOgg.pItemData);
 
     m_items.clear();
+    m_itemNameToID.clear();
+    m_clientItemToServerItem.clear();
 }
 
 void ItemInfoManager::LoadFileHashes(const std::unordered_map<string, uint32>& hashData, bool forOgg)
@@ -427,7 +432,7 @@ void ItemInfoManager::SaveToClientData(bool forOgg)
 
 ItemInfo* ItemInfoManager::GetItemByID(uint32 itemID)
 {
-    if(itemID > m_itemCount) {
+    if(itemID >= m_items.size()) {
         return nullptr;
     }
 
@@ -440,15 +445,13 @@ ItemInfo* ItemInfoManager::GetItemByName(const string& name)
         return nullptr;
     }
 
-    string searchName = ToLower(name);
-
-    for(auto& item : m_items) {
-        if(ToLower(item.name) == searchName) {
-            return &item;
-        }
+    const string searchName = ToLower(name);
+    auto it = m_itemNameToID.find(searchName);
+    if(it == m_itemNameToID.end()) {
+        return nullptr;
     }
 
-    return nullptr;
+    return GetItemByID(it->second);
 }
 
 ItemsClientData& ItemInfoManager::GetClientData(uint8 platformType)
@@ -462,6 +465,30 @@ ItemsClientData& ItemInfoManager::GetClientData(uint8 platformType)
 uint32 ItemInfoManager::GetClientIDByItemID(uint32 itemID) const
 {
     return itemID;
+}
+
+uint32 ItemInfoManager::GetServerIDByClientID(uint32 clientItemID) const
+{
+    auto it = m_clientItemToServerItem.find(clientItemID);
+    if(it != m_clientItemToServerItem.end()) {
+        return it->second;
+    }
+
+    return clientItemID;
+}
+
+void ItemInfoManager::RebuildLookupCaches()
+{
+    m_itemNameToID.clear();
+    m_clientItemToServerItem.clear();
+
+    m_itemNameToID.reserve(m_items.size());
+    m_clientItemToServerItem.reserve(m_items.size());
+
+    for(const auto& item : m_items) {
+        m_itemNameToID[ToLower(item.name)] = item.id;
+        m_clientItemToServerItem[GetClientIDByItemID(item.id)] = item.id;
+    }
 }
 
 void ItemInfoManager::SetupItemExtras()

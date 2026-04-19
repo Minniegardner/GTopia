@@ -33,6 +33,7 @@ namespace {
 constexpr uint16 kTelephoneItemID = 3898;
 constexpr const char* kDailyQuestClaimDayStat = "DailyQuestClaimDay";
 constexpr uint32 kGuildMemberBlobVersion = 1;
+constexpr const char* kFindDialogName = "FindItem";
 
 bool ParseUInt64Field(const string& text, uint64& out)
 {
@@ -119,6 +120,74 @@ bool ParseBoolField(ParsedTextPacket<8>& packet, uint32 key, bool& out)
     }
 
     return false;
+}
+
+bool IsFindBypassPerm(GamePlayer* pPlayer)
+{
+    Role* pRole = pPlayer ? pPlayer->GetRole() : nullptr;
+    return pRole && pRole->HasPerm(ROLE_PERM_COMMAND_GIVEITEM);
+}
+
+bool IsRestrictedFindItem(const ItemInfo& item)
+{
+    if(item.type == ITEM_TYPE_LOCK) {
+        return true;
+    }
+
+    if(item.HasFlag(ITEM_FLAG_MOD) || item.HasFlag(ITEM_FLAG_UNTRADEABLE) || item.HasFlag(ITEM_FLAG_BETA) || item.HasFlag(ITEM_FLAG_DROPLESS)) {
+        return true;
+    }
+
+    const string loweredName = ToLower(item.name);
+    return loweredName.find("voucher") != string::npos || loweredName.find("crate") != string::npos;
+}
+
+uint32 GetFindItemPrice(uint32 count, const ItemInfo& item)
+{
+    if(count == 0) {
+        return 0;
+    }
+
+    if(item.type == ITEM_TYPE_SEED) {
+        int32 fruitDrop = item.rarity == 999 ? 3 : 6;
+        int32 price = static_cast<int32>(item.rarity * (15 * fruitDrop) * (count / 200.0f));
+        return (uint32)std::max<int32>(1, price);
+    }
+
+    if(item.type == ITEM_TYPE_CLOTHES) {
+        int32 unit = item.rarity == 999 ? item.rarity * 20 : item.rarity * 15;
+        return (uint32)std::max<int32>(1, unit * (int32)count);
+    }
+
+    int32 price = static_cast<int32>(item.rarity * 15 * (count / 200.0f));
+    return (uint32)std::max<int32>(1, price);
+}
+
+void SendFindClaimDialog(GamePlayer* pPlayer, const ItemInfo& item)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    const bool bypass = IsFindBypassPerm(pPlayer);
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wGet ``" + item.name, (uint16)item.id, true)
+        ->AddTextBox("How many would you like to get?");
+
+    if(bypass) {
+        db.AddTextBox("`oYou have elevated permission. Restricted item checks and gem cost are bypassed.");
+    }
+    else {
+        db.AddTextBox(item.name + " costs `w" + ToString((int32)GetFindItemPrice(1, item)) + "`` gems each and `w" + ToString((int32)GetFindItemPrice(200, item)) + "`` per stack.");
+    }
+
+    db.AddTextInput("GetAmount", "Amount", "1", 3)
+        ->EndDialog(kFindDialogName, "Get", "Exit");
+
+    pPlayer->SetPendingFindItemID((uint16)item.id);
+    pPlayer->SendOnDialogRequest(db.Get());
 }
 
 bool IsBirthCertNameValid(const string& name)
@@ -382,7 +451,7 @@ void TurnInTelephoneQuest(GamePlayer* pPlayer)
     World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
     if(pWorld) {
         pWorld->SendParticleEffectToAll(pPlayer->GetWorldPos().x + 12.0f, pPlayer->GetWorldPos().y + 15.0f, 198);
-        pWorld->PlaySFXForEveryone("audio/piano_nice.wav", 0);
+        pWorld->PlaySFXForEveryone("piano_nice.wav", 0);
     }
 
     pPlayer->SendOnTalkBubble("`wThanks, pardner! Have 1 `2Growtoken`w!", true);
@@ -713,13 +782,12 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
         case CompileTimeHashString("TradeModify"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            if(!pButtonClicked) {
-                return;
-            }
-
-            string buttonClicked(pButtonClicked->value, pButtonClicked->size);
-            if(buttonClicked != "OK" && buttonClicked != "Confirm") {
-                return;
+            if(pButtonClicked) {
+                string buttonClicked = ToLower(string(pButtonClicked->value, pButtonClicked->size));
+                if(buttonClicked == "cancel" || buttonClicked == "close") {
+                    pPlayer->ClearPendingTradeModifyItemID();
+                    break;
+                }
             }
 
             const uint16 pendingItemID = pPlayer->GetPendingTradeModifyItemID();
@@ -727,19 +795,24 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 break;
             }
 
-            auto pAmount = packet.Find(CompileTimeHashString("Amount"));
-            if(!pAmount) {
-                pAmount = packet.Find(CompileTimeHashString("amount"));
+            int32 parsedAmount = 0;
+            bool hasAmount = ParseIntField(packet, CompileTimeHashString("Amount"), parsedAmount);
+            if(!hasAmount) {
+                hasAmount = ParseIntField(packet, CompileTimeHashString("amount"), parsedAmount);
             }
-            if(!pAmount) {
-                pAmount = packet.Find(CompileTimeHashString("count"));
+            if(!hasAmount) {
+                hasAmount = ParseIntField(packet, CompileTimeHashString("count"), parsedAmount);
+            }
+            if(!hasAmount) {
+                hasAmount = ParseIntField(packet, CompileTimeHashString("ItemCount"), parsedAmount);
+            }
+            if(!hasAmount) {
+                hasAmount = ParseIntField(packet, CompileTimeHashString("item_count"), parsedAmount);
             }
 
             uint32 amount = 0;
-            if(pAmount) {
-                if(ToUInt(string(pAmount->value, pAmount->size), amount) != TO_INT_SUCCESS) {
-                    amount = 0;
-                }
+            if(hasAmount && parsedAmount > 0) {
+                amount = (uint32)parsedAmount;
             }
 
             pPlayer->ClearPendingTradeModifyItemID();
@@ -1434,6 +1507,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 
             pPlayer->ModifyInventoryItem(ITEM_ID_BIRTH_CERTIFICATE, -1);
             pPlayer->GetLoginDetail().tankIDName = newName;
+            GetGameServer()->SetPlayerNameCache(pPlayer->GetUserID(), newName);
             pPlayer->AddPlayMod(PLAYMOD_TYPE_RECENTLY_NAME_CHANGED);
             pPlayer->SetCustomStatValue("BirthCertLastUseMS", Time::GetSystemTime());
 
@@ -1628,16 +1702,95 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             break;
         }
 
-        case CompileTimeHashString("find_item_dialog"): {
+        case CompileTimeHashString("find_item_dialog"):
+        case CompileTimeHashString("FindItem"): {
             auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
-            if(!pButtonClicked || pButtonClicked->size != 4 || string(pButtonClicked->value, pButtonClicked->size) != "Find") {
-                return;
+            const string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
+            const string loweredButtonClicked = ToLower(buttonClicked);
+
+            if(loweredButtonClicked == "get" || loweredButtonClicked == "ok") {
+                const uint16 pendingFindItemID = pPlayer->GetPendingFindItemID();
+                if(pendingFindItemID == 0) {
+                    break;
+                }
+
+                ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pendingFindItemID);
+                if(!pItem) {
+                    pPlayer->ClearPendingFindItemID();
+                    break;
+                }
+
+                int32 getAmount = 1;
+                bool hasGetAmount = ParseIntField(packet, CompileTimeHashString("GetAmount"), getAmount);
+                if(!hasGetAmount) {
+                    hasGetAmount = ParseIntField(packet, CompileTimeHashString("Amount"), getAmount);
+                }
+
+                if(!hasGetAmount || getAmount < 1) {
+                    getAmount = 1;
+                }
+                if(getAmount > 200) {
+                    getAmount = 200;
+                }
+
+                const bool bypass = IsFindBypassPerm(pPlayer);
+                if(IsRestrictedFindItem(*pItem) && !bypass) {
+                    pPlayer->SendOnConsoleMessage("`4Oops:`` That item is unobtainable via /find.");
+                    pPlayer->ClearPendingFindItemID();
+                    break;
+                }
+
+                const uint8 ownCount = pPlayer->GetInventory().GetCountOfItem((uint16)pItem->id);
+                int32 freeSlots = std::max<int32>(0, 200 - ownCount);
+                if(freeSlots < 1 || !pPlayer->GetInventory().HaveRoomForItem((uint16)pItem->id, 1)) {
+                    pPlayer->SendOnTalkBubble("`wThat won't fit in your backpack!", true);
+                    break;
+                }
+
+                if(getAmount > freeSlots) {
+                    getAmount = freeSlots;
+                }
+
+                if(!bypass) {
+                    const uint32 gemPrice = GetFindItemPrice((uint32)getAmount, *pItem);
+                    if(!pPlayer->TrySpendGems((int32)gemPrice)) {
+                        pPlayer->SendOnConsoleMessage("`4Oops:`` You're out of gems for that claim.");
+                        SendFindClaimDialog(pPlayer, *pItem);
+                        break;
+                    }
+
+                    pPlayer->SendOnSetBux();
+                    pPlayer->SendOnConsoleMessage("`oGot `w" + ToString(getAmount) + " " + pItem->name + "`` for `w" + ToString((int32)gemPrice) + "`` gems.");
+                }
+                else {
+                    pPlayer->SendOnConsoleMessage("`oGot `w" + ToString(getAmount) + " " + pItem->name + "`` for `2FREE``.");
+                }
+
+                pPlayer->ModifyInventoryItem((uint16)pItem->id, (int16)getAmount);
+                pPlayer->ClearPendingFindItemID();
+                break;
+            }
+
+            uint32 selectedItemID = 0;
+            if(!buttonClicked.empty() && ToUInt(buttonClicked, selectedItemID) == TO_INT_SUCCESS && selectedItemID <= UINT16_MAX) {
+                ItemInfo* pSelectedItem = GetItemInfoManager()->GetItemByID((uint16)selectedItemID);
+                if(!pSelectedItem) {
+                    break;
+                }
+
+                if(IsRestrictedFindItem(*pSelectedItem) && !IsFindBypassPerm(pPlayer)) {
+                    pPlayer->SendOnConsoleMessage("`4Oops:`` That item is unobtainable via /find.");
+                    break;
+                }
+
+                SendFindClaimDialog(pPlayer, *pSelectedItem);
+                break;
             }
 
             auto pSearch = packet.Find(CompileTimeHashString("SearchString"));
             string query;
 
-            if(pSearch && pSearch->size > 0 && pSearch->size <= 128) {
+            if(pSearch && pSearch->size > 0 && pSearch->size <= 250) {
                 query.assign(pSearch->value, pSearch->size);
                 RemoveExtraWhiteSpaces(query);
             }

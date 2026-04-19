@@ -80,7 +80,7 @@ void SendChemSynthRewardFX(World* pWorld, GamePlayer* pPlayer)
     }
 
     pWorld->SendParticleEffectToAll(pPlayer->GetWorldPos().x + 16.0f, pPlayer->GetWorldPos().y + 16.0f, 5, 1.0f, 0);
-    pWorld->PlaySFXForEveryone("audio/piano_nice.wav", 0);
+    pWorld->PlaySFXForEveryone("piano_nice.wav", 0);
 }
 
 }

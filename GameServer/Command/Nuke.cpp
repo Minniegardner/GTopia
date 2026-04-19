@@ -71,7 +71,7 @@ void Nuke::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         }
 
         pWorld->SendConsoleMessageToAll("`w" + pPlayer->GetRawName() + " `4world bans `w" + pTarget->GetRawName() + " `ofrom `w" + pWorld->GetWorlName() + "`o!");
-        pTarget->PlaySFX("audio/repair.wav");
+         pTarget->PlaySFX("repair.wav");
         pWorld->ForceLeavePlayer(pTarget);
     }
 

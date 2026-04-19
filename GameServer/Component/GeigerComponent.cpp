@@ -103,7 +103,7 @@ bool GeigerComponent::TryChargeCounter(GamePlayer* pPlayer, World* pWorld, TileI
 
     pPlayer->SetCustomStatValue(kGeigerChargeStat, 100);
     pPlayer->SendOnTalkBubble("`2Your Geiger Counter is fully charged!", true);
-    pWorld->PlaySFXForEveryone("audio/powerup.wav", 0);
+    pWorld->PlaySFXForEveryone("powerup.wav", 0);
     return true;
 }
 

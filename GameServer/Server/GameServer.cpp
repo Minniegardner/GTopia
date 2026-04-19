@@ -454,7 +454,7 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
                 }
 
                 pTarget->SendOnConsoleMessage("`o(From `$" + sourceRawName + "`o): " + payloadText);
-                pTarget->PlaySFX("audio/pay_time.wav");
+                pTarget->PlaySFX("pay_time.wav");
                 break;
             }
 
@@ -763,6 +763,25 @@ GamePlayer* GameServer::GetPlayerByRawName(const string& playerName)
     }
 
     return nullptr;
+}
+
+void GameServer::SetPlayerNameCache(uint32 userID, const string& playerName)
+{
+    if(userID == 0 || playerName.empty()) {
+        return;
+    }
+
+    m_playerNameCache.insert_or_assign(userID, playerName);
+}
+
+string GameServer::GetPlayerNameByUserID(uint32 userID) const
+{
+    auto it = m_playerNameCache.find(userID);
+    if(it == m_playerNameCache.end()) {
+        return string();
+    }
+
+    return it->second;
 }
 
 std::vector<GamePlayer*> GameServer::FindPlayersByNamePrefix(const string& query, bool sameWorldOnly, uint32 worldID) const

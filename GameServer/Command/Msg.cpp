@@ -85,5 +85,5 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     pPlayer->SendOnConsoleMessage("`o(Sent to `$" + pTarget->GetRawName() + "`o)");
     pTarget->SendOnConsoleMessage("`o(From `$" + pPlayer->GetRawName() + "`o): " + message);
-    pTarget->PlaySFX("audio/pay_time.wav");
+     pTarget->PlaySFX("pay_time.wav");
 }

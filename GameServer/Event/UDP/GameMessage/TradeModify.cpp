@@ -7,14 +7,7 @@ namespace {
 
 uint16 ResolveTradeServerItemID(uint16 rawItemID)
 {
-    const std::vector<ItemInfo>& items = GetItemInfoManager()->GetItems();
-    for(const ItemInfo& item : items) {
-        if(GetItemInfoManager()->GetClientIDByItemID(item.id) == rawItemID) {
-            return item.id;
-        }
-    }
-
-    return rawItemID;
+    return (uint16)GetItemInfoManager()->GetServerIDByClientID(rawItemID);
 }
 
 }

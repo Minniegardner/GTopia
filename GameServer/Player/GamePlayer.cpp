@@ -2600,6 +2600,8 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
         return;
     }
 
+    GetGameServer()->SetPlayerNameCache(m_userID, GetRawName());
+
     if(GetGameServer()->IsMaintenance() && !m_pRole->HasPerm(ROLE_PERM_MAINTENANCE_EXCEPTION)) {
         SendLogonFailWithLog(BuildMaintenanceLoginMessage(GetRawName()));
         return;
@@ -2957,9 +2959,11 @@ void GamePlayer::SaveToDatabase()
     MemoryBuffer invMemBuffer(pInvData, invMemSize);
     m_inventory.Serialize(invMemBuffer, true, true);
 
+    const int32 roleID = m_pRole ? m_pRole->GetID() : static_cast<int32>(GetRoleManager()->GetDefaultRoleID());
+
     QueryRequest req = MakeSavePlayerReq(
         m_userID,
-        m_pRole->GetID(),
+        roleID,
         ToHex(pInvData, invMemSize),
         m_gems,
         m_level,
@@ -3055,7 +3059,7 @@ void GamePlayer::LogOff()
 
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
     bool switchingSubserver = m_switchingSubserver;
-    const bool canSaveAccount = m_userID != 0 && m_pRole != nullptr;
+    const bool canSaveAccount = m_userID != 0;
 
     if(IsTrading()) {
         CancelTrade(false);
@@ -3234,6 +3238,7 @@ void GamePlayer::SetSuperSupporterTitleEnabled(bool enabled)
 string GamePlayer::GetDisplayName()
 {
     string displayName;
+    Role* pRole = m_pRole ? m_pRole : GetRoleManager()->GetRole(GetRoleManager()->GetDefaultRoleID());
 
     if(m_currentWorldID != 0) {
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
@@ -3247,13 +3252,13 @@ string GamePlayer::GetDisplayName()
         }
     }
 
-    if(m_pRole->GetNameColor() != 0) {
+    if(pRole && pRole->GetNameColor() != 0) {
         displayName += "`"; 
-        displayName += m_pRole->GetNameColor();
+        displayName += pRole->GetNameColor();
     }
 
-    if(IsPrefixEnabled()) {
-        displayName += m_pRole->GetPrefix();
+    if(pRole && IsPrefixEnabled()) {
+        displayName += pRole->GetPrefix();
     }
 
     if(HasNickname()) {
@@ -3270,7 +3275,9 @@ string GamePlayer::GetDisplayName()
         displayName += " of Legend";
     }
 
-    displayName += m_pRole->GetSuffix();
+    if(pRole) {
+        displayName += pRole->GetSuffix();
+    }
     return displayName;
 }
 
@@ -3288,6 +3295,7 @@ string GamePlayer::GetRawName()
 string GamePlayer::GetSpawnData(bool local)
 {
     string spawnData;
+    Role* pRole = m_pRole ? m_pRole : GetRoleManager()->GetRole(GetRoleManager()->GetDefaultRoleID());
     spawnData += "spawn|avatar\n";
     spawnData += "netID|" + ToString(GetNetID()) + "\n";
     spawnData += "userID|" + ToString(m_userID) + "\n";
@@ -3297,9 +3305,9 @@ string GamePlayer::GetSpawnData(bool local)
     spawnData += "country|" + m_loginDetail.country + "\n";
     spawnData += "invis|0\n"; // todo
     spawnData += "mstate|";
-    spawnData += m_pRole->HasPerm(ROLE_PERM_MSTATE) ? "1\n" : "0\n";
+    spawnData += (pRole && pRole->HasPerm(ROLE_PERM_MSTATE)) ? "1\n" : "0\n";
     spawnData += "smstate|" ;
-    spawnData += m_pRole->HasPerm(ROLE_PERM_SMSTATE) ? "1\n" : "0\n";
+    spawnData += (pRole && pRole->HasPerm(ROLE_PERM_SMSTATE)) ? "1\n" : "0\n";
     spawnData += "onlineID|\n";
 
     if(local) {
@@ -3384,7 +3392,7 @@ void GamePlayer::ToggleCloth(uint16 itemID)
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
         if(pWorld) {
             pWorld->SendClothUpdateToAll(this);
-            pWorld->PlaySFXForEveryone("audio/change_clothes.wav", 0);
+            pWorld->PlaySFXForEveryone("change_clothes.wav", 0);
             pWorld->SendParticleEffectToAll(m_worldPos.x + 12.0f, m_worldPos.y + 15.0f, 3);
         }
     }

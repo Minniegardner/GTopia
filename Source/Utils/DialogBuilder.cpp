@@ -22,21 +22,6 @@ DialogBuilder* DialogBuilder::AddTextBox(const string& str, bool center)
     return this;
 }
 
-DialogBuilder* DialogBuilder::AddLabel(const string& str, bool center)
-{
-    return AddTextBox(str, center);
-}
-
-DialogBuilder* DialogBuilder::AddCustomLine(const string& line)
-{
-    m_str += line;
-    if(m_str.empty() || m_str.back() != '\n') {
-        m_str += "\n";
-    }
-
-    return this;
-}
-
 DialogBuilder* DialogBuilder::AddLabelWithIcon(const string& str, uint16 itemID, bool big, bool center)
 {
     m_str += "add_label_with_icon|";
@@ -77,18 +62,6 @@ DialogBuilder* DialogBuilder::EndDialog(const string& dialogID, const string& ac
     return this;
 }
 
-DialogBuilder* DialogBuilder::AddQuickExit()
-{
-    m_str += "add_quick_exit|\n";
-    return this;
-}
-
-DialogBuilder* DialogBuilder::AddItemPicker(const string& pickerID, const string& label, const string& description)
-{
-    m_str += "add_item_picker|" + pickerID + "|" + label + "|" + description + "|\n";
-    return this;
-}
-
 DialogBuilder* DialogBuilder::SetDefaultColor(char colorID)
 {
     m_str += "set_default_color|`";
@@ -112,12 +85,6 @@ DialogBuilder* DialogBuilder::AddCheckBox(const string& boxID, const string& tex
     m_str += "add_checkbox|" + boxID + "|" + text + "|";
     m_str += active ? "1|\n" : "0|\n";
 
-    return this;
-}
-
-DialogBuilder* DialogBuilder::AddPlayerPicker(const string& pickerID, const string& buttonText)
-{
-    m_str += "add_player_picker|" + pickerID + "|" + buttonText + "|\n";
     return this;
 }
 

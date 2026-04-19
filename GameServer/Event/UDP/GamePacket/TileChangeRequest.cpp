@@ -200,7 +200,7 @@ bool TryHandleGauntlet(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, Item
     pWorld->GetTileManager()->ModifyKeyTile(pFirstTile, false);
     pWorld->GetTileManager()->ModifyKeyTile(pSecondTile, false);
 
-    pWorld->PlaySFXForEveryone("audio/blorb.wav", 0);
+    pWorld->PlaySFXForEveryone("blorb.wav", 0);
     pWorld->SendTileUpdate(pFirstTile);
     pWorld->SendTileUpdate(pSecondTile);
 
@@ -540,7 +540,7 @@ bool TryHandleSpecialTilePlace(GamePlayer* pPlayer, World* pWorld, TileInfo* pTi
 
         const Vector2Int tilePos = pTile->GetPos();
         pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 4, 1, 0);
-        pWorld->PlaySFXForEveryone("audio/blorb.wav", 0);
+        pWorld->PlaySFXForEveryone("blorb.wav", 0);
         pWorld->SendTileUpdate(pTile);
         return true;
     }
@@ -691,7 +691,12 @@ string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
 
     GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
     if(!pOwner) {
-        return "DeletedUser";
+        const string cachedName = GetGameServer()->GetPlayerNameByUserID((uint32)pLockExtra->ownerID);
+        if(cachedName.empty()) {
+            return "DeletedUser";
+        }
+
+        return cachedName;
     }
 
     return pOwner->GetDisplayName();

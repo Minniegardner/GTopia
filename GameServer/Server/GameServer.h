@@ -6,6 +6,7 @@
 #include "../Command/CommandBase.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 class GameServer : public ServerBase, NetEntity {
 public:
@@ -34,6 +35,8 @@ public:
     bool IsMarkedForMaintenance() const { return m_isMarkedForMaintenance; }
     GamePlayer* GetPlayerByUserID(uint32 userID);
     GamePlayer* GetPlayerByRawName(const string& playerName);
+    void SetPlayerNameCache(uint32 userID, const string& playerName);
+    string GetPlayerNameByUserID(uint32 userID) const;
     std::vector<GamePlayer*> FindPlayersByNamePrefix(const string& query, bool sameWorldOnly = false, uint32 worldID = 0) const;
     bool CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const;
     const std::vector<const CommandInfo*>& GetCommandInfos() const { return m_commandInfos; }
@@ -92,6 +95,7 @@ private:
     string m_maintenanceMessage;
     uint32 m_maintenanceSourceUserID = 0;
     string m_maintenanceSourceRawName;
+    std::unordered_map<uint32, string> m_playerNameCache;
 };
 
 GameServer* GetGameServer();

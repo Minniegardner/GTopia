@@ -72,7 +72,7 @@ TileInfo* WorldTileManager::GetKeyTile(eKeyTile keyTile)
 
 TileInfo* WorldTileManager::GetTile(int32 index)
 {
-    if(index < 0 || index > (m_size.x * m_size.y)) {
+    if(index < 0 || index >= (m_size.x * m_size.y)) {
         return nullptr;
     }
 
@@ -127,7 +127,7 @@ void WorldTileManager::GenerateClearMap()
 
     bool mainDoorAtRight = RandomRangeInt(0, 1) == 1;
     
-    TileInfo* pDoorTile = GetTile( mainDoorAtRight ? m_size.x : 0, layer.top - 1 );
+    TileInfo* pDoorTile = GetTile(mainDoorAtRight ? (m_size.x - 1) : 0, layer.top - 1);
     pDoorTile->SetFG(ITEM_ID_MAIN_DOOR, this);
     
     if(TileExtra_Door* pTileExtra = pDoorTile->GetExtra<TileExtra_Door>()) {
@@ -190,7 +190,7 @@ bool WorldTileManager::FillRectWith(const RectInt& rect, const TileMapFillVector
     int32 xStart = Max(0, Min(rect.left, rect.right));
     int32 xEnd = Min(m_size.x, Max(rect.left, rect.right));
     int32 yStart = Max(0, Min(rect.top, rect.bottom));
-    int32 yEnd = Min(m_size.x, Max(rect.top, rect.bottom));
+    int32 yEnd = Min(m_size.y, Max(rect.top, rect.bottom));
 
     float totalFgChance = 0.0f;
     for(const auto& item : fgItems) {
