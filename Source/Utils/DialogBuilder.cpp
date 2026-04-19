@@ -22,6 +22,16 @@ DialogBuilder* DialogBuilder::AddTextBox(const string& str, bool center)
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddLabel(const string& str, bool center)
+{
+    if(center) {
+        return AddTextBox(str, true);
+    }
+
+    m_str += "add_label|small|" + str + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::AddLabelWithIcon(const string& str, uint16 itemID, bool big, bool center)
 {
     m_str += "add_label_with_icon|";

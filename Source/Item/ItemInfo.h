@@ -116,7 +116,7 @@ public:
     ePlayModType playModType = PLAYMOD_TYPE_NONE;
 
 public:
-    bool HasFlag(uint16 flag) { return (flags & flag) != 0; }
+    bool HasFlag(uint16 flag) const { return (flags & flag) != 0; }
     void Serialize(MemoryBuffer& memBuffer, bool write, uint16 version);
     bool IsBackground();
 };
