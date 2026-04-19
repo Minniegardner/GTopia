@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Precompiled.h"
+#include "Item/ItemUtils.h"
 
 #include <vector>
 
