@@ -729,24 +729,35 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             if(pStatus) {
                 string statusStr(pStatus->value, pStatus->size);
                 int32 status = 0;
+                bool parsedStatus = false;
 
                 if(statusStr == "true") {
                     status = 1;
+                    parsedStatus = true;
                 }
                 else if(statusStr == "false") {
                     status = 0;
+                    parsedStatus = true;
                 }
-                else if(ToInt(statusStr, status) != TO_INT_SUCCESS) {
-                    return;
+                else if(ToInt(statusStr, status) == TO_INT_SUCCESS) {
+                    parsedStatus = true;
                 }
 
-                pPlayer->AcceptOffer(status > 0);
-                break;
+                if(parsedStatus) {
+                    pPlayer->AcceptOffer(status > 0);
+                    break;
+                }
             }
 
             auto pItemID = packet.Find(CompileTimeHashString("ItemID"));
             if(!pItemID) {
                 pItemID = packet.Find(CompileTimeHashString("itemID"));
+            }
+            if(!pItemID) {
+                pItemID = packet.Find(CompileTimeHashString("selectedItemID"));
+            }
+            if(!pItemID) {
+                pItemID = packet.Find(CompileTimeHashString("item"));
             }
 
             auto pAmount = packet.Find(CompileTimeHashString("Amount"));
