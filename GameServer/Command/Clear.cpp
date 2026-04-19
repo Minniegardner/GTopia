@@ -1,7 +1,7 @@
 #include "Clear.h"
 #include "Utils/StringUtils.h"
 #include "Math/Rect.h"
-#include "Source/World/WorldObjectManager.h"
+#include "World/WorldObjectManager.h"
 #include "../World/WorldManager.h"
 
 const CommandInfo& Clear::GetInfo()
