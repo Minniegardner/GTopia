@@ -134,6 +134,12 @@ void UseDoorRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacke
 
     pPlayer->SetWorldPos(targetPos.x * 32.0f, targetPos.y * 32.0f);
     pPlayer->SetRespawnPos(targetPos.x * 32.0f, targetPos.y * 32.0f);
-    pPlayer->PlaySFX("door_open.wav", 200);
+
+    const bool useTeleportSfx =
+        pItem->type == ITEM_TYPE_PORTAL ||
+        pItem->type == ITEM_TYPE_SUNGATE ||
+        pItem->type == ITEM_TYPE_FRIENDS_ENTRANCE;
+    pPlayer->PlaySFX(useTeleportSfx ? "teleport.wav" : "door_open.wav", 200);
+
     pPlayer->SendOnSetPos(targetPos.x * 32.0f, targetPos.y * 32.0f);
 }

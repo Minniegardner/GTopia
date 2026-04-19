@@ -373,7 +373,8 @@ std::string BuildTradeStatusDialog(GamePlayer* pViewer, GamePlayer* pOfferOwner)
 
     std::string dialog;
     for(const auto& offer : pOfferOwner->GetTradeOffers()) {
-        dialog += fmt::format("add_slot|{}|{}|\n", offer.ID, offer.Amount);
+        const uint16 clientItemID = (uint16)GetItemInfoManager()->GetClientIDByItemID(offer.ID);
+        dialog += fmt::format("add_slot|{}|{}|\n", clientItemID, offer.Amount);
     }
 
     dialog += "locked|0\n";
@@ -3381,7 +3382,11 @@ void GamePlayer::ToggleCloth(uint16 itemID)
 
     if(m_currentWorldID != 0) {
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
-        pWorld->SendClothUpdateToAll(this);
+        if(pWorld) {
+            pWorld->SendClothUpdateToAll(this);
+            pWorld->PlaySFXForEveryone("audio/change_clothes.wav", 0);
+            pWorld->SendParticleEffectToAll(m_worldPos.x + 12.0f, m_worldPos.y + 15.0f, 3);
+        }
     }
 }
 

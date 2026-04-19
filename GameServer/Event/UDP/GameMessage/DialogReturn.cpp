@@ -600,6 +600,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pPlayer->SendOnConsoleMessage("`2Guild invitation sent to ``" + pTarget->GetDisplayName() + "``");
                 pTarget->SendOnTalkBubble("`3[``" + pPlayer->GetDisplayName() + "`` invited you to join guild `c" + pGuild->GetName() + "``!`3]``", true);
                 pTarget->SendOnConsoleMessage("`2You received a guild invitation from ``" + pPlayer->GetDisplayName() + "``. Wrench yourself to see your invitations!");
+                pTarget->PlaySFX("tip_start.wav", 0);
             }
             break;
         }

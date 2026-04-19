@@ -1,6 +1,23 @@
 #include "TradeModify.h"
 
+#include "Item/ItemInfoManager.h"
 #include "Utils/StringUtils.h"
+
+namespace {
+
+uint16 ResolveTradeServerItemID(uint16 rawItemID)
+{
+    const std::vector<ItemInfo>& items = GetItemInfoManager()->GetItems();
+    for(const ItemInfo& item : items) {
+        if(GetItemInfoManager()->GetClientIDByItemID(item.id) == rawItemID) {
+            return item.id;
+        }
+    }
+
+    return rawItemID;
+}
+
+}
 
 void TradeModify::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
@@ -22,5 +39,5 @@ void TradeModify::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    pPlayer->ModifyOffer((uint16)itemID, 0);
+    pPlayer->ModifyOffer(ResolveTradeServerItemID((uint16)itemID), 0);
 }
