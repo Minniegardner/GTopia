@@ -549,7 +549,8 @@ void TileExtra_Lock::Serialize(MemoryBuffer& memBuffer, bool write, bool databas
         memBuffer.ReadWrite(worldTimer, write);
     }
 
-    if(worldVersion > 13) {
+    const bool isGuildLockTile = pTile && pTile->GetFG() == ITEM_ID_GUILD_LOCK;
+    if(worldVersion > 13 && (database || isGuildLockTile)) {
         memBuffer.ReadWrite(guildID, write);
 
         if(write && !database) {

@@ -2512,6 +2512,9 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
         return;
     }
 
+    // New connection starts with fresh session state.
+    m_switchingSubserver = false;
+
     m_userID = m_loginDetail.user;
     SetState(PLAYER_STATE_CHECKING_SESSION);
     GetMasterBroadway()->SendCheckSessionPacket(GetNetID(), m_loginDetail.user, m_loginDetail.token, GetContext()->GetID());
@@ -3049,7 +3052,7 @@ void GamePlayer::LogOff()
 
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
     bool switchingSubserver = m_switchingSubserver;
-    const bool canSaveAccount = !switchingSubserver && m_userID != 0 && m_pRole != nullptr;
+    const bool canSaveAccount = m_userID != 0 && m_pRole != nullptr;
 
     if(IsTrading()) {
         CancelTrade(false);
