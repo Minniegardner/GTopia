@@ -519,7 +519,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
-            if(buttonClicked == "Trade") {
+            if(buttonClicked == "Trade" || buttonClicked == "trd_btn") {
                 pPlayer->StartTrade(pTarget);
             }
             else if(buttonClicked == "sendpm") {
@@ -536,19 +536,19 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     "`` | Shoes `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHOE)) + "``"
                 );
             }
-            else if(buttonClicked == "Pull") {
+            else if(buttonClicked == "Pull" || buttonClicked == "pull_btn") {
                 std::vector<string> cmdArgs = { "/pull", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
-            else if(buttonClicked == "Kick") {
+            else if(buttonClicked == "Kick" || buttonClicked == "kick_btn") {
                 std::vector<string> cmdArgs = { "/kick", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
-            else if(buttonClicked == "Ban") {
+            else if(buttonClicked == "Ban" || buttonClicked == "ban_btn") {
                 std::vector<string> cmdArgs = { "/ban", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
-            else if(buttonClicked == "Add" || buttonClicked == "friend_add") {
+            else if(buttonClicked == "Add" || buttonClicked == "friend_add" || buttonClicked == "add_btn") {
                 if(pPlayer->IsFriendWith(pTarget->GetUserID())) {
                     pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
                 }
@@ -577,7 +577,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pPlayer->SendOnConsoleMessage("`oReport queued for review on ``" + pTarget->GetDisplayName() + "``.");
                 pPlayer->SendOnTalkBubble("`wThanks for the report, our team will review it.", true);
             }
-            else if(buttonClicked == "InviteGuild") {
+            else if(buttonClicked == "InviteGuild" || buttonClicked == "inv_to_kantut") {
                 Guild* pGuild = GetGuildManager()->Get(pPlayer->GetGuildID());
                 if(!pGuild) {
                     pPlayer->SendOnConsoleMessage("`4You are not in a guild.");
@@ -624,18 +624,18 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
-            if(buttonClicked == "trade" || buttonClicked == "Trade") {
+            if(buttonClicked == "trade" || buttonClicked == "Trade" || buttonClicked == "trd_btn") {
                 pPlayer->StartTrade(pTarget);
             }
-            else if(buttonClicked == "pull" || buttonClicked == "Pull") {
+            else if(buttonClicked == "pull" || buttonClicked == "Pull" || buttonClicked == "pull_btn") {
                 std::vector<string> cmdArgs = { "/pull", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
-            else if(buttonClicked == "kick" || buttonClicked == "Kick") {
+            else if(buttonClicked == "kick" || buttonClicked == "Kick" || buttonClicked == "kick_btn") {
                 std::vector<string> cmdArgs = { "/kick", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
-            else if(buttonClicked == "ban" || buttonClicked == "Ban") {
+            else if(buttonClicked == "ban" || buttonClicked == "Ban" || buttonClicked == "ban_btn") {
                 std::vector<string> cmdArgs = { "/ban", pTarget->GetRawName() };
                 GetGameServer()->ExecuteCommand(pPlayer, cmdArgs);
             }
@@ -653,7 +653,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                     "`` | Shoes `w" + ToString(pTarget->GetInventory().GetClothByPart(BODY_PART_SHOE)) + "``"
                 );
             }
-            else if(buttonClicked == "friend_add" || buttonClicked == "Add") {
+            else if(buttonClicked == "friend_add" || buttonClicked == "Add" || buttonClicked == "add_btn") {
                 if(pPlayer->IsFriendWith(pTarget->GetUserID())) {
                     pPlayer->SendOnConsoleMessage("`oYou are already friends with ``" + pTarget->GetDisplayName() + "``.");
                 }
@@ -681,6 +681,30 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             else if(buttonClicked == "report_player" || buttonClicked == "Report") {
                 pPlayer->SendOnConsoleMessage("`oReport sent for review: `w" + pTarget->GetDisplayName() + "``.");
                 pPlayer->SendOnTalkBubble("`wThanks for the report, our team will review it.", true);
+            }
+            else if(buttonClicked == "InviteGuild" || buttonClicked == "inv_to_kantut") {
+                Guild* pGuild = GetGuildManager()->Get(pPlayer->GetGuildID());
+                if(!pGuild) {
+                    pPlayer->SendOnConsoleMessage("`4You are not in a guild.");
+                    return;
+                }
+
+                if(pTarget->GetGuildID() != 0) {
+                    pPlayer->SendOnConsoleMessage("`4That player is already in a guild.");
+                    return;
+                }
+
+                if(pGuild->HasPendingInvite(pTarget->GetUserID())) {
+                    pPlayer->SendOnConsoleMessage("`4That player already has a pending invite from your guild.");
+                    return;
+                }
+
+                pGuild->AddPendingInvite(pTarget->GetUserID(), Time::GetSystemTime());
+                pTarget->AddPendingGuildInvite(pGuild->GetGuildID(), pGuild);
+
+                pPlayer->SendOnConsoleMessage("`2Guild invitation sent to ``" + pTarget->GetDisplayName() + "``");
+                pTarget->SendOnTalkBubble("`3[``" + pPlayer->GetDisplayName() + "`` invited you to join guild `c" + pGuild->GetName() + "``!`3]``", true);
+                pTarget->SendOnConsoleMessage("`2You received a guild invitation from ``" + pPlayer->GetDisplayName() + "``. Wrench yourself to see your invitations!");
             }
 
             break;

@@ -546,7 +546,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     }
 
     if(player->IsTrading()) {
-        SendOnConsoleMessage(fmt::format("`8[`w{} `4is too busy to trade!`8]``", player->GetRawName()));
+        SendOnConsoleMessage(fmt::format("``{} ``ois too busy to trade!", player->GetDisplayName()));
         return;
     }
 
@@ -610,7 +610,7 @@ void GamePlayer::CancelTrade(bool busy, std::string customMessage)
             pTarget->SendOnTextOverlay(customMessage);
         }
         else if(busy && isTradingWithMe) {
-            const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", GetRawName());
+            const std::string message = fmt::format("``{} ``ois too busy to trade!", GetDisplayName());
             pTarget->SendOnConsoleMessage(message);
             pTarget->SendOnTextOverlay(message);
         }
@@ -629,7 +629,7 @@ void GamePlayer::CancelTrade(bool busy, std::string customMessage)
         SendOnTextOverlay(customMessage);
     }
     else if(busy && isTradingWithMe) {
-        const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", pTarget ? pTarget->GetRawName() : GetRawName());
+        const std::string message = fmt::format("``{} ``ois too busy to trade!", GetDisplayName());
         SendOnConsoleMessage(message);
         SendOnTextOverlay(message);
     }
@@ -1317,18 +1317,8 @@ void GamePlayer::SendSocialPortal()
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wSocial Portal``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oManage friends, notifications, guild, and social shortcuts from here.")
-        ->AddLabel("`oFriends online: `w" + ToString(CountOnlineFriends()) + "`` / `w" + ToString((uint32)m_friendUserIDs.size()) + "``")
-        ->AddLabel("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
         ->AddSpacer()
-        ->AddLabel("`wFriends``")
-        ->AddButton("GotoFriendsMenu", "Show Friends")
-        ->AddButton("FriendAll", "Show Offline + Online")
-        ->AddButton("SeeSent", "Sent Friend Requests")
-        ->AddButton("SeeReceived", "Received Friend Requests")
-        ->AddButton("FriendsOptions", "Friend Options")
-        ->AddButton("ToggleFriendNotif", "Toggle Friend Notifications")
-        ->AddSpacer();
+        ->AddButton("GotoFriendsMenu", "Show Friends");
 
     if(m_guildID != 0) {
         db.AddButton("GotoGuildMenu", "Guild Menu");
@@ -1337,8 +1327,7 @@ void GamePlayer::SendSocialPortal()
         db.AddButton("CreateGuild", "Create Guild");
     }
 
-    db.AddLabel("`wOther``")
-        ->AddButton("GotoTradeHistory", "Trade History")
+    db.AddButton("GotoTradeHistory", "Trade History")
         ->AddButton("BackToWrench", "Back to Wrench")
         ->AddQuickExit()
         ->EndDialog("SocialPortal", "", "OK");
@@ -1669,42 +1658,41 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
 
     DialogBuilder db;
     db.SetDefaultColor('o')
-        ->EmbedData("OtherNetID", otherPlayer->GetNetID())
-        ->AddLabelWithIcon("`wPlayer Actions``", ITEM_ID_WRENCH, true)
-        ->AddLabel("`oTarget: ``" + otherPlayer->GetDisplayName())
+        ->EmbedData("netID", otherPlayer->GetNetID())
+        ->AddLabelWithIcon(otherPlayer->GetDisplayName(), ITEM_ID_WRENCH, false)
         ->AddSpacer()
+        ->AddButton("trd_btn", "`oTrade``")
         ->AddButton("sendpm", "Private Message")
-        ->AddButton("Trade", "Trade")
         ->AddButton("show_clothes", "Show Clothes");
 
     if(IsFriendWith(otherPlayer->GetUserID())) {
         db.AddButton("Unfriend", "Unfriend");
     }
     else {
-        db.AddButton("Add", "Add Friend");
+        db.AddButton("add_btn", "`oAdd Friend");
     }
 
-    db.AddButton("Ignore", IsIgnoring(otherPlayer->GetUserID()) ? "Unignore" : "Ignore")
-        ->AddButton("Report", "Report");
+    db.AddButton("ignore_player", IsIgnoring(otherPlayer->GetUserID()) ? "Unignore" : "Ignore")
+        ->AddButton("report_player", "Report");
 
     if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_PULL)) {
-        db.AddButton("Pull", "Pull");
+        db.AddButton("pull_btn", "`#Pull");
     }
 
     if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_KICK)) {
-        db.AddButton("Kick", "Kick");
+        db.AddButton("kick_btn", "`4Kick");
     }
 
     if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_BAN)) {
-        db.AddButton("Ban", "Ban");
+        db.AddButton("ban_btn", "`4Ban");
     }
 
     if(GetGuildID() != 0 && otherPlayer->GetGuildID() == 0) {
-        db.AddButton("InviteGuild", "Invite To Guild");
+        db.AddButton("inv_to_kantut", "Invite To Guild");
     }
 
     db.AddSpacer()
-        ->EndDialog("WrenchOthers", "", "Close")
+        ->EndDialog("popup", "", "Continue")
         ->AddQuickExit();
 
     SendOnDialogRequest(db.Get());
