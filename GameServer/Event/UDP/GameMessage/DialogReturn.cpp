@@ -721,70 +721,28 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
-            auto pItemID = packet.Find(CompileTimeHashString("ItemID"));
-            if(!pItemID) {
-                pItemID = packet.Find(CompileTimeHashString("itemID"));
-            }
-            if(!pItemID) {
-                pItemID = packet.Find(CompileTimeHashString("selectedItemID"));
-            }
-            if(!pItemID) {
-                pItemID = packet.Find(CompileTimeHashString("item"));
-            }
-
-            // Amount dialog path must be handled first; some packets include status=0 which would otherwise short-circuit to AcceptOffer(false).
-            if(pItemID) {
-                auto pAmount = packet.Find(CompileTimeHashString("Amount"));
-                if(!pAmount) {
-                    pAmount = packet.Find(CompileTimeHashString("amount"));
-                }
-                if(!pAmount) {
-                    pAmount = packet.Find(CompileTimeHashString("count"));
-                }
-
-                uint32 itemID = 0;
-                if(ToUInt(string(pItemID->value, pItemID->size), itemID) != TO_INT_SUCCESS || itemID > UINT16_MAX) {
-                    return;
-                }
-
-                uint32 amount = 0;
-                if(pAmount) {
-                    if(ToUInt(string(pAmount->value, pAmount->size), amount) != TO_INT_SUCCESS) {
-                        amount = 0;
-                    }
-                }
-
-                pPlayer->ModifyOffer((uint16)itemID, (uint16)amount);
+            const uint16 pendingItemID = pPlayer->GetPendingTradeModifyItemID();
+            if(pendingItemID == 0) {
                 break;
             }
 
-            auto pStatus = packet.Find(CompileTimeHashString("status"));
-            if(!pStatus) {
-                pStatus = packet.Find(CompileTimeHashString("accepted"));
+            auto pAmount = packet.Find(CompileTimeHashString("Amount"));
+            if(!pAmount) {
+                pAmount = packet.Find(CompileTimeHashString("amount"));
+            }
+            if(!pAmount) {
+                pAmount = packet.Find(CompileTimeHashString("count"));
             }
 
-            if(pStatus) {
-                string statusStr(pStatus->value, pStatus->size);
-                int32 status = 0;
-                bool parsedStatus = false;
-
-                if(statusStr == "true") {
-                    status = 1;
-                    parsedStatus = true;
-                }
-                else if(statusStr == "false") {
-                    status = 0;
-                    parsedStatus = true;
-                }
-                else if(ToInt(statusStr, status) == TO_INT_SUCCESS) {
-                    parsedStatus = true;
-                }
-
-                if(parsedStatus) {
-                    pPlayer->AcceptOffer(status > 0);
-                    break;
+            uint32 amount = 0;
+            if(pAmount) {
+                if(ToUInt(string(pAmount->value, pAmount->size), amount) != TO_INT_SUCCESS) {
+                    amount = 0;
                 }
             }
+
+            pPlayer->ClearPendingTradeModifyItemID();
+            pPlayer->ModifyOffer(pendingItemID, (uint16)amount);
             break;
         }
 

@@ -168,6 +168,9 @@ public:
     void SetLastTradedAt(uint64 timeMS) { m_lastTradedAt = timeMS; }
     uint64 GetLastChangeTradeDeal() const { return m_lastChangeTradeDeal; }
     void SetLastChangeTradeDeal(uint64 timeMS) { m_lastChangeTradeDeal = timeMS; }
+    uint16 GetPendingTradeModifyItemID() const { return m_pendingTradeModifyItemID; }
+    void SetPendingTradeModifyItemID(uint16 itemID) { m_pendingTradeModifyItemID = itemID; }
+    void ClearPendingTradeModifyItemID() { m_pendingTradeModifyItemID = 0; }
     uint64 GetLastAcceptedTrade() const { return m_lastAcceptedTrade; }
     void SetLastAcceptedTrade(uint64 timeMS) { m_lastAcceptedTrade = timeMS; }
     uint32 GetPendingTradeRequesterUserID() const { return m_pendingTradeRequesterUserID; }
@@ -352,6 +355,7 @@ private:
     Vector2Int m_magplantPos = { -1, -1 };
     string m_pendingDoorWarpID = "";
     string m_birthCertificatePendingName = "";
+    uint16 m_pendingTradeModifyItemID = 0;
     string m_nickname = "";
 
     Timer m_lastDbSaveTime;

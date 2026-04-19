@@ -360,6 +360,7 @@ void ResetTradeState(GamePlayer* pPlayer)
     pPlayer->SetTradeAcceptedAt(0);
     pPlayer->SetTradeConfirmedAt(0);
     pPlayer->SetLastChangeTradeDeal(0);
+    pPlayer->ClearPendingTradeModifyItemID();
     pPlayer->ClearPendingTradeRequest();
     pPlayer->ClearTradeOffers();
 }
@@ -639,6 +640,7 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
             db.AddTextInput("Amount", "", "", 3);
             db.EndDialog("TradeModify", "OK", "Cancel");
 
+            SetPendingTradeModifyItemID(itemID);
             SendOnDialogRequest(db.Get());
             return;
         }

@@ -449,7 +449,12 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
 
         switch(actionType) {
             case TCP_CROSS_ACTION_MSG: {
+                if(payloadText.empty()) {
+                    break;
+                }
+
                 pTarget->SendOnConsoleMessage("`o(From `$" + sourceRawName + "`o): " + payloadText);
+                pTarget->PlaySFX("audio/pay_time.wav");
                 break;
             }
 

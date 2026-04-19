@@ -7,7 +7,7 @@ const CommandInfo& Msg::GetInfo()
 {
     static CommandInfo info =
     {
-        "/msg <player_prefix> <message>",
+        "Usage: /msg <`$full or first part of a name``> <`$your message``> - This will send a private message to someone anywhere in the universe.  If you don't include a message, you can just see if he/she is online or not.",
         "Send a private message",
         ROLE_PERM_NONE,
         {
@@ -25,7 +25,7 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    if(args.size() < 3) {
+    if(args.size() < 2) {
         pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
@@ -42,14 +42,9 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    string message = JoinString(args, " ", 2);
+    string message = args.size() >= 3 ? JoinString(args, " ", 2) : "";
     RemoveExtraWhiteSpaces(message);
-    if(message.empty()) {
-        pPlayer->SendOnConsoleMessage("You can't send an empty message, that's too boring.");
-        return;
-    }
-
-    if(message.size() > 180) {
+    if(!message.empty() && message.size() > 180) {
         message.resize(180);
     }
 
@@ -77,6 +72,11 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
+    if(message.empty()) {
+        pPlayer->SendOnConsoleMessage("`6>> `w" + pTarget->GetRawName() + "`6 is online.");
+        return;
+    }
+
     const uint64 nowMS = Time::GetSystemTime();
     pPlayer->SetLastWhisperUserID(pTarget->GetUserID());
     pPlayer->SetLastWhisperAtMS(nowMS);
@@ -85,4 +85,5 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     pPlayer->SendOnConsoleMessage("`o(Sent to `$" + pTarget->GetRawName() + "`o)");
     pTarget->SendOnConsoleMessage("`o(From `$" + pPlayer->GetRawName() + "`o): " + message);
+    pTarget->PlaySFX("audio/pay_time.wav");
 }
