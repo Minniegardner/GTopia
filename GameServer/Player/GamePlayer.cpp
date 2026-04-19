@@ -609,7 +609,7 @@ void GamePlayer::CancelTrade(bool busy, std::string customMessage)
             pTarget->SendOnConsoleMessage(customMessage);
             pTarget->SendOnTextOverlay(customMessage);
         }
-        else if(busy) {
+        else if(busy && isTradingWithMe) {
             const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", GetRawName());
             pTarget->SendOnConsoleMessage(message);
             pTarget->SendOnTextOverlay(message);
@@ -628,7 +628,7 @@ void GamePlayer::CancelTrade(bool busy, std::string customMessage)
         SendOnConsoleMessage(customMessage);
         SendOnTextOverlay(customMessage);
     }
-    else if(busy) {
+    else if(busy && isTradingWithMe) {
         const std::string message = fmt::format("`8[`w{} `4is too busy to trade!`8]``", pTarget ? pTarget->GetRawName() : GetRawName());
         SendOnConsoleMessage(message);
         SendOnTextOverlay(message);
@@ -1317,10 +1317,11 @@ void GamePlayer::SendSocialPortal()
     DialogBuilder db;
     db.SetDefaultColor('o')
         ->AddLabelWithIcon("`wSocial Portal``", ITEM_ID_WRENCH, true)
-        ->AddSpacer()
+        ->AddLabel("`oManage friends, notifications, guild, and social shortcuts from here.")
         ->AddLabel("`oFriends online: `w" + ToString(CountOnlineFriends()) + "`` / `w" + ToString((uint32)m_friendUserIDs.size()) + "``")
         ->AddLabel("`oFriend notifications: `w" + string(IsShowFriendNotification() ? "On" : "Off") + "``")
         ->AddSpacer()
+        ->AddLabel("`wFriends``")
         ->AddButton("GotoFriendsMenu", "Show Friends")
         ->AddButton("FriendAll", "Show Offline + Online")
         ->AddButton("SeeSent", "Sent Friend Requests")
@@ -1336,7 +1337,8 @@ void GamePlayer::SendSocialPortal()
         db.AddButton("CreateGuild", "Create Guild");
     }
 
-    db.AddButton("GotoTradeHistory", "Trade History")
+    db.AddLabel("`wOther``")
+        ->AddButton("GotoTradeHistory", "Trade History")
         ->AddButton("BackToWrench", "Back to Wrench")
         ->AddQuickExit()
         ->EndDialog("SocialPortal", "", "OK");

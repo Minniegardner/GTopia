@@ -124,6 +124,7 @@ string GetWeekdayName(uint32 day)
 #include "../Command/Vanish.h"
 #include "../Command/Effect.h"
 #include "../Command/SetGems.h"
+#include "../Command/AddLevel.h"
 #include "../Command/PInfo.h"
 #include "../Command/AddRole.h"
 #include "../Command/AddTitle.h"
@@ -342,6 +343,7 @@ void GameServer::RegisterEvents()
     RegisterCommand<Vanish>();
     RegisterCommand<Effect>();
     RegisterCommand<SetGems>();
+    RegisterCommand<AddLevel>();
     RegisterCommand<PInfo>();
     RegisterCommand<AddRole>();
     RegisterCommand<AddTitle>();

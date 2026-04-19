@@ -22,8 +22,9 @@ void RegisterDialog::Request(GamePlayer* pPlayer, const string& namePlaceholder,
     db.AddTextBox("By choosing a `wGrowID``, you can use a name and password to logon from any device. Your `wname`` will be shown to other players!")
     ->AddTextInput("logon", "Name", namePlaceholder, 18)
     ->AddSpacer()
-    ->AddTextInputPassword("password", "Password", passPlaceholder, 18)
-    ->AddTextInputPassword("verify_password", "Verify Password", passVerifPlaceholder, 18)
+    ->AddLabel("`wAccount Security``")
+    ->AddTextInput("password", "Password", passPlaceholder, 18)
+    ->AddTextInput("verify_password", "Verify Password", passVerifPlaceholder, 18)
     ->AddSpacer()
     ->EndDialog("growid_apply", "Get My GrowID!", "Cancel");
 

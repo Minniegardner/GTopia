@@ -138,6 +138,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/Vanish.cpp
     ${GAME_COMMAND}/Effect.cpp
     ${GAME_COMMAND}/SetGems.cpp
+    ${GAME_COMMAND}/AddLevel.cpp
     ${GAME_COMMAND}/PInfo.cpp
     ${GAME_COMMAND}/AddRole.cpp
     ${GAME_COMMAND}/AddTitle.cpp

@@ -6,7 +6,7 @@
 #set_perms|perms...|
 
 init_perms|mstate|smstate|use_item_type_mod|can_wear_any|command_ghost|command_magic|bypass_illegal_item|command_giveitem|command_toggleplaymod|command_kick|command_pull|command_mod|command_rolemgmt|command_ban|command_randompull|command_warn|command_warpto|command_maintenance|maintenance_exception|
-set_default_role|1|
+set_default_role|3|
 # command_* used to access the slash command
 # compatibility commands mapped to existing perms:
 # command_pull -> /pull, /summon
