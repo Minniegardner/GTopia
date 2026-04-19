@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Guild.h"
+#include <functional>
 
 class GuildManager {
 public:
