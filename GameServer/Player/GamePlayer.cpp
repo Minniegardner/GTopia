@@ -543,66 +543,15 @@ void GamePlayer::StartTrade(GamePlayer* player)
         return;
     }
 
-    // Keep an active trade stable when duplicate /trade or wrench triggers happen.
-    if(IsTrading() && player->IsTrading() && GetTradingWithUserID() == player->GetUserID() && player->GetTradingWithUserID() == GetUserID()) {
-        SendTradeStatus(this);
-        SendTradeStatus(player);
-        return;
-    }
-
-    if(IsTrading()) {
-        CancelTrade(false);
-    }
+    CancelTrade(false);
 
     if(player->IsTrading()) {
         SendOnTalkBubble("That player is busy.", true);
-        SetTradingWithUserID(0);
         return;
     }
-
-    const uint64 nowMS = Time::GetSystemTime();
 
     SetTradingWithUserID(player->GetUserID());
-    SetTradeAccepted(false);
-    SetTradeConfirmed(false);
-    SetTradeAcceptedAt(0);
-    SetTradeConfirmedAt(0);
-    ClearTradeOffers();
-    SetLastChangeTradeDeal(0);
-
-    if(player->GetTradingWithUserID() != GetUserID()) {
-        if(player->HasPendingTradeRequestFrom(GetUserID(), nowMS)) {
-            SendOnConsoleMessage("`6[``Trade request already sent. Wait for the other player to respond.`6]``");
-            SendStartTrade(player);
-            return;
-        }
-
-        player->SetPendingTradeRequest(GetUserID(), nowMS);
-        SendOnConsoleMessage("`6[``Trade request sent. Waiting for the other player to trade back.`6]``");
-        player->SendTradeAlert(this);
-        SendStartTrade(player);
-        return;
-    }
-
-    ClearPendingTradeRequest();
-    player->ClearPendingTradeRequest();
-
-    SetTrading(true);
-    SendTradeStatus(this);
-    SendTradeStatus(player);
-    SetLastChangeTradeDeal(nowMS);
-
-    player->SetTrading(true);
-    player->SetTradingWithUserID(GetUserID());
-    player->SetTradeAccepted(false);
-    player->SetTradeConfirmed(false);
-    player->SetTradeAcceptedAt(0);
-    player->SetTradeConfirmedAt(0);
-    player->ClearTradeOffers();
-    player->SetLastChangeTradeDeal(nowMS);
-
-    player->SendTradeStatus(this);
-    player->SendTradeStatus(player);
+    SendStartTrade(player);
 }
 
 void GamePlayer::CancelTrade(bool busy, std::string customMessage)

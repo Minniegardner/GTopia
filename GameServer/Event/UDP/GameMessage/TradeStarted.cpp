@@ -29,6 +29,8 @@ void TradeStarted::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
+    pPlayer->CancelTrade(false);
+
     GamePlayer* pTarget = pWorld->GetPlayerByNetID((uint32)targetNetID);
     if(!pTarget || pTarget == pPlayer || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
         return;
@@ -38,5 +40,34 @@ void TradeStarted::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    pPlayer->StartTrade(pTarget);
+    if(!pTarget->IsTrading()) {
+        if(pTarget->GetTradingWithUserID() == pPlayer->GetUserID()) {
+            const uint64 nowMS = Time::GetSystemTime();
+
+            pPlayer->SetTrading(true);
+            pPlayer->SendTradeStatus(pPlayer);
+            pPlayer->SendTradeStatus(pTarget);
+            pPlayer->SetLastChangeTradeDeal(nowMS);
+            pPlayer->SetTradeAccepted(false);
+            pPlayer->SetTradeConfirmed(false);
+            pPlayer->SetTradeAcceptedAt(0);
+            pPlayer->SetTradeConfirmedAt(0);
+
+            pTarget->SetTrading(true);
+            pTarget->SendTradeStatus(pPlayer);
+            pTarget->SendTradeStatus(pTarget);
+            pTarget->SetLastChangeTradeDeal(nowMS);
+            pTarget->SetTradeAccepted(false);
+            pTarget->SetTradeConfirmed(false);
+            pTarget->SetTradeAcceptedAt(0);
+            pTarget->SetTradeConfirmedAt(0);
+        }
+        else {
+            pTarget->SendTradeAlert(pPlayer);
+        }
+    }
+    else {
+        pPlayer->SendOnTalkBubble("That player is busy.", true);
+        pPlayer->SetTradingWithUserID(0);
+    }
 }
