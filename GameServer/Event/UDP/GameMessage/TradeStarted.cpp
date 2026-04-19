@@ -29,12 +29,12 @@ void TradeStarted::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID((uint32)targetNetID);
+    GamePlayer* pTarget = pWorld->GetPlayerByNetID((uint32)targetNetID);
     if(!pTarget || pTarget == pPlayer || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
         return;
     }
 
-    if(pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
+    if(pPlayer->GetTradingWithUserID() != pTarget->GetUserID()) {
         return;
     }
 

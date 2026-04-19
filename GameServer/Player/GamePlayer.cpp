@@ -538,22 +538,25 @@ void GamePlayer::StartTrade(GamePlayer* player)
         return;
     }
 
-    if(IsTrading()) {
-        CancelTrade(false);
-    }
-
     if(!IsValidTradePair(this, player)) {
         SendOnConsoleMessage("`4Target is no longer valid.``");
         return;
     }
 
-    if(player->IsTrading()) {
-        SendOnTalkBubble("That player is busy.", true);
+    // Keep an active trade stable when duplicate /trade or wrench triggers happen.
+    if(IsTrading() && player->IsTrading() && GetTradingWithUserID() == player->GetUserID() && player->GetTradingWithUserID() == GetUserID()) {
+        SendTradeStatus(this);
+        SendTradeStatus(player);
         return;
     }
 
-    if(player->GetTradingWithUserID() != 0 && player->GetTradingWithUserID() != GetUserID()) {
-        SendOnConsoleMessage(fmt::format("`8[`w{} `4is already handling another trade request!`8]``", player->GetRawName()));
+    if(IsTrading()) {
+        CancelTrade(false);
+    }
+
+    if(player->IsTrading()) {
+        SendOnTalkBubble("That player is busy.", true);
+        SetTradingWithUserID(0);
         return;
     }
 
@@ -570,6 +573,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     if(player->GetTradingWithUserID() != GetUserID()) {
         if(player->HasPendingTradeRequestFrom(GetUserID(), nowMS)) {
             SendOnConsoleMessage("`6[``Trade request already sent. Wait for the other player to respond.`6]``");
+            SendStartTrade(player);
             return;
         }
 
@@ -586,7 +590,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     SetTrading(true);
     SendTradeStatus(this);
     SendTradeStatus(player);
-    SetLastChangeTradeDeal(Time::GetSystemTime());
+    SetLastChangeTradeDeal(nowMS);
 
     player->SetTrading(true);
     player->SetTradingWithUserID(GetUserID());
@@ -595,7 +599,7 @@ void GamePlayer::StartTrade(GamePlayer* player)
     player->SetTradeAcceptedAt(0);
     player->SetTradeConfirmedAt(0);
     player->ClearTradeOffers();
-    player->SetLastChangeTradeDeal(Time::GetSystemTime());
+    player->SetLastChangeTradeDeal(nowMS);
 
     player->SendTradeStatus(this);
     player->SendTradeStatus(player);
