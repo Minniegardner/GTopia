@@ -66,6 +66,12 @@ DialogBuilder* DialogBuilder::AddTextInputPassword(const string& buttonID, const
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddQuickExit()
+{
+    m_str += "add_quick_exit|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::EndDialog(const string& dialogID, const string& acceptText, const string& cancelText)
 {
     m_str += "end_dialog|" + dialogID + "|" + cancelText + "|" + acceptText + "|\n";
