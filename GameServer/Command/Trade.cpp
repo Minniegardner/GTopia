@@ -36,10 +36,27 @@ void Trade::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByRawName(args[1]);
-    if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
-        pPlayer->SendOnConsoleMessage("`4Player not found.``");
+    std::vector<GamePlayer*> matches = GetGameServer()->FindPlayersByNamePrefix(args[1], true, pPlayer->GetCurrentWorld());
+    if(matches.empty()) {
+        pPlayer->SendOnConsoleMessage("`4Player not found in this world.``");
         return;
+    }
+
+    GamePlayer* pTarget = nullptr;
+    for(GamePlayer* candidate : matches) {
+        if(candidate && candidate != pPlayer) {
+            pTarget = candidate;
+            break;
+        }
+    }
+
+    if(!pTarget) {
+        pPlayer->SendOnConsoleMessage("`4You can't trade with yourself.``");
+        return;
+    }
+
+    if(matches.size() > 1) {
+        pPlayer->SendOnConsoleMessage("`6Multiple players matched. Using the closest name match: `w" + pTarget->GetRawName() + "``");
     }
 
     pPlayer->StartTrade(pTarget);

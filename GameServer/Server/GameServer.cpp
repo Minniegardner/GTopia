@@ -295,6 +295,7 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<Buy>(CompileTimeHashString("buy"));
     RegisterMessagePacket<GrowID>(CompileTimeHashString("growid"));
     RegisterMessagePacket<TradeStarted>(CompileTimeHashString("trade_started"));
+    RegisterMessagePacket<TradeStarted>(CompileTimeHashString("trade_start"));
     RegisterMessagePacket<TradeCancel>(CompileTimeHashString("trade_cancel"));
     RegisterMessagePacket<TradeAccept>(CompileTimeHashString("trade_accept"));
     RegisterMessagePacket<TradeRemove>(CompileTimeHashString("rem_trade"));
