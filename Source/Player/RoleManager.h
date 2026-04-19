@@ -21,6 +21,8 @@ public:
     void Kill();
 
     Role* GetRole(int32 id);
+    const std::unordered_map<int32, Role*>& GetRoles() const { return m_roles; }
+    Role* FindRoleByName(const string& name) const;
     int32 GetDefaultRoleID() const { return m_defaultRoleID; }
 
 private:

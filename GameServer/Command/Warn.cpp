@@ -1,5 +1,6 @@
 #include "Warn.h"
 #include "Utils/StringUtils.h"
+#include "CommandTargetUtils.h"
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 
@@ -7,7 +8,7 @@ const CommandInfo& Warn::GetInfo()
 {
     static CommandInfo info =
     {
-        "/warn <player_prefix> <reason>",
+        "/warn <target|#userid> <reason>",
         "Warn a player with a reason",
         ROLE_PERM_COMMAND_WARN,
         {
@@ -24,27 +25,27 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    if(args.size() < 2 || args[1].size() < 3) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` You need at least the first three characters of the person's name.");
+    if(args.size() < 2) {
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
     if(args.size() < 3) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` Usage: /warn <name> <reason>");
+        pPlayer->SendOnConsoleMessage("Usage: /warn <target|#userid> <reason>");
         return;
     }
 
-    string query = args[1];
-    bool exactMatch = false;
-    if(!query.empty() && query[0] == '/') {
-        exactMatch = true;
-        query.erase(query.begin());
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
+        return;
     }
 
     string reason = JoinString(args, " ", 2);
     RemoveExtraWhiteSpaces(reason);
     if(reason.empty()) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` Usage: /warn <name> <reason>");
+        pPlayer->SendOnConsoleMessage("Usage: /warn <target|#userid> <reason>");
         return;
     }
 
@@ -52,21 +53,21 @@ void Warn::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         reason.resize(120);
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = ResolveLocalTargets(targetSpec, false, 0);
     if(matches.empty()) {
         GetMasterBroadway()->SendCrossServerActionRequest(
             TCP_CROSS_ACTION_WARN,
             pPlayer->GetUserID(),
             pPlayer->GetRawName(),
-            query,
-            exactMatch,
+            targetSpec.query,
+            targetSpec.exactMatch,
             reason,
             0);
         return;
     }
 
-    if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && matches.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, matches, "server");
         return;
     }
 

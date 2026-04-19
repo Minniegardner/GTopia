@@ -48,7 +48,7 @@ void SetGems::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(players.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players starting with `w" + query + "`o, be more specific.");
+        pPlayer->SendOnConsoleMessage("`oThere are multiple players starting with `w" + query + "`o, be more specific.");
         return;
     }
 

@@ -1,5 +1,6 @@
 #include "Summon.h"
 #include "Utils/StringUtils.h"
+#include "CommandTargetUtils.h"
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
@@ -9,7 +10,7 @@ const CommandInfo& Summon::GetInfo()
 {
     static CommandInfo info =
     {
-        "/summon <player_prefix>",
+        "/summon <target|#userid>",
         "Summon player to your current world",
         ROLE_PERM_COMMAND_PULL,
         {
@@ -30,19 +31,19 @@ void Summon::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    if(args.size() < 2 || args[1].size() < 3) {
-        pPlayer->SendOnConsoleMessage("`oUsage: " + GetInfo().usage);
+    if(args.size() < 2) {
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
-    string query = args[1];
-    bool exactMatch = false;
-    if(!query.empty() && query[0] == '/') {
-        exactMatch = true;
-        query.erase(query.begin());
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
+        return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = ResolveLocalTargets(targetSpec, false, 0);
     if(matches.empty()) {
         World* pInvokerWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
         if(!pInvokerWorld) {
@@ -54,15 +55,15 @@ void Summon::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             TCP_CROSS_ACTION_SUMMON,
             pPlayer->GetUserID(),
             pPlayer->GetRawName(),
-            query,
-            exactMatch,
+            targetSpec.query,
+            targetSpec.exactMatch,
             pInvokerWorld->GetWorlName(),
             0);
         return;
     }
 
-    if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are multiple players starting with `w" + query + "`o, be more specific.");
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && matches.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, matches, "server");
         return;
     }
 

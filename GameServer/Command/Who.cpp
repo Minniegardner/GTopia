@@ -33,12 +33,17 @@ void Who::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    pPlayer->SendOnConsoleMessage("`oPlayers here (`w" + ToString((int)players.size()) + "``):");
+    World* pWorld = GetWorldManager()->GetWorldByID(pPlayer->GetCurrentWorld());
+    const string worldName = pWorld ? pWorld->GetWorlName() : "UNKNOWN";
+    pPlayer->SendOnConsoleMessage("`oWho's in `o" + worldName + "``: `w" + ToString((int)players.size()) + "``");
     for(GamePlayer* pTarget : players) {
         if(!pTarget) {
             continue;
         }
 
-        pPlayer->SendOnConsoleMessage("`w" + pTarget->GetDisplayName() + "`` (`o" + pTarget->GetRawName() + "``)");
+        pPlayer->SendOnConsoleMessage(
+            "`w" + pTarget->GetRawName() + "`` (UID: `o" + ToString(pTarget->GetUserID()) +
+            "`` | NID: `o" + ToString(pTarget->GetNetID()) + "``)"
+        );
     }
 }

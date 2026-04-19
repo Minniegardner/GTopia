@@ -49,14 +49,11 @@ This document maps commands found in:
 
 ## Present in reference but missing in current source
 
-- AddRole
 - AnitaMaxWynn
 - Beta
 - Break
 - Cache
 - Cheat
-- Clear
-- ClearInv
 - ClearSurgStuff
 - DB
 - Destructo
@@ -65,28 +62,19 @@ This document maps commands found in:
 - EFlag
 - Extend
 - GemEvent
-- Get
-- GetRoles
 - IPS
-- ListRoles
 - LoadTileSequence
 - LoadWorld
-- Maintenance
 - MakeFullPlat
 - MoveDoor
 - Nick
-- Nuke
 - Packet
 - Punch
 - ReloadCurrentWorld
-- RemoveRole
 - ResetWorld
-- Roles
-- Server
 - Spawn
 - Store
-- SummonAll
-- Vanish
+- Clear (partial: `drop` mode)
 - Warp (if behavior differs from current implementation)
 
 ## Notes for message/dialog parity

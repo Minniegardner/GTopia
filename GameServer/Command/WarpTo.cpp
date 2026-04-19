@@ -1,5 +1,6 @@
 #include "WarpTo.h"
 #include "Utils/StringUtils.h"
+#include "CommandTargetUtils.h"
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
@@ -8,7 +9,7 @@ const CommandInfo& WarpTo::GetInfo()
 {
     static CommandInfo info =
     {
-        "/warpto <player_prefix>",
+        "/warpto <target|#userid>",
         "Warp to a player's current world",
         ROLE_PERM_COMMAND_WARPTO,
         {
@@ -25,34 +26,34 @@ void WarpTo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    if(args.size() < 2 || args[1].size() < 3) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` You need at least the first three characters of the person's name.");
+    if(args.size() < 2) {
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
-    string query = args[1];
-    bool exactMatch = false;
-    if(!query.empty() && query[0] == '/') {
-        exactMatch = true;
-        query.erase(query.begin());
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
+        return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = ResolveLocalTargets(targetSpec, false, 0);
     if(matches.empty()) {
         GetMasterBroadway()->SendCrossServerActionRequest(
             TCP_CROSS_ACTION_WARPTO,
             pPlayer->GetUserID(),
             pPlayer->GetRawName(),
-            query,
-            exactMatch,
+            targetSpec.query,
+            targetSpec.exactMatch,
             string(),
             0);
         pPlayer->SendOnConsoleMessage("`oSearching target globally and preparing warp...");
         return;
     }
 
-    if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && matches.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, matches, "server");
         return;
     }
 

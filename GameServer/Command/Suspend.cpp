@@ -1,5 +1,6 @@
 #include "Suspend.h"
 #include "Utils/StringUtils.h"
+#include "CommandTargetUtils.h"
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 
@@ -7,7 +8,7 @@ const CommandInfo& Suspend::GetInfo()
 {
     static CommandInfo info =
     {
-        "/suspend <player_prefix> <minutes|off> [reason]",
+        "/suspend <target|#userid> <minutes|off> [reason]",
         "Temporarily mute or unmute a player",
         ROLE_PERM_COMMAND_WARN,
         {
@@ -27,19 +28,14 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() < 3) {
-        pPlayer->SendOnConsoleMessage("`oUsage: " + GetInfo().usage);
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
-    string query = args[1];
-    bool exactMatch = false;
-    if(!query.empty() && query[0] == '/') {
-        exactMatch = true;
-        query.erase(query.begin());
-    }
-
-    if(query.size() < 3 && !exactMatch) {
-        pPlayer->SendOnConsoleMessage("`4Oops:`` You need at least the first three characters of the person's name.");
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
         return;
     }
 
@@ -72,7 +68,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         }
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = ResolveLocalTargets(targetSpec, false, 0);
     if(matches.empty()) {
         const uint64 payloadMinutes = unmuteCommand ? 0 : (uint64)minutes;
 
@@ -80,15 +76,15 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             unmuteCommand ? TCP_CROSS_ACTION_UNSUSPEND : TCP_CROSS_ACTION_SUSPEND,
             pPlayer->GetUserID(),
             pPlayer->GetRawName(),
-            query,
-            exactMatch,
+            targetSpec.query,
+            targetSpec.exactMatch,
             reason,
             payloadMinutes);
         return;
     }
 
-    if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are multiple players starting with `w" + query + "`o, be more specific.");
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && matches.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, matches, "server");
         return;
     }
 

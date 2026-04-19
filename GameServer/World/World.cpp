@@ -383,7 +383,13 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
         return false;
     }
 
-    // Check if player is banned from this world
+    if(HasWorldFlag(WORLD_FLAG_NUKED)) {
+        Role* pRole = pPlayer->GetRole();
+        if(!pRole || (!pRole->HasPerm(ROLE_PERM_MSTATE) && !pRole->HasPerm(ROLE_PERM_SMSTATE))) {
+            pPlayer->SendOnConsoleMessage("That world is inaccessible.");
+            return false;
+        }
+    }
     if(IsPlayerBanned(pPlayer->GetUserID())) {
         pPlayer->SendOnConsoleMessage("`4Oh no! ``You've been banned from that world! Try again later after ban wears off.");
         return false;

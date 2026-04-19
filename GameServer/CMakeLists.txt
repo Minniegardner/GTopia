@@ -95,7 +95,11 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GamePacket/State.cpp
 
     ${GAME_COMMAND}/RenderWorld.cpp
+    ${GAME_COMMAND}/CommandTargetUtils.cpp
+    ${GAME_COMMAND}/ClearInv.cpp
+    ${GAME_COMMAND}/Clear.cpp
     ${GAME_COMMAND}/GiveItem.cpp
+    ${GAME_COMMAND}/Nick.cpp
     ${GAME_COMMAND}/Ghost.cpp
     ${GAME_COMMAND}/SpawnGhost.cpp
     ${GAME_COMMAND}/TogglePlayMod.cpp
@@ -122,15 +126,25 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/Uba.cpp
     ${GAME_COMMAND}/KickAll.cpp
     ${GAME_COMMAND}/Summon.cpp
+    ${GAME_COMMAND}/SummonAll.cpp
+    ${GAME_COMMAND}/Nuke.cpp
     ${GAME_COMMAND}/Suspend.cpp
+    ${GAME_COMMAND}/ServerCmd.cpp
     ${GAME_COMMAND}/Maintenance.cpp
     ${GAME_COMMAND}/PBan.cpp
     ${GAME_COMMAND}/GrowIDCmd.cpp
     ${GAME_COMMAND}/SuperBroadcast.cpp
     ${GAME_COMMAND}/Weather.cpp
+    ${GAME_COMMAND}/Vanish.cpp
     ${GAME_COMMAND}/Effect.cpp
     ${GAME_COMMAND}/SetGems.cpp
     ${GAME_COMMAND}/PInfo.cpp
+    ${GAME_COMMAND}/AddRole.cpp
+    ${GAME_COMMAND}/AddTitle.cpp
+    ${GAME_COMMAND}/RemoveRole.cpp
+    ${GAME_COMMAND}/Roles.cpp
+    ${GAME_COMMAND}/ListRoles.cpp
+    ${GAME_COMMAND}/GetRoles.cpp
     ${GAME_COMMAND}/InvSee.cpp
     ${GAME_COMMAND}/ItemInfo.cpp
     ${GAME_COMMAND}/ReplaceBlocks.cpp

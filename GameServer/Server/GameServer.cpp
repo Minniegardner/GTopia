@@ -82,8 +82,11 @@ string GetWeekdayName(uint32 day)
 #include "../Event/UDP/GameMessage/TradeModify.h"
 
 #include "../Command/RenderWorld.h"
+#include "../Command/ClearInv.h"
+#include "../Command/Clear.h"
 #include "../Command/GiveItem.h"
 #include "../Command/Ghost.h"
+#include "../Command/Nick.h"
 #include "../Command/SpawnGhost.h"
 #include "../Command/TogglePlayMod.h"
 #include "../Command/Magic.h"
@@ -109,15 +112,25 @@ string GetWeekdayName(uint32 day)
 #include "../Command/Uba.h"
 #include "../Command/KickAll.h"
 #include "../Command/Summon.h"
+#include "../Command/SummonAll.h"
+#include "../Command/Nuke.h"
 #include "../Command/Suspend.h"
+#include "../Command/ServerCmd.h"
 #include "../Command/Maintenance.h"
 #include "../Command/PBan.h"
 #include "../Command/GrowIDCmd.h"
 #include "../Command/SuperBroadcast.h"
 #include "../Command/Weather.h"
+#include "../Command/Vanish.h"
 #include "../Command/Effect.h"
 #include "../Command/SetGems.h"
 #include "../Command/PInfo.h"
+#include "../Command/AddRole.h"
+#include "../Command/AddTitle.h"
+#include "../Command/RemoveRole.h"
+#include "../Command/Roles.h"
+#include "../Command/ListRoles.h"
+#include "../Command/GetRoles.h"
 #include "../Command/InvSee.h"
 #include "../Command/ItemInfo.h"
 #include "../Command/ReplaceBlocks.h"
@@ -287,7 +300,10 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<TradeModify>(CompileTimeHashString("mod_trade"));
 
     RegisterCommand<RenderWorld>();
+    RegisterCommand<ClearInv>();
+    RegisterCommand<Clear>();
     RegisterCommand<GiveItem>();
+    RegisterCommand<Nick>();
     RegisterCommand<Ghost>();
     RegisterCommand<SpawnGhost>();
     RegisterCommand<TogglePlayMod>();
@@ -314,15 +330,25 @@ void GameServer::RegisterEvents()
     RegisterCommand<Uba>();
     RegisterCommand<KickAll>();
     RegisterCommand<Summon>();
+    RegisterCommand<SummonAll>();
+    RegisterCommand<Nuke>();
     RegisterCommand<Suspend>();
+    RegisterCommand<ServerCmd>();
     RegisterCommand<Maintenance>();
     RegisterCommand<PBan>();
     RegisterCommand<GrowIDCmd>();
     RegisterCommand<SuperBroadcast>();
     RegisterCommand<Weather>();
+    RegisterCommand<Vanish>();
     RegisterCommand<Effect>();
     RegisterCommand<SetGems>();
     RegisterCommand<PInfo>();
+    RegisterCommand<AddRole>();
+    RegisterCommand<AddTitle>();
+    RegisterCommand<RemoveRole>();
+    RegisterCommand<Roles>();
+    RegisterCommand<ListRoles>();
+    RegisterCommand<GetRoles>();
     RegisterCommand<InvSee>();
     RegisterCommand<ItemInfoCmd>();
     RegisterCommand<ReplaceBlocks>();
@@ -374,6 +400,7 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         const string sourceRawName = data[5].GetString();
         const string payloadText = data[6].GetString();
         const uint64 payloadNumber = (uint64)data[7].GetUINT();
+        const uint32 sourceServerID = data.size() >= 11 ? data[10].GetUINT() : 0;
 
         if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST) {
             if(payloadText.empty()) {
@@ -391,6 +418,27 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
             return;
         }
 
+        if(actionType == TCP_CROSS_ACTION_SUMMON_ALL) {
+            if(payloadText.empty()) {
+                return;
+            }
+
+            for(auto& [_, pWorldPlayer] : m_playerCache) {
+                if(!pWorldPlayer || !pWorldPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+                    continue;
+                }
+
+                if(pWorldPlayer->GetUserID() == sourceUserID) {
+                    continue;
+                }
+
+                pWorldPlayer->SendOnConsoleMessage("`oYou were summoned by ``" + sourceRawName + "`` to `w" + payloadText + "``.");
+                GetWorldManager()->PlayerJoinRequest(pWorldPlayer, payloadText);
+            }
+
+            return;
+        }
+
         GamePlayer* pTarget = GetPlayerByUserID(targetUserID);
         if(!pTarget || !pTarget->HasState(PLAYER_STATE_IN_GAME)) {
             return;
@@ -399,6 +447,55 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
         switch(actionType) {
             case TCP_CROSS_ACTION_MSG: {
                 pTarget->SendOnConsoleMessage("`o(From `$" + sourceRawName + "`o): " + payloadText);
+                break;
+            }
+
+            case TCP_CROSS_ACTION_SERVER_SWITCH: {
+                auto parts = Split(payloadText, '|');
+                if(parts.size() < 2) {
+                    break;
+                }
+
+                uint32 serverPort = 0;
+                if(ToUInt(parts[1], serverPort) != TO_INT_SUCCESS || serverPort == 0) {
+                    break;
+                }
+
+                pTarget->SetSwitchingSubserver(true);
+                pTarget->SendOnConsoleMessage("Redirecting..");
+                pTarget->SendOnSendToServer(
+                    (uint16)serverPort,
+                    pTarget->GetLoginDetail().token,
+                    pTarget->GetUserID(),
+                    parts[0],
+                    "",
+                    "-1",
+                    LOGIN_MODE_REDIRECT_SUBSERVER_SILENT
+                );
+                break;
+            }
+
+            case TCP_CROSS_ACTION_PINFO: {
+                World* pTargetWorld = GetWorldManager()->GetWorldByID(pTarget->GetCurrentWorld());
+                const string worldName = pTargetWorld ? pTargetWorld->GetWorlName() : "EXIT";
+                const string info =
+                    "`w" + pTarget->GetRawName() + "`` (UID: `o" + ToString(pTarget->GetUserID()) +
+                    "`` | NID: `o" + ToString(pTarget->GetNetID()) +
+                    "``) - LV `o" + ToString(pTarget->GetLevel()) +
+                    "`` - Gems `o" + ToString(pTarget->GetGems()) +
+                    "`` - Server `o" + ToString(GetContext()->GetID()) +
+                    "`` - World `o" + worldName + "``";
+
+                VariantVector result(8);
+                result[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+                result[1] = TCP_CROSS_ACTION_RESULT;
+                result[2] = actionType;
+                result[3] = sourceUserID;
+                result[4] = TCP_CROSS_ACTION_RESULT_OK;
+                result[5] = pTarget->GetRawName();
+                result[6] = info;
+                result[7] = sourceServerID;
+                GetMasterBroadway()->SendPacketRaw(result);
                 break;
             }
 
@@ -540,6 +637,20 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
                 pSource->SendOnConsoleMessage("`o(Sent to `$" + targetName + "`o)");
                 break;
 
+            case TCP_CROSS_ACTION_PINFO:
+                if(data.size() >= 7) {
+                    pSource->SendOnConsoleMessage("`o>> `w" + data[6].GetString());
+                }
+                break;
+
+            case TCP_CROSS_ACTION_SERVER_SWITCH:
+                pSource->SendOnConsoleMessage("`oRedirecting to ``" + targetName + "``...");
+                break;
+
+            case TCP_CROSS_ACTION_SUMMON_ALL:
+                pSource->SendOnConsoleMessage("`oSummon-all broadcast delivered across subservers.");
+                break;
+
             case TCP_CROSS_ACTION_SUMMON:
                 pSource->SendOnConsoleMessage("`oSummon request sent for ``" + targetName + "`` across subserver.");
                 break;
@@ -585,7 +696,14 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
     }
 
     if(resultCode == TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH) {
-        pSource->SendOnConsoleMessage("`oThere are multiple players matching that name globally, be more specific.");
+        auto parts = Split(targetName, '|');
+        if(parts.size() >= 2 && !parts[1].empty()) {
+            pSource->SendOnConsoleMessage("`oThere are multiple players matching `w" + parts[0] + "`o globally, be more specific.");
+            pSource->SendOnConsoleMessage("`oMatched players: `w" + parts[1] + "``");
+        }
+        else {
+            pSource->SendOnConsoleMessage("`oThere are multiple players matching that name globally, be more specific.");
+        }
         return;
     }
 

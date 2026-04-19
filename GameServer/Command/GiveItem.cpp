@@ -1,5 +1,6 @@
 #include "Utils/StringUtils.h"
 #include "GiveItem.h"
+#include "CommandTargetUtils.h"
 #include "../Server/GameServer.h"
 #include "../Server/MasterBroadway.h"
 #include "Item/ItemInfoManager.h"
@@ -8,11 +9,12 @@ const CommandInfo& GiveItem::GetInfo()
 {
     static CommandInfo info =
     {
-        "/giveitem <userID> <amount> <item name>",
+        "/giveitem <target|#userid> <amount> <item name>",
         "Give item to player",
         ROLE_PERM_COMMAND_GIVEITEM,
         {
-            CompileTimeHashString("giveitem")
+            CompileTimeHashString("giveitem"),
+            CompileTimeHashString("get")
         }
     };
 
@@ -26,13 +28,14 @@ void GiveItem::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() < 4) {
-        pPlayer->SendOnConsoleMessage("`oUsage: " + GetInfo().usage);
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
-    uint32 userID = 0;
-    if(ToUInt(args[1], userID) != TO_INT_SUCCESS) {
-        pPlayer->SendOnConsoleMessage("`oUserID must be number!");
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
         return;
     }
 
@@ -49,17 +52,23 @@ void GiveItem::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
+    auto matches = ResolveLocalTargets(targetSpec, false, 0);
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && matches.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, matches, "server");
+        return;
+    }
+
+    GamePlayer* pTarget = matches.empty() ? nullptr : matches[0];
     if(!pTarget) {
         GetMasterBroadway()->SendCrossServerActionRequest(
             TCP_CROSS_ACTION_GIVEITEM,
             pPlayer->GetUserID(),
             pPlayer->GetRawName(),
-            ToString(userID),
-            true,
+            targetSpec.query,
+            targetSpec.exactMatch,
             ToString(pItem->id),
             amount);
-        pPlayer->SendOnConsoleMessage("`oGiveitem request sent across subserver for user ID `w" + ToString(userID) + "``.");
+        pPlayer->SendOnConsoleMessage("`oGiveitem request sent across subserver for target `w" + targetSpec.query + "``.");
         return;
     }
 

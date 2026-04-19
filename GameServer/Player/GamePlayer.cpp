@@ -3209,7 +3209,10 @@ string GamePlayer::GetDisplayName()
         displayName += m_pRole->GetPrefix();
     }
 
-    if(!m_loginDetail.tankIDName.empty()) {
+    if(HasNickname()) {
+        displayName += m_nickname;
+    }
+    else if(!m_loginDetail.tankIDName.empty()) {
         displayName += m_loginDetail.tankIDName;
     }
     else {
@@ -3226,6 +3229,10 @@ string GamePlayer::GetDisplayName()
 
 string GamePlayer::GetRawName()
 {
+    if(HasNickname()) {
+        return m_nickname;
+    }
+
     return m_loginDetail.tankIDName.empty() ? 
         m_loginDetail.requestedName + "_" + ToString(m_guestID)
         : m_loginDetail.tankIDName;
@@ -3253,6 +3260,17 @@ string GamePlayer::GetSpawnData(bool local)
     }
 
     return spawnData;
+}
+
+bool GamePlayer::SetRoleByID(int32 roleID)
+{
+    Role* pRole = GetRoleManager()->GetRole(roleID);
+    if(!pRole) {
+        return false;
+    }
+
+    m_pRole = pRole;
+    return true;
 }
 
 void GamePlayer::ToggleCloth(uint16 itemID)

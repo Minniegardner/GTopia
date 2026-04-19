@@ -184,6 +184,26 @@ Role* RoleManager::GetRole(int32 id)
     return it->second;
 }
 
+Role* RoleManager::FindRoleByName(const string& name) const
+{
+    if(name.empty()) {
+        return nullptr;
+    }
+
+    const string normalizedName = ToLower(name);
+    for(const auto& [_, pRole] : m_roles) {
+        if(!pRole) {
+            continue;
+        }
+
+        if(ToLower(pRole->GetName()) == normalizedName) {
+            return pRole;
+        }
+    }
+
+    return nullptr;
+}
+
 bool RoleManager::GetRolePermFromString(const string& permStr, eRolePerm& permOut)
 {
     auto it = m_permList.find(permStr);

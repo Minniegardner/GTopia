@@ -25,7 +25,7 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() < 2) {
-        pPlayer->SendOnConsoleMessage("`oUsage: " + GetInfo().usage);
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
@@ -35,7 +35,7 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     const string query = args[1];
     if(query.size() < 3) {
-        pPlayer->SendOnConsoleMessage("You'll need to enter at least the first three characters of the person's name.");
+        pPlayer->SendOnConsoleMessage("`6>> `4Oops: `6Enter at least the `#first three characters `6of the persons name.``");
         return;
     }
 
@@ -59,7 +59,7 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(filtered.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
+        pPlayer->SendOnConsoleMessage("`oThere are multiple players in the server starting with `w" + query + " `obe more specific.");
         return;
     }
 

@@ -11,7 +11,8 @@ const CommandInfo& Msg::GetInfo()
         "Send a private message",
         ROLE_PERM_NONE,
         {
-            CompileTimeHashString("msg")
+            CompileTimeHashString("msg"),
+            CompileTimeHashString("message")
         }
     };
 
@@ -25,7 +26,7 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() < 3) {
-        pPlayer->SendOnConsoleMessage("`oUsage: " + GetInfo().usage);
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
@@ -66,7 +67,7 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(!exactMatch && matches.size() > 1) {
-        pPlayer->SendOnConsoleMessage("`oThere are more than two players in the server starting with `w" + query + " `obe more specific!");
+        pPlayer->SendOnConsoleMessage("`oThere are multiple players starting with `w" + query + " `obe more specific.");
         return;
     }
 

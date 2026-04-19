@@ -1,15 +1,23 @@
 #include "TCPEventCrossServerAction.h"
 #include "../../Server/ServerManager.h"
 #include "../../Server/GameServer.h"
+#include "Utils/StringUtils.h"
 
 void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
 {
-    if(!pClient || data.size() < 9) {
+    if(!pClient || data.size() < 8) {
         return;
     }
 
     const int32 packetSubType = data[1].GetINT();
     if(packetSubType != TCP_CROSS_ACTION_REQUEST) {
+        if(packetSubType == TCP_CROSS_ACTION_RESULT && data.size() >= 8) {
+            const uint32 sourceServerID = data.size() >= 8 ? data[7].GetUINT() : 0;
+            if(sourceServerID != 0) {
+                GetServerManager()->SendPacketRaw((uint16)sourceServerID, data);
+            }
+        }
+
         return;
     }
 
@@ -22,7 +30,40 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
     const string payloadText = data[8].GetString();
     const uint64 payloadNumber = data.size() >= 10 ? (uint64)data[9].GetUINT() : 0;
 
-    if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST || actionType == TCP_CROSS_ACTION_MAINTENANCE) {
+    if(actionType == TCP_CROSS_ACTION_SERVER_SWITCH) {
+        uint32 targetServerID = 0;
+        if(payloadText.empty() || ToUInt(payloadText, targetServerID) != TO_INT_SUCCESS || targetServerID == 0) {
+            GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, payloadText);
+            return;
+        }
+
+        ServerInfo* pTargetServer = GetServerManager()->GetServerByID((uint16)targetServerID);
+        if(!pTargetServer || pTargetServer->serverType != CONFIG_SERVER_GAME) {
+            GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, payloadText);
+            return;
+        }
+
+        const string redirectPayload = pTargetServer->wanIP + "|" + ToString(pTargetServer->port) + "|" + ToString((uint32)pTargetServer->serverID);
+
+        if(!GetServerManager()->SendCrossServerActionExecute(
+            (uint16)sourceServerID,
+            actionType,
+            sourceUserID,
+            sourceUserID,
+            sourceRawName,
+            redirectPayload,
+            0,
+            sourceRawName,
+            sourceServerID)) {
+            GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_SEND_FAILED, ToString(targetServerID));
+            return;
+        }
+
+        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_OK, "S" + ToString(targetServerID));
+        return;
+    }
+
+    if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST || actionType == TCP_CROSS_ACTION_MAINTENANCE || actionType == TCP_CROSS_ACTION_SUMMON_ALL) {
         if(payloadText.empty()) {
             GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, "");
             return;
@@ -49,7 +90,23 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
     }
 
     if(!exactMatch && matches.size() > 1) {
-        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH, targetQuery);
+        string details = targetQuery + "|";
+        const size_t limit = std::min<size_t>(matches.size(), 8);
+        for(size_t i = 0; i < limit; ++i) {
+            PlayerSession* pSession = matches[i];
+            if(!pSession) {
+                continue;
+            }
+
+            if(i != 0) {
+                details += ", ";
+            }
+
+            details += pSession->name;
+            details += "(#" + ToString(pSession->userID) + ")";
+        }
+
+        GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_MULTIPLE_MATCH, details);
         return;
     }
 
@@ -72,7 +129,8 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
         sourceRawName,
         payloadText,
         payloadNumber,
-        pTargetSession->name)) {
+        pTargetSession->name,
+        sourceServerID)) {
         GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_SEND_FAILED, pTargetSession->name);
         return;
     }

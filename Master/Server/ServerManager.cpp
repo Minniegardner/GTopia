@@ -389,9 +389,10 @@ bool ServerManager::SendCrossServerActionExecute(
     const string& sourceRawName,
     const string& payloadText,
     uint64 payloadNumber,
-    const string& targetRawName)
+    const string& targetRawName,
+    uint32 sourceServerID)
 {
-    VariantVector data(10);
+    VariantVector data(11);
     data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
     data[1] = TCP_CROSS_ACTION_EXECUTE;
     data[2] = actionType;
@@ -402,6 +403,7 @@ bool ServerManager::SendCrossServerActionExecute(
     data[7] = (uint32)payloadNumber;
     data[8] = (uint32)targetServerID;
     data[9] = targetRawName;
+    data[10] = sourceServerID;
 
     return SendPacketRaw(targetServerID, data);
 }

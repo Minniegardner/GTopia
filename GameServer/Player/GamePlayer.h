@@ -89,7 +89,11 @@ public:
 
     string GetDisplayName();
     string GetRawName();
+    void SetNickname(const string& nickname) { m_nickname = nickname; }
+    const string& GetNickname() const { return m_nickname; }
+    bool HasNickname() const { return !m_nickname.empty(); }
     string GetSpawnData(bool local);
+    bool SetRoleByID(int32 roleID);
 
     bool IsPrefixEnabled() const;
     void SetPrefixEnabled(bool enabled);
@@ -348,6 +352,7 @@ private:
     Vector2Int m_magplantPos = { -1, -1 };
     string m_pendingDoorWarpID = "";
     string m_birthCertificatePendingName = "";
+    string m_nickname = "";
 
     Timer m_lastDbSaveTime;
 

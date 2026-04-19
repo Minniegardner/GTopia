@@ -1,13 +1,38 @@
 #include "PInfo.h"
 #include "Utils/StringUtils.h"
+#include "CommandTargetUtils.h"
 #include "../Context.h"
 #include "../Server/GameServer.h"
+#include "../Server/MasterBroadway.h"
+#include "../World/WorldManager.h"
+
+namespace {
+
+void SendPlayerInfoLine(GamePlayer* pViewer, GamePlayer* pTarget)
+{
+    if(!pViewer || !pTarget) {
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByID(pTarget->GetCurrentWorld());
+    const string worldName = pWorld ? pWorld->GetWorlName() : "EXIT";
+    pViewer->SendOnConsoleMessage(
+        "`w" + pTarget->GetRawName() + "`` (UID: `o" + ToString(pTarget->GetUserID()) +
+        "`` | NID: `o" + ToString(pTarget->GetNetID()) +
+        "``) - LV `o" + ToString(pTarget->GetLevel()) +
+        "`` - Gems `o" + ToString(pTarget->GetGems()) +
+        "`` - Server `o" + ToString(GetContext()->GetID()) +
+        "`` - World `o" + worldName + "``"
+    );
+}
+
+}
 
 const CommandInfo& PInfo::GetInfo()
 {
     static CommandInfo info =
     {
-        "/pinfo <name>",
+        "/pinfo <target|#userid>",
         "Lookup online player info",
         ROLE_PERM_COMMAND_MOD,
         {
@@ -30,37 +55,42 @@ void PInfo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     if(args.size() != 2) {
-        pPlayer->SendOnConsoleMessage("Command incomplete. Here's the argument list:");
-        pPlayer->SendOnConsoleMessage("-> /pinfo <name>");
+        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
         return;
     }
 
-    if(args[1].size() < 3) {
-        pPlayer->SendOnConsoleMessage("`6>> `4Oops:`` Enter at least the `#first 3 characters`` of the persons name.``");
+    CommandTargetSpec targetSpec;
+    string targetError;
+    if(!ParseCommandTargetArg(args[1], true, targetSpec, targetError)) {
+        pPlayer->SendOnConsoleMessage(targetError);
         return;
     }
 
-    pPlayer->SendOnConsoleMessage("Searching for `w" + args[1] + "``...");
+    pPlayer->SendOnConsoleMessage("Searching for `w" + targetSpec.query + "``...");
 
-    auto players = GetGameServer()->FindPlayersByNamePrefix(args[1], false, 0);
+    auto players = ResolveLocalTargets(targetSpec, false, 0);
     if(players.empty()) {
-        pPlayer->SendOnConsoleMessage("`4Oops: ``No Players Found.");
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_PINFO,
+            pPlayer->GetUserID(),
+            pPlayer->GetRawName(),
+            targetSpec.query,
+            targetSpec.exactMatch,
+            string(),
+            0);
         return;
     }
 
-    pPlayer->SendOnConsoleMessage("Found `w" + ToString(players.size()) + "`` Players:");
+    if(!targetSpec.exactMatch && !targetSpec.byUserID && players.size() > 1) {
+        SendAmbiguousLocalTargetList(pPlayer, targetSpec.query, players, "server");
+        return;
+    }
+
     for(GamePlayer* pTarget : players) {
         if(!pTarget) {
             continue;
         }
 
-        const string worldName = pTarget->GetCurrentWorld() ? (GetWorldManager()->GetWorldByID(pTarget->GetCurrentWorld()) ? GetWorldManager()->GetWorldByID(pTarget->GetCurrentWorld())->GetWorlName() : "UNKNOWN") : "EXIT";
-        pPlayer->SendOnConsoleMessage(
-            "`w" + pTarget->GetRawName() + "`` (ID: `o" + ToString(pTarget->GetUserID()) +
-            "``) - LV `o" + ToString(pTarget->GetLevel()) +
-            "`` - Gems `o" + ToString(pTarget->GetGems()) +
-            "`` - Server `o" + ToString(GetContext()->GetID()) +
-            "`` - World `o" + worldName + "``"
-        );
+        SendPlayerInfoLine(pPlayer, pTarget);
     }
 }
