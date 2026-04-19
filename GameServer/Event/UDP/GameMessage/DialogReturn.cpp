@@ -25,12 +25,55 @@
 #include "Algorithm/GhostAlgorithm.h"
 #include "Item/ItemInfoManager.h"
 #include "Database/Table/PlayerDBTable.h"
+#include "Database/Table/GuildDBTable.h"
 #include "../../../Guild/GuildManager.h"
 
 namespace {
 
 constexpr uint16 kTelephoneItemID = 3898;
 constexpr const char* kDailyQuestClaimDayStat = "DailyQuestClaimDay";
+constexpr uint32 kGuildMemberBlobVersion = 1;
+
+bool ParseUInt64Field(const string& text, uint64& out)
+{
+    if(text.empty()) {
+        return false;
+    }
+
+    try {
+        size_t parsed = 0;
+        const unsigned long long value = std::stoull(text, &parsed, 10);
+        if(parsed != text.size()) {
+            return false;
+        }
+
+        out = static_cast<uint64>(value);
+        return true;
+    }
+    catch(...) {
+        return false;
+    }
+}
+
+string SerializeGuildMembersHex(const std::vector<GuildMember>& members)
+{
+    const uint32 memberCount = static_cast<uint32>(members.size());
+    const uint32 memSize = sizeof(uint32) + memberCount * (sizeof(uint32) + sizeof(uint32));
+    std::vector<uint8> data(memSize, 0);
+
+    MemoryBuffer memBuffer(data.data(), memSize);
+    uint32 version = kGuildMemberBlobVersion;
+    memBuffer.ReadWrite(version, true);
+
+    for(const GuildMember& member : members) {
+        uint32 userID = member.UserID;
+        uint32 position = static_cast<uint32>(member.Position);
+        memBuffer.ReadWrite(userID, true);
+        memBuffer.ReadWrite(position, true);
+    }
+
+    return ToHex(data.data(), memSize);
+}
 
 string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
 {
@@ -554,9 +597,9 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 pGuild->AddPendingInvite(pTarget->GetUserID(), Time::GetSystemTime());
                 pTarget->AddPendingGuildInvite(pGuild->GetGuildID(), pGuild);
 
-                pPlayer->SendOnConsoleMessage(fmt::format("`2Guild invitation sent to ``{}``", pTarget->GetDisplayName()));
-                pTarget->SendOnTalkBubble(fmt::format("`3[``{}`` invited you to join guild `c{}``!`3]``", pPlayer->GetDisplayName(), pGuild->GetName()), true);
-                pTarget->SendOnConsoleMessage(fmt::format("`2You received a guild invitation from ``{}``. Wrench yourself to see your invitations!", pPlayer->GetDisplayName()));
+                pPlayer->SendOnConsoleMessage("`2Guild invitation sent to ``" + pTarget->GetDisplayName() + "``");
+                pTarget->SendOnTalkBubble("`3[``" + pPlayer->GetDisplayName() + "`` invited you to join guild `c" + pGuild->GetName() + "``!`3]``", true);
+                pTarget->SendOnConsoleMessage("`2You received a guild invitation from ``" + pPlayer->GetDisplayName() + "``. Wrench yourself to see your invitations!");
             }
             break;
         }
@@ -1970,14 +2013,14 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             if(buttonClicked.find("AcceptGuildInvite_") == 0) {
                 string guildIDStr = buttonClicked.substr(18);
                 uint64 guildID = 0;
-                if(ToUInt64(guildIDStr, guildID) == TO_INT_SUCCESS) {
+                if(ParseUInt64Field(guildIDStr, guildID)) {
                     pPlayer->HandleGuildInviteResponse(guildID, true);
                 }
             }
             else if(buttonClicked.find("RejectGuildInvite_") == 0) {
                 string guildIDStr = buttonClicked.substr(18);
                 uint64 guildID = 0;
-                if(ToUInt64(guildIDStr, guildID) == TO_INT_SUCCESS) {
+                if(ParseUInt64Field(guildIDStr, guildID)) {
                     pPlayer->HandleGuildInviteResponse(guildID, false);
                 }
             }
