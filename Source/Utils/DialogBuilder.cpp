@@ -54,6 +54,12 @@ DialogBuilder* DialogBuilder::AddButton(const string& buttonID, const string& te
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddItemPicker(const string& pickerID, const string& label, const string& description)
+{
+    m_str += "add_item_picker|" + pickerID + "|" + label + "|" + description + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::AddTextInput(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength)
 {
     m_str += "add_text_input|" + buttonID + "|" + text + "|" + placeholder + "|" + ToString(inputMaxLength) + "|\n";
