@@ -1685,15 +1685,15 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     db.AddButton("Ignore", IsIgnoring(otherPlayer->GetUserID()) ? "Unignore" : "Ignore")
         ->AddButton("Report", "Report");
 
-    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_PULL)) {
+    if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_PULL)) {
         db.AddButton("Pull", "Pull");
     }
 
-    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_KICK)) {
+    if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_KICK)) {
         db.AddButton("Kick", "Kick");
     }
 
-    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_BAN)) {
+    if(GetRole() && GetRole()->HasPerm(ROLE_PERM_COMMAND_BAN)) {
         db.AddButton("Ban", "Ban");
     }
 
