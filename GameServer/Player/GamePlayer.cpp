@@ -1636,11 +1636,11 @@ void GamePlayer::HandleGuildInviteResponse(uint64 guildID, bool accepted)
 
         World* pWorld = GetWorldManager()->GetWorldByID(pGuild->GetWorldID());
         if(pWorld) {
-            pWorld->Players([&](uint32, uint32, GamePlayer* pMember) {
+            for(GamePlayer* pMember : pWorld->GetPlayers()) {
                 if(pMember && pMember->GetGuildID() == guildID) {
                     pMember->SendCallFunctionPacket(joinNotif, GetNetID());
                 }
-            });
+            }
         }
 
         SendOnConsoleMessage(fmt::format("`2You joined guild `c{}``", pGuild->GetName()));
@@ -1660,9 +1660,113 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
         return;
     }
 
+    if(otherPlayer == this) {
+        SendWrenchSelf("PlayerInfo");
+        return;
+    }
+
     DialogBuilder db;
     db.SetDefaultColor('o')
-    ->EmbedData("MyNetID", GetNetID())
+        ->EmbedData("OtherNetID", otherPlayer->GetNetID())
+        ->AddLabelWithIcon("`wPlayer Actions``", ITEM_ID_WRENCH, true)
+        ->AddLabel("`oTarget: ``" + otherPlayer->GetDisplayName())
+        ->AddSpacer()
+        ->AddButton("sendpm", "Private Message")
+        ->AddButton("Trade", "Trade")
+        ->AddButton("show_clothes", "Show Clothes");
+
+    if(IsFriendWith(otherPlayer->GetUserID())) {
+        db.AddButton("Unfriend", "Unfriend");
+    }
+    else {
+        db.AddButton("Add", "Add Friend");
+    }
+
+    db.AddButton("Ignore", IsIgnoring(otherPlayer->GetUserID()) ? "Unignore" : "Ignore")
+        ->AddButton("Report", "Report");
+
+    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_PULL)) {
+        db.AddButton("Pull", "Pull");
+    }
+
+    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_KICK)) {
+        db.AddButton("Kick", "Kick");
+    }
+
+    if(GetRole() && GetRole()->HasPermission(ROLE_PERM_COMMAND_BAN)) {
+        db.AddButton("Ban", "Ban");
+    }
+
+    if(GetGuildID() != 0 && otherPlayer->GetGuildID() == 0) {
+        db.AddButton("InviteGuild", "Invite To Guild");
+    }
+
+    db.AddSpacer()
+        ->EndDialog("WrenchOthers", "", "Close")
+        ->AddQuickExit();
+
+    SendOnDialogRequest(db.Get());
+}
+
+void GamePlayer::SendFriendMenu(const string& action)
+{
+    if(action == "GotoSocialPortal") {
+        SendSocialPortal();
+        return;
+    }
+
+    if(action == "FriendsOptions") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("Friend Options", ITEM_ID_DUMB_FRIEND, true)
+            ->AddSpacer()
+            ->AddCheckBox("checkbox_notifications", "Show friend notifications", IsShowFriendNotification())
+            ->AddSpacer()
+            ->AddButton("GotoFriendsMenuAndApplyOptions", "Back")
+            ->EndDialog("FriendMenu", "", "Close");
+
+        SendOnDialogRequest(db.Get());
+        return;
+    }
+
+    if(action == "SeeSent") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wSent Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
+            ->AddSpacer();
+
+        if(m_sentFriendRequestUserIDs.empty()) {
+            db.AddLabel("You have no pending sent friend requests.");
+        }
+        else {
+            for(uint32 userID : m_sentFriendRequestUserIDs) {
+                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
+                const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
+                db.AddLabel("`o" + name);
+            }
+        }
+
+        db.AddSpacer()
+            ->AddButton("GotoFriendsMenu", "Back")
+            ->EndDialog("FriendMenu", "", "Close");
+
+        SendOnDialogRequest(db.Get());
+        return;
+    }
+
+    if(action == "SeeReceived") {
+        DialogBuilder db;
+        db.SetDefaultColor('o')
+            ->AddLabelWithIcon("`wReceived Friend Requests``", ITEM_ID_DUMB_FRIEND, true)
+            ->AddSpacer();
+
+        if(m_receivedFriendRequestUserIDs.empty()) {
+            db.AddLabel("You have no pending received friend requests.")
+                ->AddSpacer();
+        }
+        else {
+            for(uint32 userID : m_receivedFriendRequestUserIDs) {
+                GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(userID);
                 const string name = pTarget ? pTarget->GetDisplayName() : ("User #" + ToString(userID));
 
                 db.AddLabel("`o" + name)
@@ -1674,20 +1778,6 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
 
         db.AddButton("GotoFriendsMenu", "Back")
             ->EndDialog("FriendMenu", "", "Close");
-
-        SendOnDialogRequest(db.Get());
-        return;
-    }
-
-    if(action == "FriendsOptions") {
-        DialogBuilder db;
-        db.SetDefaultColor('o')
-          ->AddLabelWithIcon("Friend Options", ITEM_ID_DUMB_FRIEND, true)
-          ->AddSpacer()
-          ->AddCheckBox("checkbox_notifications", "Show friend notifications", IsShowFriendNotification())
-          ->AddSpacer()
-          ->AddButton("GotoFriendsMenuAndApplyOptions", "Back")
-          ->EndDialog("FriendMenu", "", "Close");
 
         SendOnDialogRequest(db.Get());
         return;
@@ -1740,10 +1830,10 @@ void GamePlayer::SendWrenchOthers(GamePlayer* otherPlayer)
     }
 
     db.AddButton("FriendAll", "Show offline and ignored too")
-            ->AddButton("FriendsOptions", "Friend Options")
+      ->AddButton("FriendsOptions", "Friend Options")
       ->AddButton("SeeSent", "Sent Friend Requests (`$" + ToString((uint32)m_sentFriendRequestUserIDs.size()) + "``)")
       ->AddButton("SeeReceived", "Received Friend Requests (`$" + ToString((uint32)m_receivedFriendRequestUserIDs.size()) + "``)")
-        ->AddButton("GotoSocialPortal", "Back")
+      ->AddButton("GotoSocialPortal", "Back")
       ->EndDialog("FriendMenu", "", "Close");
 
     SendOnDialogRequest(db.Get());
