@@ -734,7 +734,7 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
     SendTradeStatus(this);
 
     SendOnTextOverlay("`#The trade deal has been updated.");
-    SendOnTextOverlay(fmt::format("{}`` offered ``{}x {}``", GetRawName(), amount, GetTradeItemName(itemID)), 1000);
+    SendOnTextOverlay(fmt::format("{}`` offered ``{}x {}``", GetRawName(), amount, GetTradeItemName(itemID)));
     PlaySFX("tile_removed.wav");
 
     if(pTarget->GetTradingWithUserID() == GetUserID()) {
@@ -744,7 +744,7 @@ void GamePlayer::ModifyOffer(uint16 itemID, uint16 amount)
         pTarget->SendTradeStatus(pTarget);
 
         pTarget->SendOnTextOverlay("`#The trade deal has been updated.");
-        pTarget->SendOnTextOverlay(fmt::format("{}`` offered ``{}x {}``", GetRawName(), amount, GetTradeItemName(itemID)), 1000);
+        pTarget->SendOnTextOverlay(fmt::format("{}`` offered ``{}x {}``", GetRawName(), amount, GetTradeItemName(itemID)));
         pTarget->PlaySFX("tile_removed.wav");
     }
 }
@@ -802,7 +802,7 @@ void GamePlayer::RemoveOffer(uint16 itemID)
     SendTradeStatus(this);
 
     SendOnTextOverlay("`#The trade deal has been updated.");
-    SendOnTextOverlay(fmt::format("{}`` `4removed ``{}x {}``", GetRawName(), removedAmount, GetTradeItemName(itemID)), 1200);
+    SendOnTextOverlay(fmt::format("{}`` `4removed ``{}x {}``", GetRawName(), removedAmount, GetTradeItemName(itemID)));
     PlaySFX("tile_removed.wav");
 
     if(pTarget->GetTradingWithUserID() == GetUserID()) {
@@ -812,7 +812,7 @@ void GamePlayer::RemoveOffer(uint16 itemID)
         pTarget->SendTradeStatus(pTarget);
 
         pTarget->SendOnTextOverlay("`#The trade deal has been updated.");
-        pTarget->SendOnTextOverlay(fmt::format("{}`` `4removed ``{}x {}``", GetRawName(), removedAmount, GetTradeItemName(itemID)), 1200);
+        pTarget->SendOnTextOverlay(fmt::format("{}`` `4removed ``{}x {}``", GetRawName(), removedAmount, GetTradeItemName(itemID)));
         pTarget->PlaySFX("tile_removed.wav");
     }
 }
