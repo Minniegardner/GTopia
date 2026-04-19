@@ -162,6 +162,8 @@ const std::string& Guild::GetNotebook() const
 void Guild::SetNotebook(const std::string& notebook)
 {
     m_notebook = notebook;
+}
+
 const std::vector<GuildInvite>& Guild::GetPendingInvites() const
 {
     return m_pendingInvites;

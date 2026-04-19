@@ -14,10 +14,11 @@ enum class GuildPosition : uint32 {
 struct GuildMember {
     uint32 UserID = 0;
     GuildPosition Position = GuildPosition::MEMBER;
+};
+
 struct GuildInvite {
     uint32 UserID = 0;
     uint64 InvitedAtMS = 0;
-};
 };
 
 class Guild {
