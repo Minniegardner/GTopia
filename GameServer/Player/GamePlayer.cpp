@@ -557,6 +557,8 @@ void GamePlayer::StartTrade(GamePlayer* player)
         return;
     }
 
+    const uint64 nowMS = Time::GetSystemTime();
+
     SetTradingWithUserID(player->GetUserID());
     SetTradeAccepted(false);
     SetTradeConfirmed(false);
@@ -566,10 +568,20 @@ void GamePlayer::StartTrade(GamePlayer* player)
     SetLastChangeTradeDeal(0);
 
     if(player->GetTradingWithUserID() != GetUserID()) {
+        if(player->HasPendingTradeRequestFrom(GetUserID(), nowMS)) {
+            SendOnConsoleMessage("`6[``Trade request already sent. Wait for the other player to respond.`6]``");
+            return;
+        }
+
+        player->SetPendingTradeRequest(GetUserID(), nowMS);
+        SendOnConsoleMessage("`6[``Trade request sent. Waiting for the other player to trade back.`6]``");
         player->SendTradeAlert(this);
         SendStartTrade(player);
         return;
     }
+
+    ClearPendingTradeRequest();
+    player->ClearPendingTradeRequest();
 
     SetTrading(true);
     SendTradeStatus(this);
