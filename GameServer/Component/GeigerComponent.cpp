@@ -3,6 +3,7 @@
 #include "../Player/GamePlayer.h"
 #include "../World/World.h"
 #include "../Server/MasterBroadway.h"
+#include "Packet/NetPacket.h"
 #include "Item/ItemInfo.h"
 #include "Item/ItemInfoManager.h"
 #include "World/TileInfo.h"
@@ -82,7 +83,7 @@ void SendGeigerPulse(GamePlayer* pPlayer, uint32 pulseMode)
     pulsePacket.posY = pPlayer->GetWorldPos().y + 15.0f;
     pulsePacket.particleEffectType = 114.0f;
     pulsePacket.field11 = (float)pulseMode;
-    pPlayer->SendPacket(&pulsePacket);
+    SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &pulsePacket, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
 }
 
 }
