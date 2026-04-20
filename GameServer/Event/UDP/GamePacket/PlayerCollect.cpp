@@ -10,6 +10,8 @@
 
 namespace {
 
+constexpr uint8 kCollectFailLimit = 1;
+
 string BuildDailyQuestStatKey(const char* prefix, uint32 epochDay, uint16 itemID)
 {
     return string(prefix) + "_" + ToString(epochDay) + "_" + ToString(itemID);
@@ -42,12 +44,26 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     if(nowMS - pPlayer->GetLastCollectFailCheckTime() >= 5000) {
         pPlayer->ResetCollectFailWindow(nowMS);
     }
+    else if(pPlayer->GetCollectFailsInWindow() >= kCollectFailLimit) {
+        pPlayer->SendOnConsoleMessage("Server requesting you relog-on.");
+        pPlayer->SendFakePingReply();
+        return;
+    }
 
     if(!pPlayer->CanCollectObjectNow()) {
         return;
     }
 
+    // Mirror reference behavior: mark collect timing as soon as request is accepted.
+    pPlayer->ResetCollectObjectTime();
+
     if(pPlayer->GetCollectFailsInWindow() >= 20) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    if(pPacket->worldObjectID < 0) {
+        pPlayer->IncrementCollectFailWindow();
         pPlayer->SendFakePingReply();
         return;
     }
@@ -65,7 +81,6 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     if(xDist > (32.0f * 8.0f) || yDist > (32.0f * 4.0f)) {
         pPlayer->SendOnTalkBubble("Too far away to pick that up.", true);
         pPlayer->SendFakePingReply();
-        pPlayer->IncrementCollectFailWindow();
         return;
     }
 
@@ -101,7 +116,6 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         return;
     }
 
-    pPlayer->ResetCollectObjectTime();
     pPlayer->ResetCollectFailWindow(nowMS);
 
     if(pObject->itemID == ITEM_ID_GEMS) {
