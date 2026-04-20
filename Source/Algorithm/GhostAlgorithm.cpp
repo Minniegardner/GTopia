@@ -759,6 +759,9 @@ void SyncWorldGhostsToPlayer(World* pWorld, GamePlayer* pPlayer)
         packet.field2 = GHOST_NPC_ACTION_ADD;
         packet.posX = pos.x;
         packet.posY = pos.y;
+        packet.field9 = entity.destPos.x;
+        packet.field10 = entity.destPos.y;
+        packet.field11 = entity.speed;
 
         SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &packet, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
 

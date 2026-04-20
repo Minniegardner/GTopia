@@ -331,6 +331,17 @@ World* WorldManager::GetWorldByName(const string &worldName)
     return nullptr;
 }
 
+void WorldManager::ForEachWorld(const std::function<void(World*)>& callback)
+{
+    if(!callback) {
+        return;
+    }
+
+    for(auto& [_, pWorld] : m_worlds) {
+        callback(pWorld);
+    }
+}
+
 void WorldManager::RegisterEvents()
 {
     RegisterPacketEvent<ItemActivateRequest>(NET_GAME_PACKET_ITEM_ACTIVATE_REQUEST);
@@ -403,7 +414,6 @@ void WorldManager::UpdateWorlds()
         }
 
         pWorld->UpdateSteamActivations();
-        ChemsynthAlgorithm::UpdateWorldChemsynth(pWorld);
         GhostAlgorithm::UpdateWorldGhosts(pWorld);
         if(doFossilTick) {
             FossilComponent::TrySpawnWorldFossil(pWorld);

@@ -6,6 +6,7 @@
 #include "World.h"
 #include "Packet/NetPacket.h"
 #include "Event/EventDispatcher.h"
+#include <functional>
 
 class WorldManager : public WorldManagerBase {
 public:
@@ -31,6 +32,7 @@ public:
 
     World* GetWorldByID(uint32 worldID);
     World* GetWorldByName(const string& worldName);
+    void ForEachWorld(const std::function<void(World*)>& callback);
 
     void RegisterEvents();
     void OnHandleGamePacket(ENetEvent& event);

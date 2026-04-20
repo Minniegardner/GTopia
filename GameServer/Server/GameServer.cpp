@@ -12,6 +12,7 @@
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 #include "Database/Table/PlayerDBTable.h"
+#include "../Component/ChemsynthComponent.h"
 
 namespace {
 constexpr int32 DB_SUB_PLAYER_NAME_LOOKUP = 1;
@@ -366,6 +367,7 @@ void GameServer::UpdateGameLogic(uint64 maxTimeMS)
     ServerBase::UpdateGameLogic(maxTimeMS);
     UpdateMaintenance();
     UpdatePlayers();
+    ChemsynthComponent::OnTick();
     GetWorldManager()->UpdateWorlds();
 }
 

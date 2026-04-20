@@ -152,6 +152,7 @@ set(GAME_FILES PRIVATE
     ${GAME_COMMAND}/RepairMagplantWorlds.cpp
 
     ${GAME_COMPONENT}/KickAllComponent.cpp
+    ${GAME_COMPONENT}/ChemsynthComponent.cpp
     ${GAME_COMPONENT}/FossilComponent.cpp
     ${GAME_COMPONENT}/GeigerComponent.cpp
 
