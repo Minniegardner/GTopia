@@ -414,7 +414,6 @@ void WorldManager::UpdateWorlds()
         }
 
         pWorld->UpdateSteamActivations();
-        GhostAlgorithm::UpdateWorldGhosts(pWorld);
         if(doFossilTick) {
             FossilComponent::TrySpawnWorldFossil(pWorld);
         }
