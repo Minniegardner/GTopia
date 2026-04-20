@@ -32,14 +32,6 @@ bool IsReverseDirection(eSteamDirection lastDir, eSteamDirection nextDir)
         (lastDir == STEAM_DIR_RIGHT && nextDir == STEAM_DIR_LEFT);
 }
 
-void SendFreezeState(GamePlayer* pPlayer, int32 freezeState, int32 delayMS = -1)
-{
-    if(!pPlayer) {
-        return;
-    }
-
-    VariantVector data(2);
-
 string GetWorldPlayerName(GamePlayer* pPlayer)
 {
     return pPlayer ? pPlayer->GetDisplayName() : string("Unknown");
@@ -59,6 +51,14 @@ string GetLockedWorldOwnerName(uint32 ownerID)
 
     return "DeletedUser";
 }
+
+void SendFreezeState(GamePlayer* pPlayer, int32 freezeState, int32 delayMS = -1)
+{
+    if(!pPlayer) {
+        return;
+    }
+
+    VariantVector data(2);
     data[0] = "OnSetFreezeState";
     data[1] = freezeState;
     pPlayer->SendCallFunctionPacket(data, pPlayer->GetNetID(), delayMS);
