@@ -130,10 +130,10 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
                 break;
             }
 
-            /*case NET_ID_GAME_SERVER: {
+            case NET_ID_GAME_SERVER: {
                 GetGameServer()->OnHandleDatabase(std::move(taskRes));
                 break;
-            }*/
+            }
 
             case NET_ID_CONTEXT: {
                 if(GetContext()->IsShutting()) {

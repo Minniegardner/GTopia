@@ -51,6 +51,7 @@ void Nuke::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     pWorld->SetWorldFlag(WORLD_FLAG_NUKED, true);
+    pWorld->PlaySFXForEveryone("bigboom.wav", 0);
 
     std::vector<GamePlayer*> targets;
     targets.reserve(pWorld->GetPlayers().size());
@@ -70,8 +71,8 @@ void Nuke::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             continue;
         }
 
-        pWorld->SendConsoleMessageToAll("`w" + pPlayer->GetRawName() + " `4world bans `w" + pTarget->GetRawName() + " `ofrom `w" + pWorld->GetWorlName() + "`o!");
-         pTarget->PlaySFX("repair.wav");
+        pWorld->SendConsoleMessageToAll("`w" + pPlayer->GetDisplayName() + " `4world bans `w" + pTarget->GetDisplayName() + " `ofrom `w" + pWorld->GetWorlName() + "`o!");
+        pTarget->PlaySFX("repair.wav");
         pWorld->ForceLeavePlayer(pTarget);
     }
 
@@ -90,10 +91,20 @@ void Nuke::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     GetMasterBroadway()->SendCrossServerActionRequest(
         TCP_CROSS_ACTION_SUPER_BROADCAST,
         pPlayer->GetUserID(),
-        pPlayer->GetRawName(),
+        pPlayer->GetDisplayName(),
         "*",
         true,
         nukeBroadcast,
+        0
+    );
+
+    GetMasterBroadway()->SendCrossServerActionRequest(
+        TCP_CROSS_ACTION_GLOBAL_SFX,
+        pPlayer->GetUserID(),
+        pPlayer->GetDisplayName(),
+        "*",
+        true,
+        "bigboom.wav",
         0
     );
 }

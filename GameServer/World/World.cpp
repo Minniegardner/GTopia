@@ -37,19 +37,27 @@ string GetWorldPlayerName(GamePlayer* pPlayer)
     return pPlayer ? pPlayer->GetDisplayName() : string("Unknown");
 }
 
+bool CanSeeVanishedPlayer(GamePlayer* pViewer, GamePlayer* pSender)
+{
+    if(!pSender || !pViewer) {
+        return true;
+    }
+
+    if(!pSender->GetCharData().HasPlayMod(PLAYMOD_TYPE_STEALTH)) {
+        return true;
+    }
+
+    return pViewer->GetRole() && pViewer->GetRole()->HasPerm(ROLE_PERM_COMMAND_GHOST);
+}
+
 string GetLockedWorldOwnerName(uint32 ownerID)
 {
-    GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID(ownerID);
-    if(pOwner) {
-        return pOwner->GetDisplayName();
+    const string resolvedName = GetGameServer()->ResolvePlayerNameByUserID(ownerID);
+    if(!resolvedName.empty()) {
+        return resolvedName;
     }
 
-    const string cachedName = GetGameServer()->GetPlayerNameByUserID(ownerID);
-    if(!cachedName.empty()) {
-        return cachedName;
-    }
-
-    return "DeletedUser";
+    return "User#" + ToString(ownerID);
 }
 
 void SendFreezeState(GamePlayer* pPlayer, int32 freezeState, int32 delayMS = -1)
@@ -581,7 +589,7 @@ void World::SendSkinColorUpdateToAll(GamePlayer* pPlayer)
 
     uint32 skinColor = pPlayer->GetCharData().GetSkinColor(true);
     for(auto& pWorldPlayer: m_players) {
-        if(pWorldPlayer) {
+        if(pWorldPlayer && CanSeeVanishedPlayer(pWorldPlayer, pPlayer)) {
             pWorldPlayer->SendOnChangeSkin(skinColor, pPlayer);
         }
     }
@@ -614,7 +622,7 @@ void World::SendNameChangeToAll(GamePlayer* pPlayer)
 
     string playerName = pPlayer->GetDisplayName();
     for(auto& pWorldPlayer : m_players) {
-        if(pWorldPlayer) {
+        if(pWorldPlayer && CanSeeVanishedPlayer(pWorldPlayer, pPlayer)) {
             pWorldPlayer->SendOnNameChanged(playerName, pPlayer);
         }
     }
@@ -627,7 +635,7 @@ void World::SendSetCharPacketToAll(GamePlayer* pPlayer)
     }
 
     for(auto& pWorldPlayer : m_players) {
-        if(pWorldPlayer) {
+        if(pWorldPlayer && CanSeeVanishedPlayer(pWorldPlayer, pPlayer)) {
             pWorldPlayer->SendCharacterState(pPlayer);
         }
     }
@@ -640,7 +648,7 @@ void World::SendClothUpdateToAll(GamePlayer* pPlayer)
     }
 
     for(auto& pWorldPlayer : m_players) {
-        if(pWorldPlayer) {
+        if(pWorldPlayer && CanSeeVanishedPlayer(pWorldPlayer, pPlayer)) {
             pWorldPlayer->SendOnSetClothing(pPlayer);
         }
     }
@@ -800,9 +808,15 @@ void World::PlaySFXForEveryone(const string& fileName, int32 delay)
 
 void World::SendGamePacketToAll(GameUpdatePacket* pPacket, GamePlayer* pExceptMe, uint8* pExtraData)
 {
+    GamePlayer* pSender = pPacket ? GetPlayerByNetID((uint32)pPacket->netID) : nullptr;
+
     for(auto& pWorldPlayer : m_players) {
         if(pWorldPlayer) {
             if(pExceptMe && (pWorldPlayer == pExceptMe)) {
+                continue;
+            }
+
+            if(!CanSeeVanishedPlayer(pWorldPlayer, pSender)) {
                 continue;
             }
 

@@ -13,18 +13,28 @@ string GetPrimaryCommandName(const CommandInfo& info)
         return "";
     }
 
-    size_t start = 0;
-    while(start < info.usage.size() && info.usage[start] == ' ') {
-        ++start;
+    size_t slashPos = info.usage.find('/');
+    if(slashPos == string::npos) {
+        return "";
     }
 
-    if(start < info.usage.size() && info.usage[start] == '/') {
-        ++start;
+    size_t start = slashPos + 1;
+    if(start >= info.usage.size()) {
+        return "";
     }
 
-    size_t end = info.usage.find(' ', start);
-    if(end == string::npos) {
-        end = info.usage.size();
+    size_t end = start;
+    while(end < info.usage.size()) {
+        const char ch = info.usage[end];
+        if(ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == ',' || ch == ';') {
+            break;
+        }
+
+        ++end;
+    }
+
+    if(end <= start) {
+        return "";
     }
 
     return info.usage.substr(start, end - start);
@@ -115,18 +125,27 @@ void Help::Execute(GamePlayer* pPlayer, std::vector<string>& args)
             continue;
         }
 
+        if(pInfo->disabled) {
+            continue;
+        }
+
         if(!GetGameServer()->CanAccessCommand(pPlayer, *pInfo)) {
             continue;
         }
 
-        commandNames.push_back("/" + GetPrimaryCommandName(*pInfo));
+        const string commandName = GetPrimaryCommandName(*pInfo);
+        if(commandName.empty()) {
+            continue;
+        }
+
+        commandNames.push_back("/" + commandName);
     }
 
     std::sort(commandNames.begin(), commandNames.end(), [](const string& lhs, const string& rhs) {
         return ToLower(lhs) < ToLower(rhs);
     });
 
-    string commands = "`o>>Commands: ";
+    string commands = "`o>> Commands: ";
     for(size_t i = 0; i < commandNames.size(); ++i) {
         if(i == 0) {
             commands += commandNames[i];

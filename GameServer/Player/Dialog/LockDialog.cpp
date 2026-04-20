@@ -11,12 +11,16 @@ namespace {
 
 string GetNameByUserID(int32 userID)
 {
-    GamePlayer* pPlayer = GetGameServer()->GetPlayerByUserID((uint32)userID);
-    if(pPlayer) {
-        return pPlayer->GetDisplayName();
+    if(userID <= 0) {
+        return "DeletedUser";
     }
 
-    return "DeletedUser";
+    const string resolvedName = GetGameServer()->ResolvePlayerNameByUserID((uint32)userID);
+    if(!resolvedName.empty()) {
+        return resolvedName;
+    }
+
+    return "User#" + ToString(userID);
 }
 
 bool ParseCheckboxValue(ParsedTextPacket<8>& packet, const string& key, bool defaultValue)

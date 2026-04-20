@@ -63,7 +63,12 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
         return;
     }
 
-    if(actionType == TCP_CROSS_ACTION_SUPER_BROADCAST || actionType == TCP_CROSS_ACTION_MAINTENANCE || actionType == TCP_CROSS_ACTION_SUMMON_ALL) {
+    if(
+        actionType == TCP_CROSS_ACTION_SUPER_BROADCAST ||
+        actionType == TCP_CROSS_ACTION_MAINTENANCE ||
+        actionType == TCP_CROSS_ACTION_SUMMON_ALL ||
+        actionType == TCP_CROSS_ACTION_GLOBAL_SFX
+    ) {
         if(payloadText.empty()) {
             GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, "");
             return;

@@ -689,17 +689,17 @@ string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
         return "DeletedUser";
     }
 
-    GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
-    if(!pOwner) {
-        const string cachedName = GetGameServer()->GetPlayerNameByUserID((uint32)pLockExtra->ownerID);
-        if(cachedName.empty()) {
-            return "DeletedUser";
-        }
-
-        return cachedName;
+    if(pLockExtra->ownerID <= 0) {
+        return "DeletedUser";
     }
 
-    return pOwner->GetDisplayName();
+    const uint32 ownerID = (uint32)pLockExtra->ownerID;
+    const string resolvedName = GetGameServer()->ResolvePlayerNameByUserID(ownerID);
+    if(!resolvedName.empty()) {
+        return resolvedName;
+    }
+
+    return "User#" + ToString(ownerID);
 }
 
 bool ToggleWorldFlagMachine(World* pWorld, TileInfo* pTile, uint16 itemID)

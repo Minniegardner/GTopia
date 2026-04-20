@@ -81,6 +81,8 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25> &packet)
         return;
     }
 
+    m_triedHashFallback = false;
+
     if(m_loginDetail.tankIDName.empty()) {
         if(m_loginDetail.requestedName.size() < 3) {
             SendConsoleAndFail(this, "`oYou'll need a name `$3 chars`o or longer to play online with. (select cancel and enter a longer name)``");
@@ -166,6 +168,15 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
     else {
         if(m_loginDetail.tankIDName.empty()) {
+            if(!m_triedHashFallback && m_loginDetail.hash != 0) {
+                m_triedHashFallback = true;
+                m_state = PLAYER_STATE_LOGIN_CHECKING_ACCOUNT;
+
+                QueryRequest req = MakePlayerByHashReq(m_loginDetail.hash, m_loginDetail.platformType, GetNetID());
+                DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_HASH, req);
+                return;
+            }
+
             m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
         
             QueryRequest req = MakeCountCreatedAccByIP(m_address, GetNetID());

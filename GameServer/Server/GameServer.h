@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 
 class GameServer : public ServerBase, NetEntity {
 public:
@@ -37,13 +38,15 @@ public:
     GamePlayer* GetPlayerByRawName(const string& playerName);
     void SetPlayerNameCache(uint32 userID, const string& playerName);
     string GetPlayerNameByUserID(uint32 userID) const;
+    string ResolvePlayerNameByUserID(uint32 userID, bool scheduleLookup = true);
+    void OnHandleDatabase(QueryTaskResult&& result);
     std::vector<GamePlayer*> FindPlayersByNamePrefix(const string& query, bool sameWorldOnly = false, uint32 worldID = 0) const;
     bool CanAccessCommand(GamePlayer* pPlayer, const CommandInfo& info) const;
     const std::vector<const CommandInfo*>& GetCommandInfos() const { return m_commandInfos; }
 
     void UpdatePlayers();
     void UpdateMaintenance();
-    void BroadcastMaintenanceMessage(const string& message, bool playBeep = true);
+    void BroadcastMaintenanceMessage(const string& message, bool playBeep = true, const string& soundFile = "");
     void ForceDisconnectAllPlayers();
     void ForceSaveAllPlayers();
     void OnDailyEventSync(uint32 epochDay, uint32 eventType, uint32 eventSeed, bool announceToPlayers);
@@ -96,6 +99,7 @@ private:
     uint32 m_maintenanceSourceUserID = 0;
     string m_maintenanceSourceRawName;
     std::unordered_map<uint32, string> m_playerNameCache;
+    std::unordered_set<uint32> m_pendingPlayerNameLookups;
 };
 
 GameServer* GetGameServer();

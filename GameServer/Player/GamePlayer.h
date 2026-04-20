@@ -117,6 +117,11 @@ public:
     void SetWorldPos(float x, float y) { m_worldPos.x = x; m_worldPos.y = y; }
     Vector2Float GetWorldPos() const { return m_worldPos; }
 
+    uint32 GetHealth() const { return m_health; }
+    void SetHealth(uint32 value) { m_health = std::min<uint32>(200, value); }
+    uint64 GetLastDamageMS() const { return m_lastDamageMS; }
+    void SetLastDamageMS(uint64 value) { m_lastDamageMS = value; }
+
     void SetRespawnPos(float x, float y) { m_respawnPos.x = x; m_respawnPos.y = y; }
     Vector2Float GetRespawnPos() const { return m_respawnPos; }
 
@@ -355,6 +360,8 @@ private:
 
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;
+    uint32 m_health = 200;
+    uint64 m_lastDamageMS = 0;
     Vector2Int m_magplantPos = { -1, -1 };
     string m_pendingDoorWarpID = "";
     string m_birthCertificatePendingName = "";

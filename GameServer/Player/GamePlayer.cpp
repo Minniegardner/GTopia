@@ -3895,9 +3895,14 @@ bool GamePlayer::CanProcessMovePacket(float nextX, float nextY, uint64 nowMS)
     const float dy = nextY - m_lastMovePacketPos.y;
     const float distance = std::sqrt((dx * dx) + (dy * dy));
 
-    // Allow generous burst movement while still rejecting obvious teleports.
-    const float maxAllowedDistance = 180.0f + (2.5f * static_cast<float>(deltaMS));
-    const bool isSuspicious = distance > maxAllowedDistance;
+    uint32 pingCompensation = 2;
+    if(GetPeer() && GetPeer()->lastRoundTripTime > 20) {
+        pingCompensation = GetPeer()->lastRoundTripTime / 20;
+    }
+
+    const float softDistanceLimit = 32.0f * (3.0f + static_cast<float>(pingCompensation));
+    const float hardDistanceLimit = 32.0f * (5.0f + static_cast<float>(pingCompensation));
+    const bool isSuspicious = distance > softDistanceLimit;
 
     if(m_lastCheckMoveWindow.GetElapsedTime() >= 5000) {
         m_lastCheckMoveWindow.Reset();
@@ -3906,7 +3911,7 @@ bool GamePlayer::CanProcessMovePacket(float nextX, float nextY, uint64 nowMS)
 
     if(isSuspicious) {
         ++m_moveViolationsInWindow;
-        if(m_moveViolationsInWindow >= 8) {
+        if(distance > hardDistanceLimit || m_moveViolationsInWindow >= 10) {
             return false;
         }
     }

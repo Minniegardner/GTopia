@@ -11,8 +11,11 @@
 #include "../Context.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
+#include "Database/Table/PlayerDBTable.h"
 
 namespace {
+constexpr int32 DB_SUB_PLAYER_NAME_LOOKUP = 1;
+
 string GetDailyEventName(uint32 eventType)
 {
     switch(eventType) {
@@ -421,6 +424,22 @@ void GameServer::HandleCrossServerAction(VariantVector&& data)
             return;
         }
 
+        if(actionType == TCP_CROSS_ACTION_GLOBAL_SFX) {
+            if(payloadText.empty()) {
+                return;
+            }
+
+            for(auto& [_, pWorldPlayer] : m_playerCache) {
+                if(!pWorldPlayer || !pWorldPlayer->HasState(PLAYER_STATE_IN_GAME)) {
+                    continue;
+                }
+
+                pWorldPlayer->PlaySFX(payloadText, (int32)payloadNumber);
+            }
+
+            return;
+        }
+
         if(actionType == TCP_CROSS_ACTION_SUMMON_ALL) {
             if(payloadText.empty()) {
                 return;
@@ -784,6 +803,76 @@ string GameServer::GetPlayerNameByUserID(uint32 userID) const
     return it->second;
 }
 
+string GameServer::ResolvePlayerNameByUserID(uint32 userID, bool scheduleLookup)
+{
+    if(userID == 0) {
+        return string();
+    }
+
+    GamePlayer* pOnline = GetPlayerByUserID(userID);
+    if(pOnline) {
+        const string onlineName = pOnline->GetDisplayName();
+        if(!onlineName.empty()) {
+            SetPlayerNameCache(userID, onlineName);
+            return onlineName;
+        }
+    }
+
+    const string cachedName = GetPlayerNameByUserID(userID);
+    if(!cachedName.empty()) {
+        return cachedName;
+    }
+
+    if(scheduleLookup && m_pendingPlayerNameLookups.find(userID) == m_pendingPlayerNameLookups.end()) {
+        QueryRequest req = MakeGetPlayerBasicByID(userID, NET_ID_GAME_SERVER);
+        req.extraData.resize(2);
+        req.extraData[0] = DB_SUB_PLAYER_NAME_LOOKUP;
+        req.extraData[1] = userID;
+        DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BASIC_BY_ID, req);
+        m_pendingPlayerNameLookups.insert(userID);
+    }
+
+    return string();
+}
+
+void GameServer::OnHandleDatabase(QueryTaskResult&& result)
+{
+    if(result.extraData.empty()) {
+        result.Destroy();
+        return;
+    }
+
+    const int32 subType = result.extraData[0].GetINT();
+    if(subType != DB_SUB_PLAYER_NAME_LOOKUP) {
+        result.Destroy();
+        return;
+    }
+
+    uint32 fallbackUserID = 0;
+    if(result.extraData.size() > 1) {
+        fallbackUserID = result.extraData[1].GetUINT();
+    }
+
+    if(result.result && result.result->GetRowCount() > 0) {
+        const uint32 userID = result.result->GetField("ID", 0).GetUINT();
+        const string playerName = result.result->GetField("Name", 0).GetString();
+
+        if(userID != 0 && !playerName.empty()) {
+            SetPlayerNameCache(userID, playerName);
+        }
+
+        if(userID != 0) {
+            m_pendingPlayerNameLookups.erase(userID);
+        }
+    }
+
+    if(fallbackUserID != 0) {
+        m_pendingPlayerNameLookups.erase(fallbackUserID);
+    }
+
+    result.Destroy();
+}
+
 std::vector<GamePlayer*> GameServer::FindPlayersByNamePrefix(const string& query, bool sameWorldOnly, uint32 worldID) const
 {
     std::vector<GamePlayer*> matches;
@@ -934,11 +1023,11 @@ bool GameServer::InitiateMaintenance(const string& message, uint32 sourceUserID,
     m_maintenanceSourceRawName = sourceRawName;
 
     if(!message.empty()) {
-        BroadcastMaintenanceMessage("** Global System Message: `4" + message, true);
+        BroadcastMaintenanceMessage("** Global System Message: `4" + message, true, "ogg/suspended.ogg");
         m_hasMaintenanceAnnouncement = true;
     }
 
-    BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 `ominutes", true);
+    BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 `ominutes", true, "ogg/suspended.ogg");
 
     if(propagateToSubServers && GetMasterBroadway()->IsConnected()) {
         GetMasterBroadway()->SendCrossServerActionRequest(
@@ -955,7 +1044,7 @@ bool GameServer::InitiateMaintenance(const string& message, uint32 sourceUserID,
     return true;
 }
 
-void GameServer::BroadcastMaintenanceMessage(const string& message, bool playBeep)
+void GameServer::BroadcastMaintenanceMessage(const string& message, bool playBeep, const string& soundFile)
 {
     for(auto& [_, pPlayer] : m_playerCache) {
         if(!pPlayer) {
@@ -963,9 +1052,24 @@ void GameServer::BroadcastMaintenanceMessage(const string& message, bool playBee
         }
 
         pPlayer->SendOnConsoleMessage(message);
-        if(playBeep) {
+        if(!soundFile.empty()) {
+            pPlayer->PlaySFX(soundFile, 0);
+        }
+        else if(playBeep) {
             pPlayer->PlaySFX("beep.wav", 0);
         }
+    }
+
+    if(!soundFile.empty() && GetMasterBroadway()->IsConnected()) {
+        GetMasterBroadway()->SendCrossServerActionRequest(
+            TCP_CROSS_ACTION_GLOBAL_SFX,
+            m_maintenanceSourceUserID,
+            m_maintenanceSourceRawName,
+            "*",
+            true,
+            soundFile,
+            0
+        );
     }
 }
 
@@ -994,7 +1098,7 @@ void GameServer::UpdateMaintenance()
     const uint64 nowMS = Time::GetSystemTime();
 
     while(m_nextMaintenanceMinute > 1 && nowMS >= m_nextMaintenanceMinuteTimeMS) {
-        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4" + ToString(m_nextMaintenanceMinute) + " `ominutes", true);
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4" + ToString(m_nextMaintenanceMinute) + " `ominutes", true, "ogg/suspended.ogg");
         --m_nextMaintenanceMinute;
         m_nextMaintenanceMinuteTimeMS += 60ull * 1000ull;
     }
@@ -1003,22 +1107,22 @@ void GameServer::UpdateMaintenance()
 
     if(!m_isMarkedForMaintenance && remainingMS <= 60ull * 1000ull) {
         m_isMarkedForMaintenance = true;
-        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `41 `ominute", true);
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `41 `ominute", true, "ogg/suspended.ogg");
     }
 
     if(!m_sentMaintenance30 && remainingMS <= 30ull * 1000ull) {
         m_sentMaintenance30 = true;
-        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `430 seconds", true);
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `430 seconds", true, "ogg/suspended.ogg");
     }
 
     if(!m_sentMaintenance10 && remainingMS <= 10ull * 1000ull) {
         m_sentMaintenance10 = true;
-        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 seconds", true);
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `410 seconds", true, "ogg/suspended.ogg");
     }
 
     if(!m_sentMaintenanceZero && remainingMS == 0) {
         m_sentMaintenanceZero = true;
-        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4ZERO seconds! Should be back up in a minute or so. BYE!", true);
+        BroadcastMaintenanceMessage("`4Global System Message`o: Restarting server for update in `4ZERO seconds! Should be back up in a minute or so. BYE!", true, "ogg/suspended.ogg");
         ForceDisconnectAllPlayers();
         GetContext()->Shutdown();
     }
