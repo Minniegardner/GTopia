@@ -907,12 +907,13 @@ void TileChangeRequest::HandleConsumable(GamePlayer* pPlayer, World* pWorld, Gam
             return;
         }
 
-        case ITEM_ID_GHOST_JAR: {
+        case ITEM_ID_GHOST_JAR:
+        case ITEM_ID_GHOST_IN_A_JAR: {
             if(!GhostAlgorithm::PlaceGhostJar(pPlayer, pWorld, pTile)) {
                 return;
             }
 
-            pPlayer->ModifyInventoryItem(ITEM_ID_GHOST_JAR, -1);
+            pPlayer->ModifyInventoryItem(pItem->id, -1);
             return;
         }
 

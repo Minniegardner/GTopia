@@ -79,7 +79,16 @@ void SendChemSynthRewardFX(World* pWorld, GamePlayer* pPlayer)
         return;
     }
 
-    pWorld->SendParticleEffectToAll(pPlayer->GetWorldPos().x + 16.0f, pPlayer->GetWorldPos().y + 16.0f, 5, 1.0f, 0);
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_ITEM_EFFECT;
+    packet.posX = pPlayer->GetWorldPos().x + 16.0f;
+    packet.posY = pPlayer->GetWorldPos().y + 16.0f;
+    packet.field2 = 5;
+    packet.itemID = ITEM_ID_SYNTHETIC_CHEMICAL;
+    packet.netID = pPlayer->GetNetID();
+    packet.field9 = 1.0f;
+
+    pWorld->SendGamePacketToAll(&packet);
     pWorld->PlaySFXForEveryone("piano_nice.wav", 0);
 }
 

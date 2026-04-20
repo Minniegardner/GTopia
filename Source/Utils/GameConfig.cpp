@@ -79,6 +79,11 @@ bool GameConfig::LoadConfig(const string& filePath)
         if(args[0] == "max_accounts_per_mac") {
             maxAccountsPerMac = (uint16)ToUInt(args[1]);
         }
+
+        if(args[0] == "debug") {
+            const string lower = ToLower(args.size() > 1 ? args[1] : "");
+            debug = lower == "1" || lower == "true" || lower == "yes" || lower == "on";
+        }
     }
 
     return true;

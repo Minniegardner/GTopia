@@ -3433,7 +3433,6 @@ void GamePlayer::ToggleCloth(uint16 itemID)
         if(pWorld) {
             pWorld->SendClothUpdateToAll(this);
             pWorld->PlaySFXForEveryone("change_clothes.wav", 0);
-            pWorld->SendParticleEffectToAll(m_worldPos.x + 12.0f, m_worldPos.y + 15.0f, 3);
         }
     }
 }

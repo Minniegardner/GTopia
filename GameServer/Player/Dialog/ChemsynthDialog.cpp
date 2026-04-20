@@ -1,6 +1,5 @@
 #include "ChemsynthDialog.h"
 
-#include "IO/Log.h"
 #include "Item/ItemInfoManager.h"
 #include "Utils/DialogBuilder.h"
 #include "Utils/StringUtils.h"
@@ -163,9 +162,6 @@ void Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
     string buttonClicked = pButtonClicked ? string(pButtonClicked->value, pButtonClicked->size) : "";
     string buttonLower = ToLower(buttonClicked);
-
-    LOGGER_LOG_DEBUG("Chemsynth dialog button='%s' world=%u tile=%d,%d", buttonClicked.c_str(), pPlayer->GetCurrentWorld(), tileX, tileY);
-    pPlayer->SendOnConsoleMessage("ChemsynthDebug: button='" + (buttonClicked.empty() ? string("<empty>") : buttonClicked) + "'");
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
     if(!pItem) {

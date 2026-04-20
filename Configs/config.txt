@@ -24,3 +24,7 @@ max_accounts_per_gid|5
 max_accounts_per_vid|5
 max_accounts_per_sid|5
 max_accounts_per_mac|5
+
+# global runtime debug toggle
+# false = normal, true = enable debug logs for systems that support it (ghost, etc.)
+debug|false

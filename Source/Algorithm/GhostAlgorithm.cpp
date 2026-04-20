@@ -1,11 +1,13 @@
 #include "GhostAlgorithm.h"
 
 #include "../Item/ItemUtils.h"
+#include "../IO/Log.h"
 #include "../Packet/GamePacket.h"
 #include "../Packet/NetPacket.h"
 #include "../Player/PlayMod.h"
 #include "../Utils/Timer.h"
 #include "../World/TileInfo.h"
+#include "../../GameServer/Context.h"
 #include "../../GameServer/Player/GamePlayer.h"
 #include "../../GameServer/Server/GameServer.h"
 #include "../../GameServer/World/World.h"
@@ -61,6 +63,17 @@ struct GhostWorldState {
 };
 
 std::unordered_map<uint32, GhostWorldState> s_worldStates;
+
+bool IsGhostDebugEnabled()
+{
+    Context* pContext = GetContext();
+    if(!pContext) {
+        return false;
+    }
+
+    GameConfig* pConfig = pContext->GetGameConfig();
+    return pConfig && pConfig->debug;
+}
 
 GhostWorldState& GetState(World* pWorld)
 {
@@ -362,15 +375,22 @@ void PullGhostsTowardJar(World* pWorld, GhostWorldState& state, const Vector2Flo
         return;
     }
 
+    const Vector2Float jarPosTop = { jarPos.x, jarPos.y - (4.0f * 32.0f) };
+    const float lineLength = std::sqrt(
+        std::pow((jarPosTop.x + 16.0f) - jarPos.x, 2.0f) +
+        std::pow((jarPosTop.y + 16.0f) - jarPos.y, 2.0f)
+    );
+
     for(auto& [_, entity] : state.entities) {
         if(entity.isJar || !IsGhostNpcType(entity.npcType)) {
             continue;
         }
 
         const Vector2Float currentPos = GetGhostLerpPos(entity, nowMS);
-        const float xDist = std::abs(currentPos.x - jarPos.x);
-        const float yDist = std::abs(currentPos.y - jarPos.y);
-        if(xDist >= 64.0f || yDist >= 128.0f) {
+        const float d1 = std::sqrt(std::pow(currentPos.x - jarPos.x, 2.0f) + std::pow(currentPos.y - jarPos.y, 2.0f));
+        const float d2 = std::sqrt(std::pow(currentPos.x - jarPosTop.x, 2.0f) + std::pow(currentPos.y - jarPosTop.y, 2.0f));
+        const float distance = std::abs((d1 + d2) - lineLength);
+        if(distance >= 40.0f) {
             continue;
         }
 
@@ -401,10 +421,17 @@ void ResolveJar(World* pWorld, GhostWorldState& state, const GhostEntity& jar)
     }
 
     if(capturedGhostID == 0) {
+        if(IsGhostDebugEnabled()) {
+            LOGGER_LOG_DEBUG("GhostDebug: jar netID=%u in world %u resolved without capture", (uint32)jar.networkID, pWorld->GetID());
+        }
         return;
     }
 
     RemoveEntity(pWorld, state, capturedGhostID);
+    if(IsGhostDebugEnabled()) {
+        LOGGER_LOG_DEBUG("GhostDebug: jar netID=%u captured ghost netID=%u in world %u",
+            (uint32)jar.networkID, (uint32)capturedGhostID, pWorld->GetID());
+    }
     pWorld->SendParticleEffectToAll(jar.pos.x, jar.pos.y, 44, 0, 0);
     pWorld->PlaySFXForEveryone("terraform.wav", 0);
 
@@ -464,6 +491,10 @@ bool PlaceGhostJar(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile)
     }
 
     if(pTile->GetDisplayedItem() != ITEM_ID_BLANK) {
+        if(IsGhostDebugEnabled()) {
+            LOGGER_LOG_DEBUG("GhostDebug: place jar denied at %d,%d in world %u because tile is not blank (fg=%u)",
+                pTile->GetPos().x, pTile->GetPos().y, pWorld->GetID(), (uint32)pTile->GetDisplayedItem());
+        }
         return false;
     }
 
@@ -472,6 +503,9 @@ bool PlaceGhostJar(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile)
     const uint8 networkID = AllocateNetworkID(state);
     if(networkID == 0) {
         pPlayer->SendOnConsoleMessage("`4Too many ghosts/jars in this world.");
+        if(IsGhostDebugEnabled()) {
+            LOGGER_LOG_DEBUG("GhostDebug: place jar denied in world %u due to NPC network-id exhaustion", pWorld->GetID());
+        }
         return false;
     }
 
@@ -491,6 +525,11 @@ bool PlaceGhostJar(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile)
 
     state.entities.insert_or_assign(jar.networkID, jar);
     SendGhostNpcPacket(pWorld, jar, GHOST_NPC_ACTION_ADD, jar.pos, jar.pos, 0.0f);
+
+    if(IsGhostDebugEnabled()) {
+        LOGGER_LOG_DEBUG("GhostDebug: placed jar netID=%u world=%u byUser=%u at %.1f,%.1f",
+            (uint32)jar.networkID, pWorld->GetID(), jar.placedByUserID, jar.pos.x, jar.pos.y);
+    }
 
     const uint8 gemsToDrop = (uint8)(rand() % 7);
     if(gemsToDrop > 0) {
