@@ -60,6 +60,12 @@ DialogBuilder* DialogBuilder::AddItemPicker(const string& pickerID, const string
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddPlayerPicker(const string& pickerID, const string& label)
+{
+    m_str += "add_player_picker|" + pickerID + "|" + label + "|\n";
+    return this;
+}
+
 DialogBuilder* DialogBuilder::AddTextInput(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength)
 {
     m_str += "add_text_input|" + buttonID + "|" + text + "|" + placeholder + "|" + ToString(inputMaxLength) + "|\n";
