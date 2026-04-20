@@ -78,6 +78,15 @@ DialogBuilder* DialogBuilder::AddQuickExit()
     return this;
 }
 
+DialogBuilder* DialogBuilder::AddCustomLine(const string& content)
+{
+    m_str += content;
+    if(!content.empty() && content.back() != '\n') {
+        m_str += '\n';
+    }
+    return this;
+}
+
 DialogBuilder* DialogBuilder::EndDialog(const string& dialogID, const string& acceptText, const string& cancelText)
 {
     m_str += "end_dialog|" + dialogID + "|" + cancelText + "|" + acceptText + "|\n";

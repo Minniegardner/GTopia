@@ -20,6 +20,7 @@ public:
     DialogBuilder* AddTextInput(const string& buttonID, const string& text, const string& placeholder, uint32 inputMaxLength = 10);
     DialogBuilder* AddTextInputPassword(const string&buttonID, const string& text, const string& placeholder, uint32 inputMaxLength = 10);
     DialogBuilder* AddQuickExit();
+    DialogBuilder* AddCustomLine(const string& content);
     DialogBuilder* EndDialog(const string& dialogID, const string& acceptText, const string& cancelText);
     DialogBuilder* SetDefaultColor(char colorID);
     DialogBuilder* AddSpacer(bool big = false);
