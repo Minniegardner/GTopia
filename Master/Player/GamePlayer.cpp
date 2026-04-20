@@ -158,8 +158,7 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
 
     if(!result.result) {
-        m_state = PLAYER_STATE_LOGIN_REQUEST;
-        SendConsoleOnly(this, "`oServer requesting you relog-on");
+        SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
         return;
     }
 
@@ -168,45 +167,22 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
     else {
         if(m_loginDetail.tankIDName.empty()) {
-            if(!m_triedHashFallback && m_loginDetail.hash != 0) {
-                m_triedHashFallback = true;
-                m_state = PLAYER_STATE_LOGIN_CHECKING_ACCOUNT;
-
-                QueryRequest req = MakePlayerByHashReq(m_loginDetail.hash, m_loginDetail.platformType, GetNetID());
-                DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_HASH, req);
-                return;
-            }
-
             m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
         
             QueryRequest req = MakeCountCreatedAccByIP(m_address, GetNetID());
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_COUNT_ACC_IP, req);
         }
         else {
-            m_state = PLAYER_STATE_LOGIN_REQUEST;
-            SendConsoleOnly(this, "`oWrong GrowID or Password``");
+            SendLogonFailWithLog("`4Unable to log on:`` That `wGrowID`` doesn't seem valid, or the password is wrong. If you don't have one, press `wCancel``, un-check `w'I have a GrowID'``, then click `wConnect``.");
             return;
         }
 
         return;
     }
 
-    if(PlayerSession* pCachedSession = GetGameServer()->GetPlayerSessionByUserID(m_userID)) {
-        if(pCachedSession->serverID != 0) {
-            GetServerManager()->SendCrossServerActionExecute(
-                pCachedSession->serverID,
-                TCP_CROSS_ACTION_KICK,
-                m_userID,
-                0,
-                "SYSTEM",
-                "",
-                0,
-                pCachedSession->name
-            );
-        }
-
-        GetGameServer()->DeletePlayerSession(m_userID);
-        SendOnConsoleMessage("`4ALREADY ON: `oThis account is already online, kicking it off so you could log on.");
+    if(GetGameServer()->GetPlayerSessionByUserID(m_userID)) { // add ALREADY ON THINGGGGGGG
+        SendLogonFailWithLog("`#You are still online, please wait few seconds and re-login again.");
+        return;
     }
 
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
