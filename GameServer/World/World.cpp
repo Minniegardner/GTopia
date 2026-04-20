@@ -399,6 +399,9 @@ GamePlayer* World::GetPlayerByNetID(uint32 netID)
 World::World()
 : m_worldID(0)
 {
+    const Vector2Int size = GetTileManager()->GetSize();
+    m_geigerTilePos.x = std::max(2, std::min(size.x - 3, 2 + (rand() % std::max(1, size.x - 4))));
+    m_geigerTilePos.y = std::max(2, std::min(size.y - 3, 2 + (rand() % std::max(1, size.y - 4))));
 }
 
 World::~World()

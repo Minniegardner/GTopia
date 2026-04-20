@@ -1,6 +1,7 @@
 #include "WorldManager.h"
 #include "Algorithm/ChemsynthAlgorithm.h"
 #include "Algorithm/GhostAlgorithm.h"
+#include "../Component/FossilComponent.h"
 #include "../Context.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/GameServer.h"
@@ -11,6 +12,8 @@
 #include <filesystem>
 
 namespace {
+uint64 s_lastFossilTickMS = 0;
+
 uint16 ResolveRedirectPort(uint32 targetServerID, uint16 announcedPort)
 {
     if(announcedPort != 0) {
@@ -383,6 +386,15 @@ void WorldManager::UpdateWorlds()
         return;
     }
 
+    const uint64 nowMS = Time::GetSystemTime();
+    const bool doFossilTick =
+        m_worlds.size() >= 4 &&
+        (s_lastFossilTickMS == 0 || nowMS - s_lastFossilTickMS >= 10ull * 60ull * 1000ull);
+
+    if(doFossilTick) {
+        s_lastFossilTickMS = nowMS;
+    }
+
     for(auto it = m_worlds.begin(); it != m_worlds.end(); ++it) {
         World* pWorld = it->second;
 
@@ -393,6 +405,9 @@ void WorldManager::UpdateWorlds()
         pWorld->UpdateSteamActivations();
         ChemsynthAlgorithm::UpdateWorldChemsynth(pWorld);
         GhostAlgorithm::UpdateWorldGhosts(pWorld);
+        if(doFossilTick) {
+            FossilComponent::TrySpawnWorldFossil(pWorld);
+        }
         
         if(pWorld->GetPlayerCount() == 0 && (pWorld->GetOfflineTime().GetElapsedTime() >= 10 * 60 * 1000)) {
             pWorld->SetWaitingForClose(true);

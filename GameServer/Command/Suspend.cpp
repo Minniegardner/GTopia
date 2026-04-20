@@ -8,7 +8,7 @@ const CommandInfo& Suspend::GetInfo()
 {
     static CommandInfo info =
     {
-        "/suspend <target|#userid> <minutes|off> [reason]",
+        "/mute <target|#userid> <minutes> [reason]",
         "Temporarily mute or unmute a player",
         ROLE_PERM_COMMAND_WARN,
         {
@@ -27,8 +27,15 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    if(args.size() < 3) {
-        pPlayer->SendOnConsoleMessage("Usage: " + GetInfo().usage);
+    string command = args[0];
+    if(!command.empty() && command[0] == '/') {
+        command.erase(command.begin());
+    }
+    command = ToLower(command);
+
+    const bool explicitUnmuteCommand = (command == "unmute");
+    if((explicitUnmuteCommand && args.size() < 2) || (!explicitUnmuteCommand && args.size() < 3)) {
+        pPlayer->SendOnConsoleMessage("Usage: /mute <target|#userid> <minutes> [reason] or /unmute <target|#userid>");
         return;
     }
 
@@ -39,7 +46,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    const string durationArg = ToLower(args[2]);
+    const string durationArg = explicitUnmuteCommand ? "off" : ToLower(args[2]);
     const bool unmuteCommand = (durationArg == "off" || durationArg == "0" || durationArg == "unmute");
 
     string reason = "Please follow the rules.";

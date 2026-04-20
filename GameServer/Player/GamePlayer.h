@@ -356,6 +356,7 @@ private:
     uint32 m_guestID;
 
     bool m_loggingOff;
+    bool m_accountDataLoaded = false;
     bool m_switchingSubserver = false;
 
     Vector2Float m_respawnPos;

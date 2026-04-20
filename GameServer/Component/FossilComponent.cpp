@@ -6,13 +6,21 @@
 #include "World/TileInfo.h"
 #include "Utils/DialogBuilder.h"
 
+#include <array>
+
 namespace {
 
-constexpr const char* kFossilCounterStat = "FOSSIL_RANDOM_COUNTER";
-
-int32 RollFossilCounter()
+bool TryMapRockToFossil(uint16 rockItemID, uint16& outFossilItemID)
 {
-    return 4 + (rand() % 3);
+    switch(rockItemID) {
+        case ITEM_ID_ROCK: outFossilItemID = ITEM_ID_FOSSIL_ROCK; return true;
+        case ITEM_ID_BOULDER: outFossilItemID = ITEM_ID_FOSSIL_BOULDER; return true;
+        case ITEM_ID_IGNEOUS_ROCK: outFossilItemID = ITEM_ID_IGNEOUS_FOSSIL_ROCK; return true;
+        case ITEM_ID_ASTEROID: outFossilItemID = ITEM_ID_ALIEN_FOSSIL_ROCK; return true;
+        case ITEM_ID_MARS_ROCK: outFossilItemID = ITEM_ID_FOSSILROID; return true;
+        case ITEM_ID_DEEP_ROCK: outFossilItemID = ITEM_ID_DEEP_FOSSIL_ROCK; return true;
+        default: return false;
+    }
 }
 
 }
@@ -32,33 +40,62 @@ bool FossilComponent::IsFossilRockItem(uint16 itemID)
     }
 }
 
+void FossilComponent::TrySpawnWorldFossil(World* pWorld)
+{
+    if(!pWorld || pWorld->GetPlayerCount() == 0) {
+        return;
+    }
+
+    if((rand() % 2) != 0) {
+        return;
+    }
+
+    const Vector2Int size = pWorld->GetTileManager()->GetSize();
+    if(size.x <= 0 || size.y <= 0) {
+        return;
+    }
+
+    std::vector<TileInfo*> rockTiles;
+    rockTiles.reserve(128);
+
+    for(int32 y = 0; y < size.y; ++y) {
+        for(int32 x = 0; x < size.x; ++x) {
+            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
+            if(!pTile) {
+                continue;
+            }
+
+            uint16 fossilItemID = ITEM_ID_BLANK;
+            if(TryMapRockToFossil(pTile->GetDisplayedItem(), fossilItemID)) {
+                rockTiles.push_back(pTile);
+            }
+        }
+    }
+
+    if(rockTiles.empty()) {
+        return;
+    }
+
+    TileInfo* pSelected = rockTiles[rand() % rockTiles.size()];
+    if(!pSelected) {
+        return;
+    }
+
+    uint16 fossilItemID = ITEM_ID_BLANK;
+    if(!TryMapRockToFossil(pSelected->GetDisplayedItem(), fossilItemID)) {
+        return;
+    }
+
+    pSelected->SetFG(fossilItemID, pWorld->GetTileManager());
+    pWorld->SendTileUpdate(pSelected);
+}
+
 void FossilComponent::OnFossilRockPunched(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile, const ItemInfo* pTileItem)
 {
-    if(!pPlayer || !pWorld || !pTile || !pTileItem || !IsFossilRockItem(pTileItem->id)) {
-        return;
-    }
-
-    int32 randomCounter = (int32)pPlayer->GetCustomStatValue(kFossilCounterStat);
-    if(randomCounter <= 0) {
-        randomCounter = RollFossilCounter();
-    }
-
-    --randomCounter;
-    pPlayer->SetCustomStatValue(kFossilCounterStat, randomCounter > 0 ? (uint64)randomCounter : 0);
-    pPlayer->SendOnTalkBubble("`wI smashed a Fossil!!", true);
-
-    if(randomCounter > 0) {
-        return;
-    }
-
-    WorldObject obj;
-    obj.itemID = ITEM_ID_FOSSIL;
-    obj.count = 1;
-    obj.flags = OBJECT_FLAG_NO_STACK;
-    pWorld->DropObject(pTile, obj, true);
-
-    pPlayer->SetCustomStatValue(kFossilCounterStat, (uint64)RollFossilCounter());
-    pPlayer->SendOnTalkBubble("`2I unearthed a Fossil!!", true);
+    (void)pPlayer;
+    (void)pWorld;
+    (void)pTile;
+    (void)pTileItem;
 }
 
 void FossilComponent::RequestPrepDialog(GamePlayer* pPlayer, TileInfo* pTile)

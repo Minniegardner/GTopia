@@ -162,8 +162,15 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
         return;
     }
 
-    const uint8 collected = std::min<uint8>(pObject->count, freeSpace);
+    const uint8 requestedCollectCount = std::min<uint8>(pObject->count, freeSpace);
+    if(requestedCollectCount == 0) {
+        pPlayer->SendFakePingReply();
+        return;
+    }
+
+    const uint8 collected = pPlayer->GetInventory().AddItem(pObject->itemID, requestedCollectCount, pPlayer);
     if(collected == 0) {
+        pPlayer->SendOnTalkBubble("Your inventory is full.", true);
         pPlayer->SendFakePingReply();
         return;
     }
@@ -177,7 +184,6 @@ void PlayerCollect::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket
     pickupAnim.flags = NET_GAME_PACKET_FLAGS_PICKUP;
     pWorld->SendGamePacketToAll(&pickupAnim);
 
-    pPlayer->ModifyInventoryItem(pObject->itemID, (int16)collected);
     TrackDailyQuestCollectProgress(pPlayer, pObject->itemID, collected);
 
     if(pObject->itemID == ITEM_ID_COMET_DUST && collected > 0) {

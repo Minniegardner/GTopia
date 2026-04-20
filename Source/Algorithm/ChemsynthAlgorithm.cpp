@@ -178,64 +178,37 @@ void MoveActiveTank(World* pWorld, TileInfo* pProcessorTile)
         return;
     }
 
+    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
+        return;
+    }
+
     std::vector<TileInfo*> tanks;
     if(!GetTankTiles(pWorld, pProcessorTile, tanks)) {
         CancelChemsynth(pWorld, pProcessorTile);
         return;
     }
 
-    std::array<bool, 10> wasActive{};
-    std::vector<int32> activeIndices;
-    activeIndices.reserve(2);
-
-    for(int32 i = 0; i < 10; ++i) {
-        if(IsTankActive(tanks[i])) {
-            wasActive[i] = true;
-            activeIndices.push_back(i);
-        }
-    }
-
-    // Self-heal saved/runtime desync where processor flag is off but active lanes exist.
-    if(!pProcessorTile->HasFlag(TILE_FLAG_IS_ON)) {
-        if(activeIndices.empty()) {
-            return;
-        }
-
-        pProcessorTile->SetFlag(TILE_FLAG_IS_ON);
-        pProcessorTile->RemoveFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
-        pWorld->SendTileUpdate(pProcessorTile);
-    }
-
-    // Self-heal inconsistent save/runtime states so both active lanes always move.
-    if(activeIndices.empty()) {
-        activeIndices.push_back(0);
-        activeIndices.push_back(5);
-    }
-    else if(activeIndices.size() == 1) {
-        activeIndices.push_back((activeIndices[0] + 5) % 10);
-    }
-    else if(activeIndices.size() > 2) {
-        const int32 primary = activeIndices.front();
-        activeIndices.clear();
-        activeIndices.push_back(primary);
-        activeIndices.push_back((primary + 5) % 10);
-    }
-
-    std::array<bool, 10> nextActive{};
-    for(int32 index : activeIndices) {
-        nextActive[(index + 1) % 10] = true;
-    }
-
     std::vector<TileInfo*> tiles;
-    tiles.reserve(10);
-
     for(int32 i = 0; i < 10; ++i) {
-        if(wasActive[i] == nextActive[i]) {
+        TileInfo* pCurrentTank = tanks[i];
+        if(!IsTankActive(pCurrentTank)) {
             continue;
         }
 
-        SetTankActive(tanks[i], nextActive[i]);
-        tiles.push_back(tanks[i]);
+        SetTankActive(pCurrentTank, false);
+        tiles.push_back(pCurrentTank);
+
+        if(i == 9) {
+            TileInfo* pNextTank = tanks[0];
+            SetTankActive(pNextTank, true);
+            tiles.push_back(pNextTank);
+        }
+        else {
+            TileInfo* pNextTank = tanks[i + 1];
+            SetTankActive(pNextTank, true);
+            tiles.push_back(pNextTank);
+            ++i;
+        }
     }
 
     UpdateTiles(pWorld, tiles);

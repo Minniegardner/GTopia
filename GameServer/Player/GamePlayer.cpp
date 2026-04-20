@@ -2202,14 +2202,48 @@ bool GamePlayer::IsMuted() const
 
 void GamePlayer::SetMutedUntilMS(uint64 untilMS, const string& reason)
 {
+    ePlayModType mutePlayModType = PLAYMOD_TYPE_NONE;
+    for(uint32 i = 1; i <= 64; ++i) {
+        PlayMod* pPlayMod = GetPlayModManager()->GetPlayMod((ePlayModType)i);
+        if(!pPlayMod) {
+            continue;
+        }
+
+        if(ToLower(pPlayMod->GetName()) == "mute") {
+            mutePlayModType = (ePlayModType)i;
+            break;
+        }
+    }
+
     m_mutedUntilMS = untilMS;
     m_muteReason = reason;
+
+    if(mutePlayModType != PLAYMOD_TYPE_NONE && !m_characterData.HasPlayMod(mutePlayModType)) {
+        AddPlayMod(mutePlayModType, true);
+    }
 }
 
 void GamePlayer::ClearMute()
 {
+    ePlayModType mutePlayModType = PLAYMOD_TYPE_NONE;
+    for(uint32 i = 1; i <= 64; ++i) {
+        PlayMod* pPlayMod = GetPlayModManager()->GetPlayMod((ePlayModType)i);
+        if(!pPlayMod) {
+            continue;
+        }
+
+        if(ToLower(pPlayMod->GetName()) == "mute") {
+            mutePlayModType = (ePlayModType)i;
+            break;
+        }
+    }
+
     m_mutedUntilMS = 0;
     m_muteReason.clear();
+
+    if(mutePlayModType != PLAYMOD_TYPE_NONE && m_characterData.HasPlayMod(mutePlayModType)) {
+        RemovePlayMod(mutePlayModType, true);
+    }
 }
 
 void GamePlayer::AddTradeHistory(std::string entry)
@@ -2515,8 +2549,8 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
         return;
     }
 
-    // New connection starts with fresh session state.
     m_switchingSubserver = false;
+    m_accountDataLoaded = false;
 
     m_userID = m_loginDetail.user;
     SetState(PLAYER_STATE_CHECKING_SESSION);
@@ -2542,7 +2576,8 @@ void GamePlayer::CheckingLoginSession(VariantVector&& result)
 void GamePlayer::LoadingAccount(QueryTaskResult&& result)
 {
     RemoveState(PLAYER_STATE_LOGIN_GETTING_ACCOUNT);
-    if(!result.result) {
+    if(!result.result || result.result->GetRowCount() == 0) {
+        m_accountDataLoaded = false;
         SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
         return;
     }
@@ -2653,6 +2688,7 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     }
 
     m_guestID = result.result->GetField("GuestID", 0).GetUINT();
+    m_accountDataLoaded = true;
 
     for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
         uint16 cloth = m_inventory.GetClothByPart((eBodyPart)i);
@@ -2951,6 +2987,10 @@ void GamePlayer::HandleCreateGrowID(QueryTaskResult&& result)
 
 void GamePlayer::SaveToDatabase()
 {
+    if(!m_accountDataLoaded || m_userID == 0) {
+        return;
+    }
+
     SyncSocialDataToStats();
 
     uint32 invMemSize = m_inventory.GetMemEstimate(true);
@@ -3059,7 +3099,7 @@ void GamePlayer::LogOff()
 
     bool isInGame = HasState(PLAYER_STATE_IN_GAME);
     bool switchingSubserver = m_switchingSubserver;
-    const bool canSaveAccount = m_userID != 0;
+    const bool canSaveAccount = m_userID != 0 && m_accountDataLoaded;
 
     if(IsTrading()) {
         CancelTrade(false);

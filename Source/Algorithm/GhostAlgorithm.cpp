@@ -328,8 +328,8 @@ void PullGhostsTowardLine(World* pWorld, GhostWorldState& state, const Vector2Fl
     }
 
     const float lineLength = std::sqrt(
-        std::pow((endPos.x + 16.0f) - startPos.x, 2.0f) +
-        std::pow((endPos.y + 16.0f) - startPos.y, 2.0f)
+        std::pow(endPos.x - startPos.x, 2.0f) +
+        std::pow(endPos.y - startPos.y, 2.0f)
     );
 
     for(auto& [_, entity] : state.entities) {
@@ -353,6 +353,28 @@ void PullGhostsTowardLine(World* pWorld, GhostWorldState& state, const Vector2Fl
 
         newPos = ClampWorldPos(pWorld, newPos);
         SendGhostMove(pWorld, entity, currentPos, newPos, speed, nowMS);
+    }
+}
+
+void PullGhostsTowardJar(World* pWorld, GhostWorldState& state, const Vector2Float& jarPos, uint64 nowMS)
+{
+    if(!pWorld) {
+        return;
+    }
+
+    for(auto& [_, entity] : state.entities) {
+        if(entity.isJar || !IsGhostNpcType(entity.npcType)) {
+            continue;
+        }
+
+        const Vector2Float currentPos = GetGhostLerpPos(entity, nowMS);
+        const float xDist = std::abs(currentPos.x - jarPos.x);
+        const float yDist = std::abs(currentPos.y - jarPos.y);
+        if(xDist >= 64.0f || yDist >= 128.0f) {
+            continue;
+        }
+
+        SendGhostMove(pWorld, entity, currentPos, jarPos, 23.0f, nowMS);
     }
 }
 
@@ -616,9 +638,7 @@ void UpdateWorldGhosts(World* pWorld)
             }
 
             if(elapsed >= GHOST_JAR_PULL_MS) {
-                const Vector2Float jarPos = entity.pos;
-                const Vector2Float jarTop = { jarPos.x, jarPos.y - (4.0f * 32.0f) };
-                PullGhostsTowardLine(pWorld, state, jarPos, jarTop, 40.0f, 1.0f, 23.0f, nowMS);
+                PullGhostsTowardJar(pWorld, state, entity.pos, nowMS);
             }
 
             continue;

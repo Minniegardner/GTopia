@@ -87,6 +87,9 @@ public:
     uint64 GetLastKickAllMS() const { return m_lastKickAllMS; }
     void SetLastKickAllMS(uint64 value) { m_lastKickAllMS = value; }
 
+    Vector2Int GetGeigerTilePos() const { return m_geigerTilePos; }
+    void SetGeigerTilePos(const Vector2Int& tilePos) { m_geigerTilePos = tilePos; }
+
     // Ban system methods (1:1 from GrowtopiaV1)
     void AddBannedPlayer(const WorldBanContext& banCtx);
     bool IsPlayerBanned(uint32 userID);
@@ -110,6 +113,7 @@ private:
     std::deque<SteamActivationEntry> m_steamActivationQueue;
     uint64 m_lastSteamActivationTick = 0;
     uint64 m_lastKickAllMS = 0;
+    Vector2Int m_geigerTilePos = { 2, 2 };
 
     bool m_waitingForClose;
 };
