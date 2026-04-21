@@ -149,6 +149,7 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
                 Player* pPlayer = GetGameServer()->GetPlayerByNetID(taskRes.ownerID);
                 if(!pPlayer) {
                     LOGGER_LOG_WARN("Trying to process database result but player %d not exits? might be logged off", taskRes.ownerID);
+                    taskRes.Destroy();
                     break;
                 }
 

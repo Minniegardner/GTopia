@@ -13,6 +13,7 @@ DatabaseManager::~DatabaseManager()
 
 bool DatabaseManager::Init(const DatabaseConnectConfig& config)
 {
+    m_config = config;
     m_pConnection = mysql_init(nullptr);
     if(!m_pConnection) {
         PrintError();
@@ -26,6 +27,31 @@ bool DatabaseManager::Init(const DatabaseConnectConfig& config)
     }
 
     return true;
+}
+
+bool DatabaseManager::IsConnectionLost() const
+{
+    if(!m_pConnection) {
+        return true;
+    }
+
+    const unsigned int errorCode = mysql_errno(m_pConnection);
+    return errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR || errorCode == 2006 || errorCode == 2013;
+}
+
+bool DatabaseManager::Reconnect()
+{
+    if(m_pLastStmt) {
+        mysql_stmt_close(m_pLastStmt);
+        m_pLastStmt = nullptr;
+    }
+
+    if(m_pConnection) {
+        mysql_close(m_pConnection);
+        m_pConnection = nullptr;
+    }
+
+    return Init(m_config);
 }
 
 void DatabaseManager::Kill()
@@ -49,6 +75,13 @@ bool DatabaseManager::Query(const string& query)
 
     if(mysql_query(m_pConnection, query.c_str())) {
         PrintError();
+        if(IsConnectionLost() && Reconnect()) {
+            if(mysql_query(m_pConnection, query.c_str()) == 0) {
+                return true;
+            }
+
+            PrintError();
+        }
         return false;
     }
 
@@ -88,6 +121,34 @@ bool DatabaseManager::Query(const string& query, MYSQL_BIND* pBind)
 
     if(mysql_stmt_execute(pStmt) != 0) {
         PrintError();
+        if(IsConnectionLost() && Reconnect()) {
+            pStmt = mysql_stmt_init(m_pConnection);
+            if(!pStmt) {
+                PrintError();
+                return false;
+            }
+
+            if(mysql_stmt_prepare(pStmt, query.c_str(), query.length()) != 0) {
+                PrintError();
+                mysql_stmt_close(pStmt);
+                m_pLastStmt = nullptr;
+                return false;
+            }
+
+            if(mysql_stmt_bind_param(pStmt, pBind) != 0) {
+                PrintError();
+                mysql_stmt_close(pStmt);
+                m_pLastStmt = nullptr;
+                return false;
+            }
+
+            if(mysql_stmt_execute(pStmt) == 0) {
+                m_pLastStmt = pStmt;
+                return true;
+            }
+
+            PrintError();
+        }
         mysql_stmt_close(pStmt);
         m_pLastStmt = nullptr;
         return false;
@@ -122,6 +183,7 @@ bool DatabaseManager::PrepareBulkStmt(const string& query)
         return false;
     }
 
+    m_lastBulkQuery = query;
     m_pLastStmt = pStmt;
     return true;
 }
@@ -143,6 +205,18 @@ bool DatabaseManager::QueryBulk(MYSQL_BIND* pBind)
 
     if (mysql_stmt_execute(m_pLastStmt) != 0) {
         PrintError();
+        if(IsConnectionLost() && Reconnect()) {
+            if(m_lastBulkQuery.empty() || !PrepareBulkStmt(m_lastBulkQuery)) {
+                return false;
+            }
+
+            if(mysql_stmt_bind_param(m_pLastStmt, pBind) == 0 && mysql_stmt_execute(m_pLastStmt) == 0) {
+                mysql_stmt_reset(m_pLastStmt);
+                return true;
+            }
+
+            PrintError();
+        }
         return false;
     }
 
@@ -180,6 +254,11 @@ DatabaseResult* DatabaseManager::GetResults()
 
     DatabaseResult* pResult = new DatabaseResult();
     if(!pResult->Parse(m_pConnection, m_pLastStmt)) {
+        if(IsConnectionLost() && Reconnect()) {
+            SAFE_DELETE(pResult);
+            return nullptr;
+        }
+
         SAFE_DELETE(pResult);
         return nullptr;
     }

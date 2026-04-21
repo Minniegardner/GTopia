@@ -37,6 +37,12 @@ public:
     DatabaseResult* GetResults();
 
 private:
+    bool IsConnectionLost() const;
+    bool Reconnect();
+
+private:
     MYSQL_STMT* m_pLastStmt;
     MYSQL* m_pConnection;
+    DatabaseConnectConfig m_config;
+    string m_lastBulkQuery;
 };
