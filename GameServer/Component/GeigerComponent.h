@@ -9,6 +9,7 @@ class ItemInfo;
 
 class GeigerComponent {
 public:
+    static void OnTick();
     static void RequestChargerDialog(GamePlayer* pPlayer, TileInfo* pTile);
     static bool TryChargeCounter(GamePlayer* pPlayer, World* pWorld, TileInfo* pTile);
     static void UpdatePlayerScan(GamePlayer* pPlayer, World* pWorld);

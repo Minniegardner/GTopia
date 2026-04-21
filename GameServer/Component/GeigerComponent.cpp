@@ -2,6 +2,7 @@
 
 #include "../Player/GamePlayer.h"
 #include "../World/World.h"
+#include "../World/WorldManager.h"
 #include "../Server/MasterBroadway.h"
 #include "Packet/NetPacket.h"
 #include "Item/ItemInfo.h"
@@ -18,8 +19,11 @@ constexpr const char* kGeigerChargeEndStat = "GEIGER_CHARGE_END_MS";
 constexpr const char* kGeigerLastPulseStat = "GEIGER_LAST_PULSE_MS";
 constexpr const char* kGeigerIrradiatedUntilStat = "GEIGER_IRRADIATED_UNTIL_MS";
 
+constexpr uint64 kGeigerTickIntervalMS = 200;
 constexpr uint64 kGeigerChargeDurationMS = 30ull * 60ull * 1000ull;
 constexpr uint64 kGeigerIrradiatedDurationMS = 30ull * 60ull * 1000ull;
+
+uint64 s_lastTickMS = 0;
 
 bool HasWorkingCounter(GamePlayer* pPlayer)
 {
@@ -86,6 +90,39 @@ void SendGeigerPulse(GamePlayer* pPlayer, uint32 pulseMode)
     SendENetPacketRaw(NET_MESSAGE_GAME_PACKET, &pulsePacket, sizeof(GameUpdatePacket), nullptr, pPlayer->GetPeer());
 }
 
+}
+
+void GeigerComponent::OnTick()
+{
+    if(!s_enabled) {
+        return;
+    }
+
+    const uint64 nowMS = Time::GetSystemTime();
+    if(s_lastTickMS != 0 && nowMS - s_lastTickMS < kGeigerTickIntervalMS) {
+        return;
+    }
+
+    s_lastTickMS = nowMS;
+
+    WorldManager* pWorldManager = GetWorldManager();
+    if(!pWorldManager) {
+        return;
+    }
+
+    pWorldManager->ForEachWorld([](World* pWorld) {
+        if(!pWorld || pWorld->IsWaitingForClose() || pWorld->GetPlayerCount() < 1) {
+            return;
+        }
+
+        for(GamePlayer* pPlayer : pWorld->GetPlayers()) {
+            if(!pPlayer) {
+                continue;
+            }
+
+            UpdatePlayerScan(pPlayer, pWorld);
+        }
+    });
 }
 
 void GeigerComponent::RequestChargerDialog(GamePlayer* pPlayer, TileInfo* pTile)

@@ -624,6 +624,31 @@ void UpdateWorldChemsynth(World* pWorld)
                 continue;
             }
 
+            std::vector<TileInfo*> tanks;
+            if(!GetTankTiles(pWorld, pTile, tanks)) {
+                continue;
+            }
+
+            bool hasActiveTank = false;
+            for(TileInfo* pTank : tanks) {
+                if(IsTankActive(pTank)) {
+                    hasActiveTank = true;
+                    break;
+                }
+            }
+
+            if(!hasActiveTank) {
+                std::vector<TileInfo*> tiles;
+                SetTankActive(tanks[0], true);
+                tiles.push_back(tanks[0]);
+                if(tanks.size() > 5) {
+                    SetTankActive(tanks[5], true);
+                    tiles.push_back(tanks[5]);
+                }
+                UpdateTiles(pWorld, tiles);
+                continue;
+            }
+
             MoveActiveTank(pWorld, pTile);
         }
     }

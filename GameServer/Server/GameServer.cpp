@@ -13,6 +13,7 @@
 #include "Utils/Timer.h"
 #include "Database/Table/PlayerDBTable.h"
 #include "../Component/ChemsynthComponent.h"
+#include "../Component/GeigerComponent.h"
 #include "../Component/GhostComponent.h"
 
 namespace {
@@ -368,6 +369,7 @@ void GameServer::UpdateGameLogic(uint64 maxTimeMS)
     ServerBase::UpdateGameLogic(maxTimeMS);
     UpdateMaintenance();
     UpdatePlayers();
+    GeigerComponent::OnTick();
     ChemsynthComponent::OnTick();
     GhostComponent::OnTick();
     GetWorldManager()->UpdateWorlds();

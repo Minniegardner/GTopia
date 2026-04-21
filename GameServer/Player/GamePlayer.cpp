@@ -3138,13 +3138,6 @@ void GamePlayer::Update()
     if(m_currentWorldID != 0) {
         World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
         if(pWorld) {
-            GeigerComponent::UpdatePlayerScan(this, pWorld);
-        }
-    }
-
-    if(m_currentWorldID != 0) {
-        World* pWorld = GetWorldManager()->GetWorldByID(m_currentWorldID);
-        if(pWorld) {
             if(m_characterData.NeededCharStateUpdate()) {
                 pWorld->SendSetCharPacketToAll(this);
                 m_characterData.SetNeedCharStateUpdate(false);
