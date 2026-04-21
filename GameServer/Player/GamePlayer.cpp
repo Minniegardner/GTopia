@@ -93,6 +93,60 @@ constexpr const char* kPBanStatDuration = "PBAN_DURATION";
 constexpr const char* kPBanStatPerma = "PBAN_PERMA";
 constexpr uint32 kGuildMemberBlobVersion = 1;
 
+void LogAccountFlow(const char* eventName, uint32 userID, uint32 accountID, uint64 version, const char* sourceOfTruth, const char* reasonCode)
+{
+    LOGGER_LOG_INFO(
+        "event=%s user_id=%u account_id=%u version=%llu source_of_truth=%s reason=%s",
+        eventName ? eventName : "unknown",
+        userID,
+        accountID,
+        (unsigned long long)version,
+        sourceOfTruth ? sourceOfTruth : "unknown",
+        reasonCode ? reasonCode : "none"
+    );
+}
+
+bool TryReadIntField(DatabaseResult* pResult, const char* fieldName, int32& outValue)
+{
+    if(!pResult || !fieldName) {
+        return false;
+    }
+
+    Variant& field = pResult->GetField(fieldName, 0);
+    if(field.GetType() == VARIANT_TYPE_INT) {
+        outValue = field.GetINT();
+        return true;
+    }
+
+    if(field.GetType() == VARIANT_TYPE_UINT) {
+        outValue = (int32)std::min<uint32>(field.GetUINT(), (uint32)INT32_MAX);
+        return true;
+    }
+
+    return false;
+}
+
+bool TryReadUIntField(DatabaseResult* pResult, const char* fieldName, uint32& outValue)
+{
+    if(!pResult || !fieldName) {
+        return false;
+    }
+
+    Variant& field = pResult->GetField(fieldName, 0);
+    if(field.GetType() == VARIANT_TYPE_UINT) {
+        outValue = field.GetUINT();
+        return true;
+    }
+
+    if(field.GetType() == VARIANT_TYPE_INT) {
+        const int32 signedValue = field.GetINT();
+        outValue = signedValue < 0 ? 0u : (uint32)signedValue;
+        return true;
+    }
+
+    return false;
+}
+
 string SerializeGuildMembersHex(const std::vector<GuildMember>& members)
 {
     const uint32 memberCount = static_cast<uint32>(members.size());
@@ -2551,8 +2605,10 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
 
     m_switchingSubserver = false;
     m_accountDataLoaded = false;
+    m_loadedAccountVersionEpochSec = 0;
 
     m_userID = m_loginDetail.user;
+    LogAccountFlow("login_start", m_userID, m_userID, 0, "session", "session_validating");
     SetState(PLAYER_STATE_CHECKING_SESSION);
     GetMasterBroadway()->SendCheckSessionPacket(GetNetID(), m_loginDetail.user, m_loginDetail.token, GetContext()->GetID());
 }
@@ -2578,26 +2634,66 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
     RemoveState(PLAYER_STATE_LOGIN_GETTING_ACCOUNT);
     if(!result.result || result.result->GetRowCount() == 0) {
         m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "missing_row");
         SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
         return;
     }
 
-    uint32 roleID = result.result->GetField("RoleID", 0).GetUINT();
+    uint32 roleID = 0;
+    if(!TryReadUIntField(result.result, "RoleID", roleID)) {
+        m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "invalid_role_type");
+        SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
+        return;
+    }
+
     if(roleID == 0) {
         roleID = GetRoleManager()->GetDefaultRoleID();
     }
 
-    m_gems = result.result->GetField("Gems", 0).GetINT();
+    if(!TryReadIntField(result.result, "Gems", m_gems)) {
+        m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "invalid_gems_type");
+        SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
+        return;
+    }
+
     if(m_gems < 0) {
         m_gems = 0;
     }
 
-    m_level = result.result->GetField("Level", 0).GetUINT();
+    if(!TryReadUIntField(result.result, "Level", m_level)) {
+        m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "invalid_level_type");
+        SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
+        return;
+    }
+
     if(m_level == 0) {
         m_level = 1;
     }
 
-    m_xp = result.result->GetField("XP", 0).GetUINT();
+    if(!TryReadUIntField(result.result, "XP", m_xp)) {
+        m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "invalid_xp_type");
+        SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
+        return;
+    }
+
+    uint32 loadedVersion = 0;
+    if(!TryReadUIntField(result.result, "LastSeenVersion", loadedVersion)) {
+        m_accountDataLoaded = false;
+        m_loadedAccountVersionEpochSec = 0;
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "invalid_version_type");
+        SendLogonFailWithLog("`4OOPS! ``Failed to load your account, please re-connect");
+        return;
+    }
+    m_loadedAccountVersionEpochSec = (uint64)loadedVersion;
 
     m_dailyRewardStreak = result.result->GetField("DailyRewardStreak", 0).GetUINT();
     m_dailyRewardClaimDay = result.result->GetField("DailyRewardClaimDay", 0).GetUINT();
@@ -2689,6 +2785,7 @@ void GamePlayer::LoadingAccount(QueryTaskResult&& result)
 
     m_guestID = result.result->GetField("GuestID", 0).GetUINT();
     m_accountDataLoaded = true;
+    LogAccountFlow("profile_loaded", m_userID, m_userID, m_loadedAccountVersionEpochSec, "db", "hydrate_success");
 
     for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
         uint16 cloth = m_inventory.GetClothByPart((eBodyPart)i);
@@ -2988,6 +3085,12 @@ void GamePlayer::HandleCreateGrowID(QueryTaskResult&& result)
 void GamePlayer::SaveToDatabase()
 {
     if(!m_accountDataLoaded || m_userID == 0) {
+        LogAccountFlow("save_blocked_pre_hydration", m_userID, m_userID, m_loadedAccountVersionEpochSec, "db", "not_hydrated_or_invalid_user");
+        return;
+    }
+
+    if(m_loadedAccountVersionEpochSec == 0) {
+        LogAccountFlow("save_blocked_pre_hydration", m_userID, m_userID, 0, "db", "missing_loaded_version");
         return;
     }
 
@@ -3025,10 +3128,13 @@ void GamePlayer::SaveToDatabase()
         m_titleEnabledGrow4Good,
         m_titleEnabledMVP,
         m_titleEnabledVIP,
+        m_loadedAccountVersionEpochSec,
         GetNetID()
     );
     
     DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_SAVE, req);
+    m_loadedAccountVersionEpochSec = std::max<uint64>(m_loadedAccountVersionEpochSec, Time::GetTimeSinceEpoch());
+    LogAccountFlow("save_committed", m_userID, m_userID, m_loadedAccountVersionEpochSec, "db", "optimistic_guarded_update");
 
     if(m_guildID != 0) {
         Guild* pGuild = GetGuildManager()->Get(m_guildID);

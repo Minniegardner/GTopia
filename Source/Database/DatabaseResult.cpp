@@ -97,10 +97,15 @@ void DatabaseResult::ParseAndInsertField(MYSQL_FIELD& field, void* data, unsigne
         case MYSQL_TYPE_SHORT:
         case MYSQL_TYPE_LONG:
         case MYSQL_TYPE_LONGLONG: {
-            var = (isNull ? (uint32)0 : 
-            (field.flags & UNSIGNED_FLAG ?
-                      ToUInt((const char*)data) :
-                      ToInt((const char*)data)));
+            if(isNull) {
+                // Preserve signedness for NULL values so downstream GetINT/GetUINT remains consistent.
+                var = (field.flags & UNSIGNED_FLAG) ? (uint32)0 : (int32)0;
+            }
+            else {
+                var = (field.flags & UNSIGNED_FLAG) ?
+                    (Variant)ToUInt((const char*)data) :
+                    (Variant)ToInt((const char*)data);
+            }
             break;
         }
 

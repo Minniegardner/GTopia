@@ -23,6 +23,7 @@ constexpr uint64 kGeigerTickIntervalMS = 200;
 constexpr uint64 kGeigerChargeDurationMS = 30ull * 60ull * 1000ull;
 constexpr uint64 kGeigerIrradiatedDurationMS = 30ull * 60ull * 1000ull;
 
+bool s_enabled = true;
 uint64 s_lastTickMS = 0;
 
 bool HasWorkingCounter(GamePlayer* pPlayer)

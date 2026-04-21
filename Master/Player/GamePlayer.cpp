@@ -10,6 +10,19 @@
 
 namespace {
 
+void LogAccountFlow(const char* eventName, uint32 userID, uint32 accountID, uint64 version, const char* sourceOfTruth, const char* reasonCode)
+{
+    LOGGER_LOG_INFO(
+        "event=%s user_id=%u account_id=%u version=%llu source_of_truth=%s reason=%s",
+        eventName ? eventName : "unknown",
+        userID,
+        accountID,
+        (unsigned long long)version,
+        sourceOfTruth ? sourceOfTruth : "unknown",
+        reasonCode ? reasonCode : "none"
+    );
+}
+
 void SendConsoleAndFail(GamePlayer* pPlayer, const string& consoleMessage)
 {
     if(!pPlayer) {
@@ -82,6 +95,8 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25> &packet)
     }
 
     m_triedHashFallback = false;
+    m_triedMacFallback = false;
+    LogAccountFlow("login_start", 0, 0, 0, "login_request", "master_begin_lookup");
 
     if(m_loginDetail.tankIDName.empty()) {
         if(m_loginDetail.requestedName.size() < 3) {
@@ -158,31 +173,67 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
 
     if(!result.result) {
-        SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
+        m_state = PLAYER_STATE_LOGIN_REQUEST;
+        SendConsoleOnly(this, "`oServer requesting you relog-on");
         return;
     }
 
     if(result.result->GetRowCount() > 0) {
         m_userID = result.result->GetField("ID", 0).GetUINT();
+        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "master_identifier_match");
     }
     else {
         if(m_loginDetail.tankIDName.empty()) {
+            if(!m_triedHashFallback && m_loginDetail.hash != 0) {
+                m_triedHashFallback = true;
+                m_state = PLAYER_STATE_LOGIN_CHECKING_ACCOUNT;
+
+                QueryRequest req = MakePlayerByHashReq(m_loginDetail.hash, m_loginDetail.platformType, GetNetID());
+                DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_HASH, req);
+                return;
+            }
+
+            if(!m_triedMacFallback && !m_loginDetail.mac.empty() && m_loginDetail.mac != "02:00:00:00:00:00") {
+                m_triedMacFallback = true;
+                m_state = PLAYER_STATE_LOGIN_CHECKING_ACCOUNT;
+
+                QueryRequest req = MakePlayerByMacReq(m_loginDetail.mac, m_loginDetail.platformType, GetNetID());
+                DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_MAC, req);
+                return;
+            }
+
+            LogAccountFlow("profile_create_path", 0, 0, 0, "db", "identifier_lookup_miss");
+
             m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
         
             QueryRequest req = MakeCountCreatedAccByIP(m_address, GetNetID());
             DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_COUNT_ACC_IP, req);
         }
         else {
-            SendLogonFailWithLog("`4Unable to log on:`` That `wGrowID`` doesn't seem valid, or the password is wrong. If you don't have one, press `wCancel``, un-check `w'I have a GrowID'``, then click `wConnect``.");
+            m_state = PLAYER_STATE_LOGIN_REQUEST;
+            SendConsoleOnly(this, "`oWrong GrowID or Password``");
             return;
         }
 
         return;
     }
 
-    if(GetGameServer()->GetPlayerSessionByUserID(m_userID)) { // add ALREADY ON THINGGGGGGG
-        SendLogonFailWithLog("`#You are still online, please wait few seconds and re-login again.");
-        return;
+    if(PlayerSession* pCachedSession = GetGameServer()->GetPlayerSessionByUserID(m_userID)) {
+        if(pCachedSession->serverID != 0) {
+            GetServerManager()->SendCrossServerActionExecute(
+                pCachedSession->serverID,
+                TCP_CROSS_ACTION_KICK,
+                m_userID,
+                0,
+                "SYSTEM",
+                "",
+                0,
+                pCachedSession->name
+            );
+        }
+
+        GetGameServer()->DeletePlayerSession(m_userID);
+        SendOnConsoleMessage("`4ALREADY ON: `oThis account is already online, kicking it off so you could log on.");
     }
 
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
@@ -226,6 +277,7 @@ void GamePlayer::CreatingAccount(QueryTaskResult&& result)
     }
 
     m_userID = result.increment;
+    LogAccountFlow("profile_create_path", m_userID, m_userID, 0, "db", "new_guest_created");
 
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
     ExecUpdatePlayerIdentifier(
