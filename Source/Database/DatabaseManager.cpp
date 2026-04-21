@@ -183,7 +183,6 @@ bool DatabaseManager::PrepareBulkStmt(const string& query)
         return false;
     }
 
-    m_lastBulkQuery = query;
     m_pLastStmt = pStmt;
     return true;
 }
@@ -206,7 +205,7 @@ bool DatabaseManager::QueryBulk(MYSQL_BIND* pBind)
     if (mysql_stmt_execute(m_pLastStmt) != 0) {
         PrintError();
         if(IsConnectionLost() && Reconnect()) {
-            if(m_lastBulkQuery.empty() || !PrepareBulkStmt(m_lastBulkQuery)) {
+            if(!PrepareBulkStmt(m_pLastStmt ? string() : string())) {
                 return false;
             }
 

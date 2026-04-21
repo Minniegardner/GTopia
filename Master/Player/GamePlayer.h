@@ -37,5 +37,4 @@ public:
 private:
     ePlayerState m_state;
     bool m_triedHashFallback = false;
-    bool m_triedMacFallback = false;
 };

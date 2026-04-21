@@ -10,19 +10,6 @@
 
 namespace {
 
-void LogAccountFlow(const char* eventName, uint32 userID, uint32 accountID, uint64 version, const char* sourceOfTruth, const char* reasonCode)
-{
-    LOGGER_LOG_INFO(
-        "event=%s user_id=%u account_id=%u version=%llu source_of_truth=%s reason=%s",
-        eventName ? eventName : "unknown",
-        userID,
-        accountID,
-        (unsigned long long)version,
-        sourceOfTruth ? sourceOfTruth : "unknown",
-        reasonCode ? reasonCode : "none"
-    );
-}
-
 void SendConsoleAndFail(GamePlayer* pPlayer, const string& consoleMessage)
 {
     if(!pPlayer) {
@@ -95,8 +82,6 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25> &packet)
     }
 
     m_triedHashFallback = false;
-    m_triedMacFallback = false;
-    LogAccountFlow("login_start", 0, 0, 0, "login_request", "master_begin_lookup");
 
     if(m_loginDetail.tankIDName.empty()) {
         if(m_loginDetail.requestedName.size() < 3) {
@@ -173,14 +158,12 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
     }
 
     if(!result.result) {
-        m_state = PLAYER_STATE_LOGIN_REQUEST;
-        SendConsoleOnly(this, "`oServer requesting you relog-on");
+        SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
         return;
     }
 
     if(result.result->GetRowCount() > 0) {
         m_userID = result.result->GetField("ID", 0).GetUINT();
-        LogAccountFlow("profile_loaded", m_userID, m_userID, 0, "db", "master_identifier_match");
     }
     else {
         if(m_loginDetail.tankIDName.empty()) {
@@ -192,17 +175,6 @@ void GamePlayer::LoginCheckingAccount(QueryTaskResult&& result)
                 DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_HASH, req);
                 return;
             }
-
-            if(!m_triedMacFallback && !m_loginDetail.mac.empty() && m_loginDetail.mac != "02:00:00:00:00:00") {
-                m_triedMacFallback = true;
-                m_state = PLAYER_STATE_LOGIN_CHECKING_ACCOUNT;
-
-                QueryRequest req = MakePlayerByMacReq(m_loginDetail.mac, m_loginDetail.platformType, GetNetID());
-                DatabasePlayerExec(GetContext()->GetDatabasePool(), DB_PLAYER_GET_BY_MAC, req);
-                return;
-            }
-
-            LogAccountFlow("profile_create_path", 0, 0, 0, "db", "identifier_lookup_miss");
 
             m_state = PLAYER_STATE_COUNT_CREATED_FROM_IP;
         
@@ -277,7 +249,6 @@ void GamePlayer::CreatingAccount(QueryTaskResult&& result)
     }
 
     m_userID = result.increment;
-    LogAccountFlow("profile_create_path", m_userID, m_userID, 0, "db", "new_guest_created");
 
     m_state = PLAYER_STATE_UPDATE_IDENTIFIERS;
     ExecUpdatePlayerIdentifier(

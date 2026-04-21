@@ -3,9 +3,9 @@
 static TableQuery sQueryTable[] =
 {
     {"SELECT ID FROM Players WHERE Name = '' AND Mac = ? AND PlatformType = ? LIMIT 1;", QUERY_FLAG_RETURN_RESULT},
-    {"INSERT INTO Players (GuestName, PlatformType, GuestID, Mac, IP, Gems, Level, XP, CreationDate, LastSeenTime) VALUES (?, ?, ?, ?, ?, 0, 1, 0, SYSDATE(), NOW());", QUERY_FLAG_RETURN_INCREMENT},
-    {"SELECT GuestID, RoleID, Inventory, Gems, Level, XP, AchievementData, StatisticData, DailyRewardStreak, DailyRewardClaimDay, LastClaimDailyReward, GuildID, ShowLocationToGuild, ShowGuildNotification, TitleShowPrefix, TitlePermLegend, TitlePermGrow4Good, TitlePermMVP, TitlePermVIP, TitleEnabledLegend, TitleEnabledGrow4Good, TitleEnabledMVP, TitleEnabledVIP, UNIX_TIMESTAMP(LastSeenTime) AS LastSeenVersion FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
-    {"UPDATE Players SET LastSeenTime = NOW(), RoleID = ?, Inventory = ?, Gems = ?, Level = ?, XP = ?, AchievementData = ?, StatisticData = ?, DailyRewardStreak = ?, DailyRewardClaimDay = ?, LastClaimDailyReward = ?, GuildID = ?, ShowLocationToGuild = ?, ShowGuildNotification = ?, TitleShowPrefix = ?, TitlePermLegend = ?, TitlePermGrow4Good = ?, TitlePermMVP = ?, TitlePermVIP = ?, TitleEnabledLegend = ?, TitleEnabledGrow4Good = ?, TitleEnabledMVP = ?, TitleEnabledVIP = ? WHERE ID = ? AND LastSeenTime <= FROM_UNIXTIME(?);", QUERY_FLAG_NONE},
+    {"INSERT INTO Players (GuestName, PlatformType, GuestID, Mac, IP, CreationDate, LastSeenTime) VALUES (?, ?, ?, ?, ?, SYSDATE(), NOW());", QUERY_FLAG_RETURN_INCREMENT},
+    {"SELECT GuestID, RoleID, Inventory, Gems, Level, XP, AchievementData, StatisticData, DailyRewardStreak, DailyRewardClaimDay, LastClaimDailyReward, GuildID, ShowLocationToGuild, ShowGuildNotification, TitleShowPrefix, TitlePermLegend, TitlePermGrow4Good, TitlePermMVP, TitlePermVIP, TitleEnabledLegend, TitleEnabledGrow4Good, TitleEnabledMVP, TitleEnabledVIP FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET LastSeenTime = NOW(), RoleID = ?, Inventory = ?, Gems = ?, Level = ?, XP = ?, AchievementData = ?, StatisticData = ?, DailyRewardStreak = ?, DailyRewardClaimDay = ?, LastClaimDailyReward = ?, GuildID = ?, ShowLocationToGuild = ?, ShowGuildNotification = ?, TitleShowPrefix = ?, TitlePermLegend = ?, TitlePermGrow4Good = ?, TitlePermMVP = ?, TitlePermVIP = ?, TitleEnabledLegend = ?, TitleEnabledGrow4Good = ?, TitleEnabledMVP = ?, TitleEnabledVIP = ? WHERE ID = ?;", QUERY_FLAG_NONE},
     {"SELECT ID FROM Players WHERE IP = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND VID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE Name = '' AND GID = UNHEX(MD5(?)) AND PlatformType = ?;", QUERY_FLAG_RETURN_RESULT},
@@ -81,12 +81,12 @@ QueryRequest MakeGetPlayerDataReq(uint32 userID, int32 ownerID)
     return req;
 }
 
-QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, uint32 dailyRewardStreak, uint32 dailyRewardClaimDay, uint64 lastClaimDailyRewardMs, uint64 guildID, bool showLocationToGuild, bool showGuildNotification, bool titleShowPrefix, bool titlePermLegend, bool titlePermGrow4Good, bool titlePermMVP, bool titlePermVIP, bool titleEnabledLegend, bool titleEnabledGrow4Good, bool titleEnabledMVP, bool titleEnabledVIP, uint64 expectedVersionEpochSec, int32 ownerID)
+QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inventoryData, int32 gems, uint32 level, uint32 xp, const string& achievementData, const string& statisticData, uint32 dailyRewardStreak, uint32 dailyRewardClaimDay, uint64 lastClaimDailyRewardMs, uint64 guildID, bool showLocationToGuild, bool showGuildNotification, bool titleShowPrefix, bool titlePermLegend, bool titlePermGrow4Good, bool titlePermMVP, bool titlePermVIP, bool titleEnabledLegend, bool titleEnabledGrow4Good, bool titleEnabledMVP, bool titleEnabledVIP, int32 ownerID)
 {
     QueryRequest req;
     req.ownerID = ownerID;
 
-    req.data.resize(24);
+    req.data.resize(23);
     req.data[0] = roleID;
     req.data[1] = inventoryData;
     req.data[2] = gems;
@@ -110,7 +110,6 @@ QueryRequest MakeSavePlayerReq(uint32 userID, uint32 roleID, const string& inven
     req.data[20] = titleEnabledMVP ? 1 : 0;
     req.data[21] = titleEnabledVIP ? 1 : 0;
     req.data[22] = userID;
-    req.data[23] = expectedVersionEpochSec;
     return req;
 }
 

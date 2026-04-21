@@ -358,7 +358,6 @@ private:
     bool m_loggingOff;
     bool m_accountDataLoaded = false;
     bool m_switchingSubserver = false;
-    uint64 m_loadedAccountVersionEpochSec = 0;
 
     Vector2Float m_respawnPos;
     Vector2Float m_worldPos;
