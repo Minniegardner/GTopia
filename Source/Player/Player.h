@@ -8,6 +8,12 @@
 #include "../Utils/Variant.h"
 #include <enet/enet.h>
 
+enum ePlayerLogonMode
+{
+    LOGON_MODE_WELCOME = 1,
+    LOGON_MODE_TRANSFER = 2
+};
+
 class Player : public NetEntity {
 public:
     Player(ENetPeer* pPeer);
@@ -17,7 +23,7 @@ public:
     void SendHelloPacket();
     void SendLogonFailWithLog(const string& message);
     void SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, const string& cdnPath, const string& settings, uint32 tributeHash);
-    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP);
+    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP, int32 logonMode);
     void SendOnConsoleMessage(const string& message);
     void SendOnRequestWorldSelectMenu(const string& worldMenu);
     void SendOnFailedToEnterWorld();
@@ -32,6 +38,8 @@ public:
     void SendOnNameChanged(const string& name, Player* pPlayer);
     void SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass);
     void SendSetHasGrowID(bool active);
+    void SendOnSetBux(uint32 gemCount, bool skipAnim, bool isSupporter, bool isSuperSupporter);
+    void SendOnDataConfig(bool isMod, bool isSMod, Player* pPlayer = nullptr);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);

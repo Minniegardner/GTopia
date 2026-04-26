@@ -15,6 +15,7 @@ struct PlayerLoginDetail
     uint32 platformType;
     string country = "00";
     uint32 protocol = 0;
+    uint32 loginMode = 0;
     
     string meta;
     uint32 fhash;

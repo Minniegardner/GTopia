@@ -25,6 +25,7 @@ set(MASTER_PLAYER "${MASTER_ROOT}/Player")
 set(MASTER_SERVER "${MASTER_ROOT}/Server")
 set(MASTER_EVENT "${MASTER_ROOT}/Event")
 set(MASTER_WORLD "${MASTER_ROOT}/World")
+set(MASTER_COMMAND "${MASTER_ROOT}/Command")
 
 set(MASTER_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
@@ -41,11 +42,14 @@ set(MASTER_FILES PRIVATE
     ${MASTER_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
     ${MASTER_EVENT}/TCP/TCPEventPlayerEndSession.cpp
     ${MASTER_EVENT}/TCP/TCPEventKillServer.cpp
+    ${MASTER_EVENT}/TCP/TCPEventHeartBeat.cpp
 
     ${MASTER_WORLD}/WorldManager.cpp
 
     ${SOURCE_PLAYER}/Player.cpp
     ${SOURCE_PLAYER}/PlayerLoginDetail.cpp
+    ${SOURCE_PLAYER}/RoleManager.cpp
+    ${SOURCE_PLAYER}/Role.cpp
     ${MASTER_PLAYER}/GamePlayer.cpp
     ${MASTER_PLAYER}/PlayerManager.cpp
 
@@ -53,6 +57,9 @@ set(MASTER_FILES PRIVATE
     ${SOURCE_SERVER}/ServerBroadwayBase.cpp
     ${MASTER_SERVER}/GameServer.cpp
     ${MASTER_SERVER}/ServerManager.cpp
+    ${MASTER_SERVER}/TelnetServer.cpp
+
+    ${MASTER_COMMAND}/Telnet/SetRole.cpp
 
     ${MASTER_ROOT}/Context.cpp
     ${MASTER_ROOT}/Main.cpp

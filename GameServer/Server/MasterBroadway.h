@@ -29,7 +29,7 @@ public:
     void SendCheckSessionPacket(int32 netID, uint32 userID, uint32 token, uint16 serverID);
     void SendRenderWorldRequest(uint32 userID, uint32 worldID);
     void SendWorldInitResult(bool succeed, uint32 worldID);
-    void SendPlayerWorldJoin(int32 playerNetID, const string& worldName);
+    void SendPlayerWorldJoin(uint32 playerUserID, const string& worldName);
     void SendHeartBeat();
     void SendEndPlayerSession(uint32 userID);
     void SendServerKillPacket();

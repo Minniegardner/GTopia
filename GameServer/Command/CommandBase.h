@@ -9,7 +9,7 @@ struct CommandInfo
     string usage = "";
     string desc = "";
     eRolePerm perm = ROLE_PERM_NONE;
-    std::vector<uint32> aliases = {};
+    std::vector<uint32> aliases;
     bool disabled = false;
 };
 

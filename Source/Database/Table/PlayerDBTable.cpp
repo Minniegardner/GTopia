@@ -27,10 +27,10 @@ QueryRequest PlayerDB::GetData(uint32 userID, uint32 ownerID)
     return req;
 }
 
-QueryRequest PlayerDB::Save(uint32 userID, uint32 roleID, const string& inventoryData, uint32 skinColor, uint32 ownerID)
+QueryRequest PlayerDB::Save(uint32 userID, uint32 roleID, const string& inventoryData, uint32 skinColor, uint32 flags, uint32 gems, uint32 ownerID)
 {
     QueryRequest req(ownerID);
-    req.AddData(roleID, inventoryData, userID, skinColor);
+    req.AddData(roleID, inventoryData, skinColor, flags, gems, userID);
 
     req.queryID = DB_PLAYER_SAVE;
     return req;
@@ -132,6 +132,15 @@ QueryRequest PlayerDB::GetByNameAndPass(const string& name, const string& pass, 
     req.AddData(name, pass);
 
     req.queryID = DB_PLAYER_GET_BY_NAME_AND_PASS;
+    return req;
+}
+
+QueryRequest PlayerDB::ExistByID(uint32 userID, int32 ownerID)
+{
+    QueryRequest req(ownerID);
+    req.AddData(userID);
+
+    req.queryID = DB_PLAYER_EXISTS_BY_ID;
     return req;
 }
 

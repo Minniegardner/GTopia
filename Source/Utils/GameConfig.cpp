@@ -79,6 +79,10 @@ bool GameConfig::LoadConfig(const string& filePath)
         if(args[0] == "max_accounts_per_mac") {
             maxAccountsPerMac = (uint16)ToUInt(args[1]);
         }
+
+        if(args[0] == "world_max_player_count") {
+            worldMaxPlayerCount = ToUInt(args[1]);
+        }
     }
 
     return true;

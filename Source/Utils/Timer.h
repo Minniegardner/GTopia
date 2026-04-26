@@ -22,8 +22,8 @@ public:
 public:
     static uint64 GetSystemTime();
     static uint64 GetTimeSinceEpoch();
+    static uint32 GetSecondsFromMidnight();
     static string GetDateTimeStr();
-
     static string ConvertTimeToStr(uint64 ms);
 
 private:

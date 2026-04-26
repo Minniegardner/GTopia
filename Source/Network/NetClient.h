@@ -30,6 +30,7 @@ struct NetClient
     int32 socket = -1;
     int16 connectionID;
     eSocketClientStatus status = SOCKET_CLIENT_UNKNOWN;
+    string ip;
 
     RingBuffer sendQueue = RingBuffer(8 * 1024);
     
@@ -42,7 +43,8 @@ struct NetClient
     NetSocket* pNetSocket = nullptr;
     void* data = nullptr;
 
-    std::mutex mutex;
+    std::mutex recvMutex;
+    std::mutex sendMutex;
 
 #ifdef SOCKET_USE_TLS
     SSL* pSsl = nullptr;

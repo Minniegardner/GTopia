@@ -51,7 +51,7 @@ public:
     uint8 hp = 0;
     int32 restoreTime = 0;
     uint8 bodyPart = 0;
-    int16 rarity = 1;
+    int16 rarity = 0;
     uint8 maxCanHold = 200;
 
     string extraString = "";

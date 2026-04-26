@@ -2,6 +2,7 @@
 #include "Utils/Timer.h"
 #include "IO/Log.h"
 #include "../Context.h"
+#include "../Player/PlayerManager.h"
 
 #include "../Event/TCP/TCPEventHello.h"
 #include "../Event/TCP/TCPEventAuth.h"
@@ -11,6 +12,13 @@
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
 #include "../Event/TCP/TCPEventPlayerEndSession.h"
 #include "../Event/TCP/TCPEventKillServer.h"
+#include "../Event/TCP/TCPEventHeartBeat.h"
+
+ServerInfo::ServerInfo(NetClient* pNetClient)
+: NetEntity(ENTITY_TYPE_SERVER)
+{
+    pClient = pNetClient;
+}
 
 ServerManager::ServerManager()
 {
@@ -23,17 +31,34 @@ ServerManager::~ServerManager()
 
 void ServerManager::OnClientConnect(NetClient* pClient)
 {
+    if(!pClient) {
+        return;
+    }
 
+    ServerInfo* pServerInfo = new ServerInfo(pClient);
+    pClient->data = pServerInfo;
+
+    m_pendingClients.insert_or_assign(pServerInfo->GetNetID(), pServerInfo);
 }
 
 void ServerManager::OnClientDisconnect(NetClient* pClient)
 {
-    if(!pClient || !pClient->data) {
+    if(!pClient) {
         return;
     }
 
-    NetServerInfo* pNetInfo = (NetServerInfo*)pClient->data;
-    RemoveServer(pNetInfo->serverID);
+    ServerInfo* pServerInfo = (ServerInfo*)pClient->data;
+    if(!pServerInfo) {
+        return;
+    }
+
+    if(pServerInfo->serverID == 0) {
+        SAFE_DELETE(pServerInfo);
+        m_pendingClients.erase(pServerInfo->GetNetID());
+    }
+    else {
+        
+    }
 }
 
 void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
@@ -46,7 +71,16 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
             continue;
         }
 
+        ServerInfo* pServerInfo = (ServerInfo*)event.pClient->data;
+        if(!pServerInfo) {
+            event.pClient->status = SOCKET_CLIENT_CLOSE;
+            continue;
+        }
+
         int8 type = event.data[0].GetINT();
+        if(type != TCP_PACKET_HEARTBEAT) {
+            LOGGER_LOG_DEBUG("GOT TCP PACKET %d", type);
+        }
 
         switch(type) {
             case TCP_PACKET_HELLO: 
@@ -56,7 +90,7 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
             }
 
             default: {
-                if(!((NetServerInfo*)(event.pClient->data))->authed) {
+                if(!pServerInfo->authed) {
                     LOGGER_LOG_WARN("Client trying to access un-authorized packets?! CLOSING!");
                     event.pClient->status = SOCKET_CLIENT_CLOSE;
                     continue;
@@ -74,12 +108,11 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
 
 void ServerManager::Kill()
 {
-    while (!m_servers.empty()) {
+    while(!m_servers.empty()) {
         RemoveServer(m_servers.begin()->first);
     }
 
     ServerBroadwayBase::Kill();
-    m_servers.clear();
 }
 
 void ServerManager::RegisterEvents()
@@ -94,6 +127,7 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
     RegisterEvent<TCPEventPlayerEndSession>(TCP_PACKET_PLAYER_END_SESSION);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
+    RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
 }
 
 ServerInfo* ServerManager::GetServerByID(uint16 serverID)
@@ -106,73 +140,74 @@ ServerInfo* ServerManager::GetServerByID(uint16 serverID)
     return it->second;
 }
 
-bool ServerManager::SendPacketRaw(uint16 serverID, VariantVector& data)
+void ServerManager::SendWorldPlayerFailPacket(ServerInfo* pServer, uint32 playerUserID)
 {
-    if(!m_pNetSocket) {
-        return false;
+    if(!pServer || !pServer->pClient) {
+        return;
     }
-
-    ServerInfo* pServer = GetServerByID(serverID);
-    if(!pServer) {
-        return false;
-    }
-
-    NetClient* pNetClient = m_pNetSocket->GetClient(pServer->socketConnID);
-    if(!pNetClient) {
-        return false;
-    }
-
-    return pNetClient->Send(data);
-}
-
-void ServerManager::SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID)
-{
+    
     VariantVector data(3);
 
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
     data[1] = TCP_RESULT_FAIL;
-    data[2] = playerNetID;
+    data[2] = playerUserID;
 
-    SendPacketRaw(serverID, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, uint32 serverIDForPacket)
+void ServerManager::SendWorldPlayerSuccessPacket(ServerInfo* pServer, uint32 playerUserID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     VariantVector data(7);
 
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
     data[1] = TCP_RESULT_OK;   
-    data[2] = playerNetID;
+    data[2] = playerUserID;
     data[3] = serverID;
     data[4] = worldID;
     data[5] = serverIP;
-    data[6] = serverPort;
+    data[6] = (uint32)serverPort;
 
-    SendPacketRaw(serverIDForPacket, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendWorldInitPacket(const string& worldName, uint32 serverID)
+void ServerManager::SendWorldInitPacket(ServerInfo* pServer, const string& worldName)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     VariantVector data(2);
 
     data[0] = TCP_PACKET_WORLD_INIT;
     data[1] = worldName;
 
-    SendPacketRaw(serverID, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendAuthPacket(bool succeed, uint32 serverID)
+void ServerManager::SendAuthPacket(ServerInfo* pServer, bool succeed)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     VariantVector data(2);
 
     data[0] = TCP_PACKET_AUTH;
     data[1] = succeed;
 
-    SendPacketRaw(serverID, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendRenderResult(int32 result, uint32 playerUserID, const string& worldName, uint32 serverID)
+void ServerManager::SendRenderResult(ServerInfo* pServer, int32 result, uint32 playerUserID, const string& worldName)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     VariantVector data(5);
 
     data[0] = TCP_PACKET_RENDER_WORLD;
@@ -181,11 +216,15 @@ void ServerManager::SendRenderResult(int32 result, uint32 playerUserID, const st
     data[3] = playerUserID;
     data[4] = worldName;
 
-    SendPacketRaw(serverID, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendRenderRequest(uint32 playerUserID, uint32 worldID, uint32 serverID)
+void ServerManager::SendRenderRequest(ServerInfo* pServer, uint32 playerUserID, uint32 worldID)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     VariantVector data(4);
 
     data[0] = TCP_PACKET_RENDER_WORLD;
@@ -193,29 +232,52 @@ void ServerManager::SendRenderRequest(uint32 playerUserID, uint32 worldID, uint3
     data[2] = playerUserID;
     data[3] = worldID;
 
-    SendPacketRaw(serverID, data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendPlayerSessionCheck(bool hasSession, int32 playerNetID, int16 connectionID)
+void ServerManager::SendHeartBeat(ServerInfo* pServer, uint32 totalPlayer)
 {
-    NetClient* pClient = m_pNetSocket->GetClient(connectionID);
-    if(!pClient) {
+    if(!pServer || !pServer->pClient) {
         return;
     }
 
-    VariantVector data(3);
+    VariantVector data(4);
+
+    data[0] = TCP_PACKET_HEARTBEAT;
+    data[1] = totalPlayer;
+
+    pServer->pClient->Send(data);
+}
+
+void ServerManager::SendPlayerSessionCheck(ServerInfo* pServer, bool hasSession, int32 playerNetID, string worldName)
+{
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
+    VariantVector data;
+
+    if(hasSession) {
+        data = VariantVector(4);
+    }
+    else {
+        data = VariantVector(2);
+    }
     
     data[0] = TCP_PACKET_PLAYER_CHECK_SESSION;
     data[1] = playerNetID;
     data[2] = hasSession;
+    
+    if(hasSession) {
+        data[3] = worldName;
+    }
 
-    pClient->Send(data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::SendHelloPacket(const string &authKey, int16 connectionID)
+void ServerManager::SendHelloPacket(ServerInfo* pServer, const string& authKey)
 {
-    NetClient* pClient = m_pNetSocket->GetClient(connectionID);
-    if(!pClient) {
+    if(!pServer || !pServer->pClient) {
         return;
     }
 
@@ -224,27 +286,31 @@ void ServerManager::SendHelloPacket(const string &authKey, int16 connectionID)
     data[0] = TCP_PACKET_HELLO;
     data[1] = authKey;
 
-    pClient->Send(data);
+    pServer->pClient->Send(data);
 }
 
-void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverType)
+void ServerManager::AddServer(ServerInfo* pServer, uint16 serverID, int8 serverType)
 {
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
     if(serverType != CONFIG_SERVER_GAME && serverType != CONFIG_SERVER_RENDERER) {
-        pClient->status = SOCKET_CLIENT_CLOSE;
+        pServer->pClient->status = SOCKET_CLIENT_CLOSE;
         LOGGER_LOG_WARN("Unknown server %d type %d, closing", serverID, serverType);
         return;
     }
 
     auto it = m_servers.find(serverID);
     if(serverID == 0|| it != m_servers.end()) {
-        pClient->status = SOCKET_CLIENT_CLOSE;
+        pServer->pClient->status = SOCKET_CLIENT_CLOSE;
         LOGGER_LOG_ERROR("Server %d already exists but we tried to add it again??", serverID);
         return;
     }
 
     auto serverNetInfo = GetContext()->GetGameConfig()->servers[serverID];
     if(serverNetInfo.serverType != serverType || serverNetInfo.lanIP.empty() || serverNetInfo.wanIP.empty()) {
-        pClient->status = SOCKET_CLIENT_CLOSE;
+        pServer->pClient->status = SOCKET_CLIENT_CLOSE;
         return;
     }
 
@@ -252,13 +318,14 @@ void ServerManager::AddServer(uint16 serverID, NetClient* pClient, int8 serverTy
     if(serverType == CONFIG_SERVER_RENDERER) serverTypeStr = "renderer";
 
     LOGGER_LOG_INFO("Server %d (%s) added to cache %s:%d", serverID, serverTypeStr.c_str(), serverNetInfo.wanIP.c_str(), serverNetInfo.udpPort);
-    ServerInfo* pServer = new ServerInfo();
     pServer->serverID = serverID;
-    pServer->socketConnID = pClient->connectionID;
     pServer->wanIP = serverNetInfo.wanIP;
     pServer->port = serverNetInfo.udpPort;
     pServer->serverType = (eConfigServerType)serverType;
+    pServer->authed = true;
+    pServer->lastHeartbeatTime.Reset();
 
+    m_pendingClients.erase(pServer->GetNetID());
     m_servers.insert_or_assign(pServer->serverID, pServer);
 }
 
@@ -270,12 +337,14 @@ void ServerManager::RemoveServer(uint16 serverID)
     }
 
     ServerInfo* pServer = it->second;
+    if(!pServer) {
+        return;
+    }
 
-    NetClient* pClient = m_pNetSocket->GetClient(pServer->socketConnID);
-    NetServerInfo* pNetInfo = (NetServerInfo*)pClient->data;
-    SAFE_DELETE(pNetInfo);
-
-    pClient->status = SOCKET_CLIENT_CLOSE;
+    if(pServer->pClient) {
+        pServer->pClient->status = SOCKET_CLIENT_CLOSE;
+    }
+    
     SAFE_DELETE(pServer);
     m_servers.erase(it);
 }
@@ -292,6 +361,7 @@ ServerInfo* ServerManager::GetBestGameServer()
 
         float score = pServer->playerCount / (pServer->worldCount + 1);
         if(score < bestScore) {
+            bestScore = score;
             pBestServer = pServer;
         }
     }
@@ -323,6 +393,79 @@ bool ServerManager::HasAnyGameServer()
     }
 
     return false;
+}
+
+uint32 ServerManager::GetPlayerCount()
+{
+    uint32 playerCount = 0;
+    
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer) {
+            continue;
+        }
+
+        playerCount += pServer->playerCount;
+    }
+
+    return playerCount;
+}
+
+void ServerManager::UpdateServers()
+{
+    if(m_lastServerUpdateTime.GetElapsedTime() < TICK_INTERVAL) {
+        return;
+    }
+
+    if(m_lastHeartBeatTime.GetElapsedTime() >= 5000) {
+        PlayerManager* pPlayerMgr = GetPlayerManager();
+
+        for (auto it = m_servers.begin(); it != m_servers.end();) {
+            ServerInfo* pServer = it->second;
+        
+            if(!pServer) {
+                it = m_servers.erase(it);
+                continue;
+            }
+        
+            if(!pServer->pClient) {
+                SAFE_DELETE(pServer);
+                it = m_servers.erase(it);
+                continue;
+            }
+        
+            if(pServer->lastHeartbeatTime.GetElapsedTime() >= 30 * 1000) {
+                pServer->pClient->status = SOCKET_CLIENT_CLOSE;
+                ++it;
+                continue;
+            }
+
+            SendHeartBeat(pServer, pPlayerMgr->GetTotalPlayerCount());
+            ++it;
+        }
+    }
+
+    if(m_lastPendingUpdateTime.GetElapsedTime() >= 2000) {
+        for (auto it = m_pendingClients.begin(); it != m_pendingClients.end();) {
+            ServerInfo* pServer = it->second;
+        
+            if(!pServer) {
+                it = m_pendingClients.erase(it);
+                continue;
+            }
+        
+            if(!pServer->pClient) {
+                SAFE_DELETE(pServer);
+                it = m_pendingClients.erase(it);
+                continue;
+            }
+        
+            if(pServer->lastHeartbeatTime.GetElapsedTime() >= 60 * 1000) {
+                pServer->pClient->status = SOCKET_CLIENT_CLOSE;
+            }
+        
+            ++it;
+        }
+    }
 }
 
 ServerManager* GetServerManager() { return ServerManager::GetInstance(); }

@@ -22,6 +22,8 @@ enum eWeatherTypes
     WEATHER_TYPE_HARVEST = 6
 };
 
+bool IsValidWorldName(const string& worldName);
+
 class WorldInfo {
 public:
     WorldInfo();

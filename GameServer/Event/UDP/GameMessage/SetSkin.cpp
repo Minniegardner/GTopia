@@ -14,10 +14,5 @@ void SetSkin::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    /**
-     * check if player can set the skin color
-     * do not allow other colors
-     * or check supporter
-     */
-    pPlayer->GetCharData().SetSkinColor(skinColor);
+    pPlayer->SetSkinColor(skinColor);
 }

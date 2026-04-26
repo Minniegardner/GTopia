@@ -11,10 +11,17 @@ enum ePlayerState
 {
     PLAYER_STATE_LOGIN_REQUEST = 1 << 0,
     PLAYER_STATE_ENTERING_GAME = 1 << 1,
-    PLAYER_STATE_IN_GAME = 1 << 2,
-    PLAYER_STATE_LOGGING_OFF = 1 << 3,
-    PLAYER_STATE_RENDERING_WORLD = 1 << 4,
-    PLAYER_STATE_DELETE = 1 << 5
+    PLAYER_STATE_LOADING_ACCOUNT = 1 << 2,
+    PLAYER_STATE_IN_GAME = 1 << 3,
+    PLAYER_STATE_LOGGING_OFF = 1 << 4,
+    PLAYER_STATE_RENDERING_WORLD = 1 << 5,
+    PLAYER_STATE_DELETE = 1 << 6
+};
+
+enum ePlayerFlags
+{
+    PLAYER_FLAG_SUPPORTER = 1 << 0,
+    PLAYER_FLAG_SUPER_SUPPORTER = 1 << 1
 };
 
 class TileInfo;
@@ -29,9 +36,15 @@ public:
     void RemoveState(ePlayerState state) { m_state &= ~state; }
     bool HasState(ePlayerState state) const { return m_state & state; }
 
+    void SetFlags(uint32 flags) { m_flags |= flags; }
+    void SetFlag(ePlayerFlags flag) { m_flags |= flag; }
+    bool HasFlag(ePlayerFlags flag) { return m_flags & flag; }
+
+    void SetGems(uint32 amount) { m_gems = amount; }
+    void SendGems(bool skipAnim);
+
     void StartLoginRequest(ParsedTextPacket<25>& packet);
     void HandleCheckSession(VariantVector&& result);
-    static void LoadAccountCB(QueryTaskResult&& result);
     void TransferToGame();
 
     void HandleRenderWorld(VariantVector&& result);
@@ -46,6 +59,9 @@ public:
     
     void SetCurrentWorld(uint32 worldID) { m_currentWorldID = worldID; }
     uint32 GetCurrentWorld() const { return m_currentWorldID; }
+
+    void ResetLogonJoinWorld() { m_logonJoinWorld = ""; }
+    string GetLogonJoinWorld() const { return m_logonJoinWorld; }
 
     string GetDisplayName();
     string GetRawName();
@@ -72,6 +88,7 @@ public:
     void UpdateNeededPlayModThings();
     void UpdatePlayMods();
     void UpdateTorchPlayMod();
+    void SetSkinColor(uint32 skinColor);
 
     bool CanActivateItemNow() { return Time::GetSystemTime() - m_lastItemActivateTime >= 100; };
     void ResetItemActiveTime() { m_lastItemActivateTime = Time::GetSystemTime(); }
@@ -87,6 +104,7 @@ public:
 
     Timer& GetLastActionTime() { return m_lastActionTime; }
     Timer& GetLastDBSaveTime() { return m_lastDbSaveTime; }
+    Timer& GetLastJoinRequestTime() { return m_lastJoinRequestTime; }
 
     void RandomizeNextDBSaveTime() { m_nextDbSaveTime = RandomRangeInt(10 * 60, 15 * 60) * 1000; };
     uint64 GetNextDBSaveTime() const { return m_nextDbSaveTime; };
@@ -95,9 +113,15 @@ private:
     uint32 m_state;
     bool m_joiningWorld;
     uint32 m_currentWorldID;
+    uint32 m_flags;
+    uint32 m_gems;
 
     uint64 m_lastItemActivateTime;
     Timer m_lastActionTime;
+
+    string m_logonJoinWorld;
+
+    Timer m_lastJoinRequestTime;
 
     uint32 m_guestID;
 

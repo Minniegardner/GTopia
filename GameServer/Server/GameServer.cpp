@@ -19,6 +19,7 @@
 #include "../Event/UDP/GameMessage/Trash.h"
 #include "../Event/UDP/GameMessage/GrowID.h"
 #include "../Event/UDP/GameMessage/Quit.h"
+#include "../Event/UDP/GameMessage/SetSkin.h"
 
 #include "../Command/RenderWorld.h"
 #include "../Command/GiveItem.h"
@@ -148,6 +149,7 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<Trash>(CompileTimeHashString("trash"));
     RegisterMessagePacket<GrowID>(CompileTimeHashString("growid"));
     RegisterMessagePacket<Quit>(CompileTimeHashString("quit"));
+    RegisterMessagePacket<SetSkin>(CompileTimeHashString("setSkin"));
 
     RegisterCommand<RenderWorld>();
     RegisterCommand<GiveItem>();
@@ -176,7 +178,7 @@ void GameServer::ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     m_commands.Dispatch(
-        HashString(args[0].substr(1)),
+        hashCmd,
         pPlayer, args
     );
 }

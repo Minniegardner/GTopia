@@ -4,18 +4,26 @@
 
 void TCPPlayerSessionEventData::FromVariant(VariantVector& varVec)
 {
-    if(varVec.size() < 5) {
+    if(varVec.size() < 4) {
         return;
     }
 
     netID = varVec[1].GetINT();
     userID = varVec[2].GetUINT();
     token = varVec[3].GetUINT();
-    serverID = varVec[4].GetUINT();
 }
 
 void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
 {
+    if(!pClient) {
+        return;
+    }
+
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if(!pServer) {
+        return;
+    }
+
     TCPPlayerSessionEventData eventData;
     eventData.FromVariant(data);
 
@@ -24,11 +32,12 @@ void TCPEventPlayerSession::Execute(NetClient* pClient, VariantVector& data)
 
     if(
         !pPlayer ||
-        pPlayer->serverID != eventData.serverID ||
+        pPlayer->serverID != pServer->serverID ||
         pPlayer->loginToken != eventData.token
     ) {
         hasSession = false;
     }
 
-    GetServerManager()->SendPlayerSessionCheck(hasSession, eventData.netID, pClient->connectionID);
+    string worldName = pPlayer ? pPlayer->worldName : "";
+    GetServerManager()->SendPlayerSessionCheck(pServer, hasSession, eventData.netID, worldName);
 }

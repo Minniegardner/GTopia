@@ -29,9 +29,15 @@ void TrashDialog::Request(GamePlayer* pPlayer, uint16 itemID)
     }
 
     DialogBuilder db;
-    db.SetDefaultColor('o')
-    ->AddLabelWithIcon("`4Trash ``" + pItem->name, pItem->id, true)
-    ->AddTextBox("How many to `4destory``? (you have " + ToString(invItemCount) + ")")
+    db.SetDefaultColor('o');
+    if(pPlayer->HasFlag(PLAYER_FLAG_SUPPORTER) || pPlayer->HasFlag(PLAYER_FLAG_SUPER_SUPPORTER)) {
+        db.AddLabelWithIcon("`4Recycle`` " + pItem->name, pItem->id, true);
+    }
+    else {
+        db.AddLabelWithIcon("`4Trash`` " + pItem->name, pItem->id, true);
+    }
+
+    db.AddTextBox("How many to `4destory``? (you have " + ToString(invItemCount) + ")")
     ->AddTextInput("count", "", "0", 4)
     ->EmbedData("itemID", itemID)
     ->EndDialog("trash_item", "OK", "Cancel");

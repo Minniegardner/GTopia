@@ -6,9 +6,8 @@
 #include "Server/ServerManager.h"
 #include "Player/GamePlayer.h"
 #include "World/WorldManager.h"
-
-const int32 TICK_RATE = 20;
-const uint64 TICK_INTERVAL = 1000/TICK_RATE;
+#include "Server/TelnetServer.h"
+#include "Player/RoleManager.h"
 
 #include <signal.h>
 void SignalStop(int32 signum) 
@@ -48,9 +47,14 @@ void DatabaseThreadFunc()
 
 void EventThreadFunc() 
 {
+    GameServer* pGameServer = GetGameServer();
+    ServerManager* pServerMgr = GetServerManager();
+    TelnetServer* pTelnetServer = GetTelnetServer();
+
     while(GetContext()->IsRunning()) {
-        GetGameServer()->Update();
-        GetServerManager()->Update(false);
+        pGameServer->Update();
+        pServerMgr->Update(false);
+        pTelnetServer->Update();
 
         SleepMS(1);
     }
@@ -84,6 +88,7 @@ int main(int argc, char const* argv[])
     signal(SIGINT, SignalStop);
 
     LOGGER_LOG_INFO("Starting Master Server %s", Time::GetDateTimeStr().c_str());
+    LOGGER_LOG_INFO("Project created by keichira https://github.com/keichira/GTopia")
     
     GetContext()->Init();
 
@@ -105,6 +110,11 @@ int main(int argc, char const* argv[])
 
     if(!pGameConfig->LoadConfig(GetProgramPath() + "/config.txt")) {
         LOGGER_LOG_ERROR("Failed to load config.txt");
+        return 0;
+    }
+
+    if(!GetRoleManager()->Load(GetProgramPath() + "/roles.txt")) {
+        LOGGER_LOG_ERROR("Failed to load roles.txt");
         return 0;
     }
 
@@ -134,16 +144,36 @@ int main(int argc, char const* argv[])
     }
     LOGGER_LOG_INFO("Started game server on %s:%d", masterServerInfo.wanIP.c_str(), masterServerInfo.udpPort);
 
+    TelnetServer* pTelnetServer = GetTelnetServer();
+    if(pTelnetServer->LoadTelnetConfigFromFile(GetProgramPath() + "/telnet_config.txt")) {
+        if(!pTelnetServer->Init()) {
+            LOGGER_LOG_ERROR("Failed to initialize telnet server on %s:%d", pTelnetServer->GetHost().c_str(), pTelnetServer->GetPort());
+            return 0;
+        }
+        else {
+            LOGGER_LOG_INFO("Started telnet server on %s:%d", pTelnetServer->GetHost().c_str(), pTelnetServer->GetPort());
+        }
+    }
+    else {
+        LOGGER_LOG_ERROR("Failed to load telnet_config.txt not gonna initialize telnet server");
+    }
+
     std::thread dbThread(DatabaseThreadFunc);
     std::thread eventThread(EventThreadFunc);
     
     uint64 nextTick = Time::GetSystemTime();
+    GameServer* pGameServer = GetGameServer();
+    ServerManager* pServerMgr = GetServerManager();
+
 
     while(GetContext()->IsRunning()) {
         uint64 tickStart = Time::GetSystemTime();
         
-        GetGameServer()->UpdateGameLogic(15);
-        GetServerManager()->UpdateTCPLogic(15);
+        pGameServer->UpdateGameLogic(15);
+
+        pServerMgr->UpdateServers();
+        pServerMgr->UpdateTCPLogic(15);
+        
         ProcessDatabaseResults(15);
 
         nextTick += TICK_INTERVAL;
@@ -167,6 +197,7 @@ int main(int argc, char const* argv[])
     if(dbThread.joinable()) dbThread.join();
     if(eventThread.joinable()) eventThread.join();
 
+    GetTelnetServer()->Kill();
     GetGameServer()->Kill();
     GetServerManager()->Kill();
 

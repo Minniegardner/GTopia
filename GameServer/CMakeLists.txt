@@ -47,6 +47,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventRenderWorld.cpp
     ${GAME_EVENT}/TCP/TCPEventWorldSendPlayer.cpp
     ${GAME_EVENT}/TCP/TCPEventKillServer.cpp
+    ${GAME_EVENT}/TCP/TCPEventHeartBeat.cpp
 
     ${GAME_EVENT}/UDP/GameMessage/RefreshItemData.cpp
     ${GAME_EVENT}/UDP/GameMessage/EnterGame.cpp
@@ -58,6 +59,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/Trash.cpp
     ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
     ${GAME_EVENT}/UDP/GameMessage/Quit.cpp
+    ${GAME_EVENT}/UDP/GameMessage/SetSkin.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp

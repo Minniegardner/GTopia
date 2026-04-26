@@ -20,18 +20,17 @@ void TCPEventAuth::Execute(NetClient* pClient, VariantVector& data)
     TCPAuthEventData eventData;
     eventData.FromVariant(data);
 
-    NetServerInfo* pClientInfo = (NetServerInfo*)pClient->data;
+    ServerInfo* pServerInfo = (ServerInfo*)pClient->data;
+    if(!pServerInfo) {
+        return;
+    }
 
-    if(pClientInfo->authKey != eventData.authKey) {
+    if(pServerInfo->authKey != eventData.authKey) {
         LOGGER_LOG_WARN("Failed to authorize server! closing connection...");
         pClient->status = SOCKET_CLIENT_CLOSE;
         return;
     }
 
-    pClientInfo->authed = true;
-    pClientInfo->lastHeartbeatTime.Reset();
-    pClientInfo->serverID = eventData.serverID;
-
-    GetServerManager()->AddServer(eventData.serverID, pClient, eventData.serverType);
-    GetServerManager()->SendAuthPacket(true, eventData.serverID);
+    GetServerManager()->AddServer(pServerInfo, eventData.serverID, eventData.serverType);
+    GetServerManager()->SendAuthPacket(pServerInfo, true);
 }

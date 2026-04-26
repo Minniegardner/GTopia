@@ -4,6 +4,13 @@
 #include "NetSocket.h"
 #include "IO/File.h"
 
+/**
+ * 
+ * Currently some parts are broken
+ * gonna fix it later
+ * 
+ */
+
 #define HTTP_TIMEOUT_MS 12 * 1000
 #define HTTP_CLIENT_CONNECT_MS 5 * 1000
 

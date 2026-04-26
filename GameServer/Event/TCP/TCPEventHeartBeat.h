@@ -2,16 +2,14 @@
 
 #include "Network/NetClient.h"
 
-struct TCPPlayerSessionEventData
+struct TCPHeartBeatEventData
 {
-    int32 netID = 0;
-    uint32 userID = 0;
-    uint32 token = 0;
+    uint32 playerCount = 0;
 
     void FromVariant(VariantVector& varVec);
 };
 
-class TCPEventPlayerSession {
+class TCPEventHeartBeat {
 public:
     static void Execute(NetClient* pClient, VariantVector& data);
 };

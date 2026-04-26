@@ -42,6 +42,11 @@ uint64 Time::GetTimeSinceEpoch()
     return time(NULL);
 }
 
+uint32 Time::GetSecondsFromMidnight()
+{
+    return ::GetSecondsFromMidnight();
+}
+
 string Time::GetDateTimeStr()
 {
     return GetDateTimeAsStr();

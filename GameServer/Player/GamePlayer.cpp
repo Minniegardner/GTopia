@@ -17,13 +17,19 @@
 #include "PlayerManager.h"
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
-: Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(1), m_lastItemActivateTime(0), m_state(0)
+: Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(0), 
+m_lastItemActivateTime(0), m_state(0), m_flags(0), m_gems(0)
 {
     RandomizeNextDBSaveTime();
 }
 
 GamePlayer::~GamePlayer()
 {
+}
+
+void GamePlayer::SendGems(bool skipAnim)
+{
+    SendOnSetBux(m_gems, skipAnim, HasFlag(PLAYER_FLAG_SUPPORTER), HasFlag(PLAYER_FLAG_SUPER_SUPPORTER));
 }
 
 void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
@@ -46,89 +52,23 @@ void GamePlayer::StartLoginRequest(ParsedTextPacket<25>& packet)
 void GamePlayer::HandleCheckSession(VariantVector&& result)
 {
     bool sessionAgreed = result[2].GetBool();
-    if(!sessionAgreed) {
+    /*if(!sessionAgreed) {
         SendLogonFailWithLog("`4OOPS! ``Please re-connect server says you're not belong to this server");
         return;
+    }*/
+
+    GamePlayer* pTarget = GetPlayerManager()->IsPlayerAlreadyOn(this);
+    if(GetPlayerManager()->IsPlayerAlreadyOn(this)) {
+        SendOnConsoleMessage("`4ALREADY ON?!`` : This account was already online, kicking it off so you can log on. (if you were just playing before, this is nothing to worry about)");
+        pTarget->SendOnConsoleMessage("`4This account is being activated from another device, kicking you off so they can get on");
+        pTarget->LogOff(true);
     }
 
-    QueryRequest req = PlayerDB::GetData(GetUserID(), GetNetID());
-    req.callback = &GamePlayer::LoadAccountCB;
-
-    DatabasePlayerExec(GetContext()->GetDatabasePool(), req);
-}
-
-void GamePlayer::LoadAccountCB(QueryTaskResult&& result)
-{
-    GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByNetID(result.ownerID);
-    if(!pPlayer || !result.result) {
-        pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
-        return;
+    if(m_loginDetail.loginMode == LOGON_MODE_TRANSFER) {
+        m_logonJoinWorld = result[3].GetString();
     }
 
-    PlayerLoginDetail& loginDetail = pPlayer->GetLoginDetail();
-    if(!loginDetail.tankIDName.empty()) {
-        loginDetail.tankIDName = result.result->GetField("Name", 0).GetString();
-    }
-
-    uint32 roleID = result.result->GetField("RoleID", 0).GetUINT();
-    if(roleID == 0) {
-        roleID = GetRoleManager()->GetDefaultRoleID();
-    }
-
-    Role* pRole = GetRoleManager()->GetRole(roleID);
-    if(!pRole) {
-        pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong while setting you up, please re-connect");
-        LOGGER_LOG_WARN("Failed to set player role %d for user %d", roleID, pPlayer->GetUserID());
-        return;
-    }
-    pPlayer->SetRole(pRole);
-
-    uint32 skinColor = result.result->GetField("SkinColor", 0).GetUINT();
-    if(skinColor != 0) {
-        pPlayer->GetCharData().SetSkinColor(skinColor);
-    }
-
-    PlayerInventory& inventory = pPlayer->GetInventory();
-
-    inventory.SetVersion(pPlayer->GetLoginDetail().protocol);
-    string dbInv = result.result->GetField("Inventory", 0).GetString();
-
-    if(!dbInv.empty()) {
-        uint32 invMemEstimate = dbInv.size() / 2;
-        uint8* pInvData = new uint8[invMemEstimate];
-
-        HexToBytes(dbInv, pInvData);
-
-        MemoryBuffer invMemBuffer(pInvData, invMemEstimate);
-        inventory.Serialize(invMemBuffer, false, true);
-
-        SAFE_DELETE_ARRAY(pInvData);
-    }
-
-    if(inventory.GetCountOfItem(ITEM_ID_FIST) == 0) {
-        inventory.AddItem(ITEM_ID_FIST, 1);
-    }
-
-    if(inventory.GetCountOfItem(ITEM_ID_WRENCH) == 0) {
-        inventory.AddItem(ITEM_ID_WRENCH, 1);
-    }
-
-    pPlayer->SetGuestID(result.result->GetField("GuestID", 0).GetUINT());
-
-    for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
-        uint16 cloth = inventory.GetClothByPart((eBodyPart)i);
-
-        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(cloth);
-        if(!pItem) {
-            continue;
-        }
-
-        if(pItem->type == ITEM_TYPE_CLOTHES && pItem->playModType != PLAYMOD_TYPE_NONE) {
-            pPlayer->AddPlayMod(pItem->playModType, true);
-        }
-    }
-
-    pPlayer->TransferToGame();
+    TransferToGame();
 }
 
 void GamePlayer::TransferToGame()
@@ -183,7 +123,9 @@ void GamePlayer::SaveToDatabase()
         m_userID,
         m_pRole->GetID(),
         ToHex(pInvData, invMemSize),
-        m_characterData.GetSkinColor(),
+        0, //m_characterData.GetSkinColor(),
+        m_flags,
+        m_gems,
         GetNetID()
     );
     
@@ -531,6 +473,15 @@ void GamePlayer::UpdateTorchPlayMod()
     SendOnTalkBubble("`2My torch went out, i have " + ToString(leftTorchCount) + " more!", true);
 }
 
+void GamePlayer::SetSkinColor(uint32 skinColor)
+{
+    m_characterData.SetSkinColor(skinColor);
+
+    if(m_currentWorldID != 0) {
+        m_characterData.SetNeedSkinUpdate(true);
+    }
+}
+
 void GamePlayer::CheckLimitsForAccountCreation(bool fromDialog, const VariantVector& extraData)
 {
     QueryRequest req;
@@ -673,7 +624,7 @@ void GamePlayer::SendPositionToWorldPlayers()
     packet.posY = m_worldPos.y;
     packet.netID = GetNetID();
 
-    if(m_characterData.HasPlayerFlag(PLAYER_FLAG_FACING_LEFT)) {
+    if(m_characterData.HasCharFlag(CHARACTER_FLAG_FACING_LEFT)) {
         packet.SetFlag(NET_GAME_PACKET_FLAGS_FACINGLEFT);
     }
 

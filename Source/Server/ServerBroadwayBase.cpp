@@ -13,7 +13,9 @@ ServerBroadwayBase::~ServerBroadwayBase()
 
 bool ServerBroadwayBase::Init(const string& host, uint16 port, int32 backLog)
 {
+    SAFE_DELETE(m_pNetSocket);
     m_pNetSocket = new NetSocket();
+
     if(!m_pNetSocket->Init(host, port, backLog)) {
         return false;
     }
@@ -38,7 +40,7 @@ void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
     }
 
     {
-        std::lock_guard<std::mutex> lock(pClient->mutex);
+        std::lock_guard<std::mutex> lock(pClient->recvMutex);
         if(pClient->recvQueue.GetDataSize() <= sizeof(uint32)) {
             return;
         }
@@ -57,7 +59,7 @@ void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
 
     VariantVector data;
     {
-        std::lock_guard<std::mutex> lock(pClient->mutex);
+        std::lock_guard<std::mutex> lock(pClient->recvMutex);
         
         uint32 packetSize = 0;
         pClient->recvQueue.Read(&packetSize, sizeof(uint32));

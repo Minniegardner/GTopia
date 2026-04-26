@@ -27,7 +27,6 @@ public:
 
 public:
     void ExecuteCommand(GamePlayer* pPlayer, std::vector<string>& args);
-
     void ForceSaveEverything();
 
 private:

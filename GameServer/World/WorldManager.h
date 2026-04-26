@@ -19,6 +19,7 @@ public:
     }
 
 public:
+    void SendWorldSelectMenu(GamePlayer* pPlayer);
     void PlayerJoinRequest(GamePlayer* pPlayer, const string& worldName);
     void PlayerLeaveWorld(GamePlayer* pPlayer);
 

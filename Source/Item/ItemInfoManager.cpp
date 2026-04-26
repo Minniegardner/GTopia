@@ -260,6 +260,10 @@ bool ItemInfoManager::Load(const string& filePath)
             }
 
             m_items[lastItemID].rarity = (int16)ToInt(args[1]);
+
+            if(m_items.size() >= lastItemID + 1) {
+                m_items[lastItemID + 1].rarity = m_items[lastItemID].rarity;
+            }
         }
     }
 
@@ -321,6 +325,7 @@ bool ItemInfoManager::LoadWikiData(const string& filePath)
         }
 
         auto args = Split(line, '|');
+
         if(args[0] == "set_wiki") {
             uint32 itemID = ToUInt(args[1]);
 
@@ -341,7 +346,9 @@ bool ItemInfoManager::LoadWikiData(const string& filePath)
                 LOGGER_LOG_ERROR("Tried to set wiki seed data on %d but seed not exists!", itemID);
             }
 
-            pItem->element = StrToItemElement(args[4]);
+            if(pItem->element == ITEM_ELEMENT_NONE) {
+                pItem->element = StrToItemElement(args[4]);
+            }
 
             if(pItem->description.empty()) {
                 pItem->description = args[5];
@@ -431,6 +438,45 @@ void ItemInfoManager::SaveToClientData(bool forOgg)
     }
 }
 
+uint32 ItemInfoManager::GetBaseItemID(uint32 itemID)
+{
+    ItemInfo* pItem = GetItemByID(itemID);
+    if(!pItem) {
+        return itemID;
+    }
+
+    if(!pItem->HasFlag(ITEM_FLAG_RANDGROW)) {
+        return itemID;
+    }
+
+    uint8 isSeed = itemID % 2;
+
+    if(itemID >= ITEM_ID_CUDDLY_BUNNY && itemID <= ITEM_ID_PSYCHOTIC_BUNNY_SEED) return ITEM_ID_CUDDLY_BUNNY + isSeed;
+    if(itemID >= ITEM_ID_RED_GROWSABER && itemID <= ITEM_ID_DOUBLE_GROWSABER_SEED) return ITEM_ID_RED_GROWSABER + isSeed;
+    if(itemID >= ITEM_ID_FASHIONABLE_DRESS_BLUE && itemID <= ITEM_ID_FASHIONABLE_DRESS_YELLOW_SEED) return ITEM_ID_FASHIONABLE_DRESS_BLUE + isSeed;
+    if(itemID >= ITEM_ID_STYLIN_DRESS_BLUE && itemID <= ITEM_ID_STYLIN_DRESS_YELLOW_SEED) return ITEM_ID_STYLIN_DRESS_BLUE + isSeed;
+    if(itemID >= ITEM_ID_NUMBER_0 && itemID <= ITEM_ID_NUMBER_9_SEED) return ITEM_ID_NUMBER_0 + isSeed;
+    if(itemID >= ITEM_ID_PAINT_BUCKET_RED && itemID <= ITEM_ID_PAINTBRUSH_SEED) return ITEM_ID_PAINT_BUCKET_RED + isSeed;
+    if(itemID >= ITEM_ID_RED_CRAYON && itemID <= ITEM_ID_PURPLE_CRAYON_SEED) return ITEM_ID_RED_CRAYON + isSeed;
+    if(itemID >= ITEM_ID_SUPER_SHIRT_RED && itemID <= ITEM_ID_SUPER_EYE_MASK_BLACK_SEED) return ITEM_ID_SUPER_SHIRT_RED + isSeed;
+    if(itemID >= ITEM_ID_SUPER_LOGO_SKULL && itemID <= ITEM_ID_SUPER_LOGO_ECHO_SEED) return ITEM_ID_SUPER_LOGO_SKULL + isSeed;
+    if(itemID >= ITEM_ID_SUPERPOWER_HEAT_VISION && itemID <= ITEM_ID_SUPERPOWER_OVERHEAT_SEED) return ITEM_ID_SUPERPOWER_HEAT_VISION + isSeed;
+    if(itemID >= ITEM_ID_SUPERPOWER_ICE_SHARDS && itemID <= ITEM_ID_SUPERPOWER_FROZEN_MIRROR_SEED) return ITEM_ID_SUPERPOWER_ICE_SHARDS + isSeed;
+    if(itemID >= ITEM_ID_TANGRAM_BLOCK_A && itemID <= ITEM_ID_TANGRAM_BLOCK_L_SEED) return ITEM_ID_TANGRAM_BLOCK_A + isSeed;
+    if(itemID >= ITEM_ID_CARD_BLOCK_SPADE && itemID <= ITEM_ID_CARD_BLOCK_DIAMOND_SEED) return ITEM_ID_CARD_BLOCK_SPADE + isSeed;
+    if(itemID >= ITEM_ID_SUPERPOWER_SUPER_STRENGTH && itemID <= ITEM_ID_SUPERPOWER_REGENERATION_SEED) return ITEM_ID_SUPERPOWER_SUPER_STRENGTH + isSeed;
+    if(itemID >= ITEM_ID_SUPERPOWER_SHOCKING_FIST && itemID <= ITEM_ID_SUPERPOWER_RESUSCITATE_SEED) return ITEM_ID_SUPERPOWER_SHOCKING_FIST + isSeed;
+    if(itemID >= ITEM_ID_STATUE_BLOCK && itemID <= ITEM_ID_STATUE_NOSE_SEED) return ITEM_ID_STATUE_BLOCK + isSeed;
+    if(itemID >= ITEM_ID_WIZARD_HAT && itemID <= ITEM_ID_CURSED_WIZARD_HAT_SEED) return ITEM_ID_WIZARD_HAT + isSeed;
+    if(itemID >= ITEM_ID_HIGH_HEELS_BLUE && itemID <= ITEM_ID_HIGH_HEELS_YELLOW_SEED) return ITEM_ID_HIGH_HEELS_BLUE + isSeed;
+    if(itemID >= ITEM_ID_FASHION_PURSE_BLUE && itemID <= ITEM_ID_FASHION_PURSE_YELLOW_SEED) return ITEM_ID_FASHION_PURSE_BLUE + isSeed;
+    if(itemID >= ITEM_ID_NUMBER_BLOCK_0 && itemID <= ITEM_ID_NUMBER_BLOCK_9_SEED) return ITEM_ID_NUMBER_BLOCK_0 + isSeed;
+    if(itemID >= ITEM_ID_SURGICAL_SPONGE && ITEM_ID_SURGICAL_STITCHES_SEED) return ITEM_ID_SURGICAL_SPONGE + isSeed;
+    if(itemID >= ITEM_ID_SURGICAL_PINS && ITEM_ID_SURGICAL_LAB_KIT_SEED) return ITEM_ID_SURGICAL_SPONGE + isSeed;
+
+    return itemID;
+}
+
 ItemInfo* ItemInfoManager::GetItemByID(uint32 itemID)
 {
     if(itemID > m_itemCount) {
@@ -465,56 +511,61 @@ ItemsClientData& ItemInfoManager::GetClientData(uint8 platformType)
     return m_itemDataOgg;
 }
 
+uint32 ItemInfoManager::GetItemRarity(uint32 itemID)
+{
+    ItemInfo* pItem = GetItemByID(itemID);
+    if(!pItem) {
+        return 0;
+    }
+
+    if(pItem->rarity != 0) {
+        return pItem->rarity;
+    }
+
+    ItemInfo* pBaseItem = GetItemByID(GetBaseItemID(pItem->id));
+    if(!pBaseItem) {
+        return 1;
+    }
+
+    if(pBaseItem->seed1 == 0 && pBaseItem->seed2 == 0) {
+        return 1;
+    }
+
+    uint16 rarity1 = pBaseItem->seed1 != 0 ? GetItemRarity(pBaseItem->seed1) : 0;
+    uint16 rarity2 = pBaseItem->seed2 != 0 ? GetItemRarity(pBaseItem->seed2) : 0;
+
+    uint32 rarity = rarity1 + rarity2;
+
+    if(rarity > 999) {
+        rarity = 999;
+    }
+
+    return rarity;
+}
+
 void ItemInfoManager::SetupItemExtras()
 {
-    for(uint32 i = 0; i < m_items.size(); i += 2) {
-        ItemInfo* pItem = GetItemByID(i);
-        ItemInfo* pSeed = GetItemByID(i + 1);
-
-        if(!pItem || !pSeed) {
+    for(uint32 i = 1; i < m_items.size(); i += 2) {
+        ItemInfo* pSeed = GetItemByID(i);
+        if(!pSeed) {
             continue;
         }
 
-        pSeed->rarity = pItem->rarity;
-
-        if(pItem->rarity != 0) {
-            if(pItem->rarity == 999) {
-                pSeed->growTime = 3600;
-            }
-            else {
-                pSeed->growTime = pItem->rarity^3 + 30 * pItem->rarity;
-            }
-            continue;
+        pSeed->rarity = GetItemRarity(pSeed->id);
+        if(ItemInfo* pItem = GetItemByID(i - 1)) {
+            pItem->rarity = pSeed->rarity;
         }
 
-        if(pSeed->seed1 == 0 || pSeed->seed2 == 0) {
-            pItem->rarity = 1;
-            pSeed->rarity = 1;
-            pSeed->growTime = 31;
-            continue;
-        }
-
-        ItemInfo* pSeed1 = GetItemByID(pSeed->seed1);
-        ItemInfo* pSeed2 = GetItemByID(pSeed->seed2);
-
-        if(!pSeed1 || !pSeed2) {
-            continue;
-        }
-
-        uint16 rarity = pSeed1->rarity + pSeed2->rarity;
-        if(rarity > 999) {
-            rarity = 999;
-        }
-
-        pItem->rarity = rarity;
-        pSeed->rarity = rarity;
-
-        if(rarity == 999) {
+        if(pSeed->rarity == 999) {
             pSeed->growTime = 3600;
-            continue;
+        }
+        else {
+            pSeed->growTime = (pSeed->rarity * pSeed->rarity * pSeed->rarity) + (30 * pSeed->rarity);
         }
 
-        pSeed->growTime = rarity * rarity * rarity + 30 * rarity;
+        if(pSeed->growTime == 0) {
+            pSeed->growTime = 31;
+        }
     }
 }
 

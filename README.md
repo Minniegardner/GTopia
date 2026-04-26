@@ -36,3 +36,8 @@ Download [MySQL Community](https://dev.mysql.com/downloads/installer/)
 ```
 compile_win.bat
 ```
+
+# Note
+This tool is for educational purposes only. The author is not responsible for any misuse. Use at your own risk.
+<hr>
+<a href="https://github.com/keichira/GTopia">GTopia</a> is made by <a href="https://github.com/keichira">keichira</a>

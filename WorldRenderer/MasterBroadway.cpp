@@ -43,7 +43,7 @@ void MasterBroadway::RegisterEvents()
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
 {
-    uint64 startTime = Time::GetSystemTime();
+    Timer startTime;
     TCPPacketEvent event;
 
     uint32 processed = 0;
@@ -56,14 +56,9 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
         int8 type = event.data[0].GetINT();
         m_events.Dispatch(type, event.pClient, event.data);
 
-        processed++;
-        if(Time::GetSystemTime() - startTime >= maxTimeMS) {
+        if(startTime.GetElapsedTime() >= maxTimeMS) {
             break;
         }
-    }
-
-    if(processed > 0) {
-        LOGGER_LOG_DEBUG("Processed %d TCP packets maxMS %d, took %d MS", processed, maxTimeMS, Time::GetSystemTime() - startTime);
     }
 }
 
@@ -124,7 +119,6 @@ void MasterBroadway::SendServerKillPacket()
 
     VariantVector data(2);
     data[0] = TCP_PACKET_KILL_SERVER;
-    data[1] = (uint32)GetContext()->GetID();
 
     m_pNetClient->Send(data);   
 }

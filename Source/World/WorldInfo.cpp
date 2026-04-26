@@ -1,4 +1,21 @@
 #include "WorldInfo.h"
+#include "../Utils/StringUtils.h"
+
+bool IsValidWorldName(const string& worldName)
+{
+    const char* src = worldName.c_str();
+
+    while(*src) {
+        if((IsAlpha(*src) && IsUpper(*src)) || IsDigit(*src)) {
+            src++;
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
+}
 
 WorldInfo::WorldInfo()
 : m_version(10), m_flags(0)

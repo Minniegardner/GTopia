@@ -169,7 +169,12 @@ string DatabaseManager::EscapeString(const string& value)
 
 void DatabaseManager::PrintError()
 {
-    LOGGER_LOG_ERROR("MySQL Error: %s", mysql_error(m_pConnection));
+    int32 err = mysql_errno(m_pConnection);
+    if(err == CR_SERVER_GONE_ERROR || err == CR_SERVER_LOST) {
+        
+    }
+    
+    LOGGER_LOG_ERROR("MySQL Error: (%d) %s", err, mysql_error(m_pConnection));
 }
 
 DatabaseResult* DatabaseManager::GetResults()

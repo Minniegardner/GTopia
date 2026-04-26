@@ -113,3 +113,13 @@ string GetFileExtension(const string& file)
 
     return "";
 }
+
+uint32 GetSecondsFromMidnight()
+{
+    time_t now = time(nullptr);
+    struct tm time;
+
+    localtime_s(&time, &now);
+
+    return time.tm_hour * 3600 + time.tm_min * 60 + time.tm_sec;
+}

@@ -1,13 +1,10 @@
 #include "PlayerManager.h"
 #include "GamePlayer.h"
 #include "../Context.h"
-
-PlayerManager* GetPlayerManager()
-{
-    return PlayerManager::GetInstance();
-}
+#include "Math/Math.h"
 
 PlayerManager::PlayerManager()
+: m_totalPlayerCount(0)
 {
 }
 
@@ -21,6 +18,25 @@ GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
     auto it = m_gamePlayers.find(netID);
     if(it != m_gamePlayers.end()) {
         return it->second;
+    }
+
+    return nullptr;
+}
+
+GamePlayer* PlayerManager::IsPlayerAlreadyOn(GamePlayer* pNewPlayer)
+{
+    if(!pNewPlayer) {
+        return nullptr;
+    }
+
+    for(auto& [_, pPlayer] : m_gamePlayers) {
+        if(!pPlayer || pPlayer == pNewPlayer) {
+            continue;
+        }
+
+        if(pNewPlayer->GetUserID() == pPlayer->GetUserID() && !pPlayer->HasState(PLAYER_STATE_DELETE)) {
+            return pPlayer;
+        }
     }
 
     return nullptr;
@@ -75,6 +91,11 @@ uint32 PlayerManager::GetPlayerCount()
     return m_gamePlayers.size();
 }
 
+uint32 PlayerManager::GetTotalPlayerCount()
+{
+    return Max(m_gamePlayers.size(), m_totalPlayerCount);
+}
+
 void PlayerManager::UpdatePlayers()
 {
     if(m_lastUpdateTime.GetElapsedTime() < TICK_INTERVAL) {
@@ -126,3 +147,5 @@ void PlayerManager::SaveAllToDatabase()
         pPlayer->SaveToDatabase();
     }
 }
+
+PlayerManager* GetPlayerManager() { return PlayerManager::GetInstance(); }

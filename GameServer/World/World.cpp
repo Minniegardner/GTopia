@@ -8,6 +8,7 @@
 #include "../Context.h"
 #include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
+#include "../Player/PlayerManager.h"
 
 World::World()
 : m_worldID(0), m_deleteFlag(false)
@@ -64,7 +65,7 @@ void World::Update()
     }
 }
 
-bool World::PlayerJoinWorld(GamePlayer *pPlayer)
+bool World::PlayerJoinWorld(GamePlayer* pPlayer)
 {
     if(!pPlayer) {
         return false;
@@ -103,6 +104,9 @@ bool World::PlayerJoinWorld(GamePlayer *pPlayer)
     pPlayer->SendOnSetClothing();
     pPlayer->SendCharacterState();
 
+    string playerDisplayName = pPlayer->GetDisplayName();
+    string joinNotifyOtherMsg = "`5<" + playerDisplayName + " `5entered, `w" + ToString(GetPlayerCount() - 1) + " `5others here``>";
+
     for(auto& pWorldPlayer : m_players) {
         if(pWorldPlayer && pWorldPlayer != pPlayer) {
             pPlayer->SendOnSpawn(pWorldPlayer->GetSpawnData(false));
@@ -112,6 +116,49 @@ bool World::PlayerJoinWorld(GamePlayer *pPlayer)
             pWorldPlayer->SendOnSpawn(pPlayer->GetSpawnData(false));
             pWorldPlayer->SendOnSetClothing(pPlayer);
             pWorldPlayer->SendCharacterState(pPlayer);
+            pWorldPlayer->SendOnTalkBubble(joinNotifyOtherMsg, true, pPlayer);
+            pWorldPlayer->SendOnConsoleMessage(joinNotifyOtherMsg);
+        }
+    }
+
+    string worldSituationMsg;
+
+    WorldTileManager* pTileMgr = GetTileManager();
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_PUNCH_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2NOPUNCH``";
+    }
+
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ZOMBIE_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2IMMUNE``";
+    }
+
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_SIGNAL_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`4JAMMED``";
+    }
+
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ANTIGRAVITY); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2ANTIGRAVITY``";
+    }
+
+    string worldEnterMsg = "World `w" + GetWorlName() + "`o ";
+    if(!worldSituationMsg.empty()) {
+        worldEnterMsg += "`0[``" + worldSituationMsg + "`0] ";
+    }
+    worldEnterMsg += "`oentered, There are `w" + ToString(GetPlayerCount() - 1) + "`o other people here, `w" + ToString(GetPlayerManager()->GetTotalPlayerCount()) + " `oonline.";
+
+    pPlayer->SendOnConsoleMessage(worldEnterMsg);
+
+    TileInfo* pWorldLock = pTileMgr->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(pWorldLock) {
+        TileExtra_Lock* pExtra = pWorldLock->GetExtra<TileExtra_Lock>();
+        if(pExtra) {
+            /**
+             * InactivityManager! :)
+             */
         }
     }
 

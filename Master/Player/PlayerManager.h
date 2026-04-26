@@ -10,6 +10,7 @@ struct PlayerSession
     uint16 serverID;
     string ip;
     uint64 loginTime;
+    string worldName;
 };
 
 class GamePlayer;
@@ -38,9 +39,14 @@ public:
     void RemoveAllPlayers();
     uint32 GetInGamePlayerCount();
 
+    uint32 GetTotalPlayerCount();
+
 private:
     std::unordered_map<uint32, PlayerSession> m_sessions;
     std::unordered_map<uint32, GamePlayer*> m_gamePlayers;
+
+    bool m_isPlayerCountDirty;
+    uint32 m_totalPlayerCount;
 };
 
 PlayerManager* GetPlayerManager();

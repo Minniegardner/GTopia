@@ -13,6 +13,7 @@
 #include "../Event/TCP/TCPEventRenderWorld.h"
 #include "../Event/TCP/TCPEventWorldSendPlayer.h"
 #include "../Event/TCP/TCPEventKillServer.h"
+#include "../Event/TCP/TCPEventHeartBeat.h"
 
 MasterBroadway::MasterBroadway()
 : m_pNetClient(nullptr)
@@ -34,6 +35,7 @@ void MasterBroadway::RegisterEvents()
     RegisterEvent<TCPEventRenderWorld>(TCP_PACKET_RENDER_WORLD);
     RegisterEvent<TCPEventWorldSendPlayer>(TCP_PACKET_WORLD_SEND_PLAYER);
     RegisterEvent<TCPEventKillServer>(TCP_PACKET_KILL_SERVER);
+    RegisterEvent<TCPEventHeartBeat>(TCP_PACKET_HEARTBEAT);
 }
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
@@ -47,7 +49,9 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
         }
 
         int8 type = event.data[0].GetINT();
-        LOGGER_LOG_DEBUG("GOT TCP PACKET %d", type);
+        if(type != TCP_PACKET_HEARTBEAT) {
+            LOGGER_LOG_DEBUG("GOT TCP PACKET %d", type);
+        }
 
         m_events.Dispatch(type, event.pClient, event.data);
 
@@ -152,17 +156,16 @@ void MasterBroadway::SendWorldInitResult(bool succeed, uint32 worldID)
     m_pNetClient->Send(data);
 }
 
-void MasterBroadway::SendPlayerWorldJoin(int32 playerNetID, const string& worldName)
+void MasterBroadway::SendPlayerWorldJoin(uint32 playerUserID, const string& worldName)
 {
     if(!m_pNetClient) {
         return;
     }
 
-    VariantVector data(4);
+    VariantVector data(3);
     data[0] = TCP_PACKET_WORLD_SEND_PLAYER;
-    data[1] = (uint32)GetContext()->GetID();
-    data[2] = playerNetID;
-    data[3] = worldName;
+    data[1] = playerUserID;
+    data[2] = worldName;
 
     m_pNetClient->Send(data);
 }
@@ -173,11 +176,10 @@ void MasterBroadway::SendHeartBeat()
         return;
     }
 
-    VariantVector data(4);
+    VariantVector data(3);
     data[0] = TCP_PACKET_HEARTBEAT;
-    data[1] = (uint32)GetContext()->GetID();
-    data[2] = GetPlayerManager()->GetPlayerCount();
-    data[3] = GetWorldManager()->GetWorldCount();
+    data[1] = GetPlayerManager()->GetPlayerCount();
+    data[2] = GetWorldManager()->GetWorldCount();
 
     m_pNetClient->Send(data);
     m_lastHearthBeatSentTime.Reset();
@@ -207,9 +209,8 @@ void MasterBroadway::SendServerKillPacket()
         return;
     }
 
-    VariantVector data(2);
+    VariantVector data(1);
     data[0] = TCP_PACKET_KILL_SERVER;
-    data[1] = (uint32)GetContext()->GetID();
 
     m_pNetClient->Send(data);   
 }

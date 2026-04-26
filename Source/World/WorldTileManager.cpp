@@ -134,6 +134,8 @@ TileInfo* WorldTileManager::GetTile(int32 index)
 
 void WorldTileManager::ModifyKeyTile(TileInfo* pTile, bool remove)
 {
+    TileInfo* pKeyTile = nullptr;
+
     if(IsMainDoor(pTile->GetFG())) {
         m_keyTiles[KEY_TILE_MAIN_DOOR] = remove ? nullptr : pTile;
     }
@@ -142,6 +144,18 @@ void WorldTileManager::ModifyKeyTile(TileInfo* pTile, bool remove)
     }
     else if(IsWorldLock(pTile->GetFG())) {
         m_keyTiles[KEY_TILE_WORLD_LOCK] = remove ? nullptr : pTile;
+    }
+    else if(pTile->GetFG() == ITEM_ID_PUNCH_JAMMER) {
+        m_keyTiles[KEY_TILE_PUNCH_JAMMER] = remove ? nullptr : pTile;
+    }
+    else if(pTile->GetFG() == ITEM_ID_ZOMBIE_JAMMER) {
+        m_keyTiles[KEY_TILE_ZOMBIE_JAMMER] = remove ? nullptr : pTile;
+    }
+    else if(pTile->GetFG() == ITEM_ID_SIGNAL_JAMMER) {
+        m_keyTiles[KEY_TILE_SIGNAL_JAMMER] = remove ? nullptr : pTile;
+    }
+    else if(pTile->GetFG() == ITEM_ID_ANTIGRAVITY_GENERATOR) {
+        m_keyTiles[KEY_TILE_ANTIGRAVITY] = remove ? nullptr : pTile;
     }
 }
 

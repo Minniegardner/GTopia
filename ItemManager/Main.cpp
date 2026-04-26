@@ -438,7 +438,11 @@ void GenerateItemTxtFromDat(uint32 serializeUntil = 0)
             itemStr += "set_max_hold|" + ToString(pItem->maxCanHold) + "|\n";
         }
 
-        if(pItem->rarity == 999) {
+        /**
+         * we have function to setup rarities but some item's rarities are hardcoded
+         * so lets just do it like that to be more safe
+         */
+        if(pItem->rarity != 0) {
             itemStr += "set_rarity|" + ToString(pItem->rarity) + "|\n";
         }
 

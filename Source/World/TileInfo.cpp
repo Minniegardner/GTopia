@@ -145,7 +145,8 @@ void TileInfo::PunchTile(uint8 damage)
 
     if(
         pItem->type == ITEM_TYPE_RACE_FLAG || pItem->type == ITEM_TYPE_SWITCHEROO ||
-        (pItem->type == ITEM_TYPE_DEADLY_IF_ON && pItem->id != ITEM_ID_STEAM_SPIKES)
+        (pItem->type == ITEM_TYPE_DEADLY_IF_ON && pItem->id != ITEM_ID_STEAM_SPIKES) ||
+        pItem->type == ITEM_TYPE_BOOMBOX || pItem->type == ITEM_TYPE_BOOMBOX2
     ) {
         ToggleFlag(TILE_FLAG_IS_ON);
     }

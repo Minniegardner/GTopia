@@ -204,7 +204,6 @@ void RemoveExtraWhiteSpaces(char* str)
 void RemoveAllSpaces(string& str)
 {
     RemoveAllSpaces(&str[0]);
-
     str.resize(strlen(&str[0]));
 }
 
@@ -223,6 +222,34 @@ void RemoveAllSpaces(char* str)
         }
 
         src++;
+    }
+
+    *out = '\0';
+}
+
+void RemoveGTColorCodes(string &str)
+{
+    RemoveGTColorCodes(&str[0]);
+    str.resize(strlen(&str[0]));
+}
+
+void RemoveGTColorCodes(char *str)
+{
+    if(!str) {
+        return;
+    }
+
+    char* src = str;
+    char* out = str;
+
+    while(*src) {
+        if (*src == '`' && *(src + 1))
+        {
+            src += 2;
+            continue;
+        }
+
+        *out++ = *src++;
     }
 
     *out = '\0';
@@ -387,12 +414,22 @@ uint32 CountCharacter(const char* str, char character)
 
 bool IsAlpha(char c)
 {
-    return isalpha(c) != 0;
+    return isalpha((unsigned char)c) != 0;
 }
 
 bool IsDigit(char c)
 {
-    return isdigit(c) != 0;
+    return isdigit((unsigned char)c) != 0;
+}
+
+bool IsUpper(char c)
+{
+    return isupper((unsigned char)c) != 0;
+}
+
+bool IsLower(char c)
+{
+    return islower((unsigned char)c) != 0;
 }
 
 void ReplaceString(string& str, const string& replaceThis, const string& replaceTo)

@@ -115,8 +115,9 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
     while(pDatabasePool->GetResult(taskRes)) {
         if(taskRes.callback) {
             taskRes.callback(std::move(taskRes));
-            taskRes.Destroy();
         }
+
+        taskRes.Destroy();
 
         if(Time::GetSystemTime() - startTime >= maxTimeMS) {
             break;
@@ -193,6 +194,7 @@ int main(int argc, char const* argv[])
     }
 
     LOGGER_LOG_INFO("Starting Game Server %d | %s", GetContext()->GetID(), Time::GetDateTimeStr().c_str());
+    LOGGER_LOG_INFO("Project created by keichira https://github.com/keichira/GTopia")
 
     GetContext()->Init();
     

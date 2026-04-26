@@ -1,5 +1,6 @@
 #include "PlayerManager.h"
 #include "GamePlayer.h"
+#include "../Server/ServerManager.h"
 
 PlayerManager* GetPlayerManager()
 {
@@ -7,6 +8,7 @@ PlayerManager* GetPlayerManager()
 }
 
 PlayerManager::PlayerManager()
+: m_isPlayerCountDirty(false), m_totalPlayerCount(0)
 {
 }
 
@@ -46,6 +48,8 @@ void PlayerManager::EndSessionsByServer(uint16 serverID)
 
         ++it;
     }
+
+    m_isPlayerCountDirty = true;
 }
 
 GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
@@ -60,6 +64,11 @@ GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
 
 void PlayerManager::AddPlayer(GamePlayer* pPlayer)
 {
+    if(!pPlayer) {
+        return;
+    }
+
+    m_isPlayerCountDirty = true;
     m_gamePlayers.insert_or_assign(pPlayer->GetNetID(), pPlayer);
 }
 
@@ -71,6 +80,8 @@ void PlayerManager::RemovePlayer(uint32 netID)
     }
 
     SAFE_DELETE(pPlayer);
+
+    m_isPlayerCountDirty = true;
     m_gamePlayers.erase(netID);
 }
 
@@ -86,4 +97,14 @@ void PlayerManager::RemoveAllPlayers()
 uint32 PlayerManager::GetInGamePlayerCount()
 {
     return m_gamePlayers.size();
+}
+
+uint32 PlayerManager::GetTotalPlayerCount()
+{
+    if(!m_isPlayerCountDirty) {
+        return m_totalPlayerCount;
+    }
+
+    m_totalPlayerCount = GetServerManager()->GetPlayerCount() + GetInGamePlayerCount();
+    return m_totalPlayerCount;
 }

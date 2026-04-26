@@ -107,11 +107,6 @@ void GamePlayer::CheckAccountCB(QueryTaskResult&& result)
         return;
     }
 
-    if(GetPlayerManager()->GetSessionByID(pPlayer->GetUserID())) { // TODO ALREADY ON
-        pPlayer->SendLogonFailWithLog("`#You are still online, please wait few seconds and re-login again.");
-        return;
-    }
-
     QueryRequest req(pPlayer->GetNetID());
     req.callback = &GamePlayer::IdentifierUpdateResultCB;
     
@@ -192,7 +187,15 @@ void GamePlayer::IdentifierUpdateResultCB(QueryTaskResult&& result)
 
 void GamePlayer::SendToGame()
 {
-    ServerInfo* pServer = GetServerManager()->GetBestGameServer();
+    ServerInfo* pServer = nullptr;
+
+    if(PlayerSession* pSession = GetPlayerManager()->GetSessionByID(m_userID)) {
+        pServer = GetServerManager()->GetServerByID(pSession->serverID);
+    }
+    else {
+        pServer = GetServerManager()->GetBestGameServer();
+    }
+
     if(!pServer) {
         SendLogonFailWithLog("`4OOPS! ``Please re-connect");
         LOGGER_LOG_WARN("Tried to send player to game but the server is NULL?");
@@ -206,6 +209,6 @@ void GamePlayer::SendToGame()
     session.ip = m_address;
 
     GetPlayerManager()->CreateSession(session);
-    SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP);
+    SendOnSendToServer(pServer->port, session.loginToken, m_userID, pServer->wanIP, LOGON_MODE_WELCOME);
     SetState(PLAYER_STATE_IDLE);
 }

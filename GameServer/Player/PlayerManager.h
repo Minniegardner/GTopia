@@ -17,12 +17,16 @@ public:
         return &instance;
     }
 
+    GamePlayer* IsPlayerAlreadyOn(GamePlayer* pNewPlayer);
     GamePlayer* GetPlayerByNetID(uint32 netID);
     GamePlayer* GetPlayerByUserID(uint32 userID);
     void AddPlayer(GamePlayer* pPlayer);
     void RemovePlayer(uint32 netID);
     void RemoveAllPlayers();
     uint32 GetPlayerCount();
+
+    void SetTotalPlayerCount(uint32 totalPlayerCount) { m_totalPlayerCount = totalPlayerCount; }
+    uint32 GetTotalPlayerCount();
 
     void UpdatePlayers();
     void SaveAllToDatabase();
@@ -31,6 +35,8 @@ private:
     std::unordered_map<uint32, GamePlayer*> m_gamePlayers;
     std::vector<GamePlayer*> m_pendingDelete;
     Timer m_lastUpdateTime;
+
+    uint32 m_totalPlayerCount;
 };
 
 PlayerManager* GetPlayerManager();

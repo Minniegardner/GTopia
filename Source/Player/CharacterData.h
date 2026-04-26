@@ -13,11 +13,6 @@
 #define CHARACTER_DEFAULT_PUNCH_POWER 200.0f
 #define CHARACTER_DEFAULT_PUNCH_DAMAGE 6.0f
 
-enum ePlayerFlag
-{
-    PLAYER_FLAG_FACING_LEFT = 1 << 0,
-    PLAYER_FLAG_INVISIBLE = 1 << 1
-};
 
 struct PlayerPlayModInfo
 {
@@ -33,6 +28,12 @@ enum eCharacterStateFlag
     CHAR_STATE_INVISIBLE = 1 << 2
 };
 
+enum eCharacterFlags
+{
+    CHARACTER_FLAG_FACING_LEFT = 1 << 0,
+    CHARACTER_FLAG_INVISIBLE = 1 << 1
+};
+
 class GamePlayer;
 
 class CharacterData {
@@ -41,18 +42,18 @@ public:
     ~CharacterData();
 
 public:
+    bool HasCharState(uint32 flag) { return m_charState & flag; };
+    void SetCharState(uint32 flag) { m_charState |= flag; }
+    void RemoveCharState(uint32 flag) { m_charState &= ~flag; }
+
     bool HasCharFlag(uint32 flag) { return m_charFlags & flag; };
     void SetCharFlag(uint32 flag) { m_charFlags |= flag; }
     void RemoveCharFlag(uint32 flag) { m_charFlags &= ~flag; }
 
-    bool HasPlayerFlag(uint32 flag) { return m_playerFlags & flag; };
-    void SetPlayerFlag(uint32 flag) { m_playerFlags |= flag; }
-    void RemovePlayerFlag(uint32 flag) { m_playerFlags &= ~flag; }
-
     uint8 GetPunchType() const { return m_punchType; }
     uint8 GetPunchRange() const { return m_punchRange; }
     uint8 GetBuildRange() const { return m_buildRange; }
-    uint32 GetCharFlags() const { return m_charFlags; }
+    uint32 GetCharFlags() const { return m_charState; }
 
     float GetPunchPower() const { return m_punchPower; }
     float GetPunchDamage() const { return m_punchDamage; }
@@ -69,7 +70,7 @@ public:
     PlayMod* AddPlayMod(ePlayModType modType);
     PlayMod* RemovePlayMod(ePlayModType modType);
 
-    void SetSkinColor(uint32 skinColor) { m_skinColor = skinColor; SetNeedSkinUpdate(true); }
+    void SetSkinColor(uint32 skinColor) { m_skinColor.SetUINTSwap(skinColor); }
 
     bool NeededSkinUpdate() const { return m_needSkinUpdate; }
     void SetNeedSkinUpdate(bool val) { m_needSkinUpdate = val; }
@@ -97,10 +98,10 @@ private:
     float m_accel;
     float m_fireDamage;
 
-    uint32 m_charFlags;
+    uint32 m_charState;
     Color m_skinColor;
 
-    uint32 m_playerFlags;
+    uint32 m_charFlags;
 
     bool m_needSkinUpdate;
     bool m_needCharStateUpdate;

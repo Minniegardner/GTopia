@@ -105,16 +105,16 @@ void WorldManager::WorldDBInitCB(QueryTaskResult&& result)
 void WorldManager::HandlePlayerJoin(VariantVector&& result)
 {
     int32 oprResult = result[1].GetINT();
-    int32 playerNetID = result[2].GetINT();
+    uint32 playerUserID = result[2].GetUINT();
 
-    GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByNetID(playerNetID);
+    GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByUserID(playerUserID);
     if(!pPlayer) {
         return;
     }
 
     if(oprResult != TCP_RESULT_OK) {
         pPlayer->SendOnFailedToEnterWorld();
-        pPlayer->SendOnConsoleMessage("Unable to move you to this world, please try again later");
+        pPlayer->SendOnConsoleMessage("Unable to join to this world, please try again later.");
         return;
     }
     
@@ -122,19 +122,30 @@ void WorldManager::HandlePlayerJoin(VariantVector&& result)
     uint32 worldID = result[4].GetUINT();
 
     World* pWorld = GetWorldByID(worldID);
-    if(!pWorld) {
+    if(!pWorld || serverID != GetContext()->GetID()) {
+        string serverIP = result[5].GetString();
+        uint16 serverPort = result[6].GetUINT();
+
+        PlayerLoginDetail& loginDetail = pPlayer->GetLoginDetail();
+        pPlayer->SendOnSendToServer(serverPort, loginDetail.token, loginDetail.user, serverIP, loginDetail.loginMode);
         return;
     }
 
     if(serverID == GetContext()->GetID()) {
         if(!pWorld->PlayerJoinWorld(pPlayer)) {
             pPlayer->SendOnFailedToEnterWorld();
-            pPlayer->SendOnConsoleMessage("Unable to join world");
+            pPlayer->SendOnConsoleMessage("Failed to join world?! please try again later.");
         }
     }
-    else {
-        // onsendtoserver
+}
+
+void WorldManager::SendWorldSelectMenu(GamePlayer* pPlayer)
+{
+    if(!pPlayer) {
+        return;
     }
+
+    pPlayer->SendOnRequestWorldSelectMenu("");
 }
 
 void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldName)
@@ -143,19 +154,59 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
+    string targetWorldName = ToUpper(worldName);
+    RemoveGTColorCodes(targetWorldName);
+
+    if(targetWorldName.empty() || targetWorldName.size() > 24) {
+        pPlayer->SendOnConsoleMessage("Sorry, world name length must between 1 and 24.");
+        pPlayer->SendOnFailedToEnterWorld();
+        return;
+    }
+
+    if(!IsValidWorldName(targetWorldName)) {
+        pPlayer->SendOnConsoleMessage("Sorry, spaces and special characters are not allowed in world or door names. Try again.");
+        pPlayer->SendOnFailedToEnterWorld();
+        return;
+    }
+
+    if(targetWorldName == "EXIT") {
+        pPlayer->SendOnConsoleMessage("Exit from what? Click back if you're done playing.");
+        pPlayer->SendOnFailedToEnterWorld();
+        return;
+    }
+
     pPlayer->SetJoiningWorld(true);
     World* pWorld = GetWorldByName(worldName);
-
     if(pWorld) {
+        if(pWorld->HasDeleteFlag()) {
+            pPlayer->SendOnFailedToEnterWorld();
+            pPlayer->SendOnConsoleMessage("Unable to move you to this world, please try again in a few seconds.");
+            return;
+        }
+
+        /**
+         * we shouldnt handle max player count in here
+         * we should ask master for target world player count first
+         * otherwise if we do it like that players will flood in
+         * but yea, just leave it for now
+         */
+        uint32 worldMaxPlayerCount = GetContext()->GetGameConfig()->worldMaxPlayerCount;
+        if(pWorld->GetPlayerCount() >= worldMaxPlayerCount) {
+            pPlayer->SendOnConsoleMessage("Oops, `5" + targetWorldName + "`` already has `4" + ToString(worldMaxPlayerCount) + "`` people in it. Try again later.");
+            pPlayer->SendOnFailedToEnterWorld();
+            return;
+        }
+
         if(!pWorld->PlayerJoinWorld(pPlayer)) {
+            pPlayer->SendOnConsoleMessage("Failed to join world?! please try again later.");
             pPlayer->SendOnFailedToEnterWorld();
         }
 
         pPlayer->SetJoiningWorld(false);
-        return;
     }
-
-    GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetNetID(), worldName);
+    else {
+        GetMasterBroadway()->SendPlayerWorldJoin(pPlayer->GetUserID(), worldName);
+    }
 }
 
 void WorldManager::PlayerLeaveWorld(GamePlayer* pPlayer)

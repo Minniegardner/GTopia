@@ -3,7 +3,7 @@
 #include "../IO/Log.h"
 
 CharacterData::CharacterData()
-: m_charFlags(0), 
+: m_charState(0), m_charFlags(0),
 m_accel(CHARACTER_DEFAULT_ACCEL), m_gravity(CHARACTER_DEFAULT_GRAVITY),
 m_punchPower(CHARACTER_DEFAULT_PUNCH_POWER), 
 m_speed(CHARACTER_DEFAULT_SPEED), m_waterSpeed(CHARACTER_DEFAULT_WATER_SPEED),
@@ -108,7 +108,7 @@ PlayMod* CharacterData::AddPlayMod(ePlayModType modType)
         return nullptr;
     }
 
-    SetCharFlag(pPlayMod->GetCharFlags());
+    SetCharState(pPlayMod->GetCharFlags());
     
     if(pPlayMod->GetPunchType() > 0) {
         m_punchType = pPlayMod->GetPunchType();
@@ -147,7 +147,7 @@ PlayMod* CharacterData::RemovePlayMod(ePlayModType modType)
         return nullptr;
     }
 
-    RemoveCharFlag(pPlayMod->GetCharFlags());
+    RemoveCharState(pPlayMod->GetCharFlags());
     
     m_punchType = 0;
     m_punchDamage -= pPlayMod->GetPunchDamage();

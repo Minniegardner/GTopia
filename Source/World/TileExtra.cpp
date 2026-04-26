@@ -1,6 +1,6 @@
 #include "TileExtra.h"
 #include "TileInfo.h"
-#include "Item/ItemUtils.h"
+#include "Item/ItemInfo.h"
 
 uint8 GetTileExtraType(uint8 itemType)
 {
@@ -45,6 +45,11 @@ void TileExtra::Serialize(MemoryBuffer& memBuffer, bool write)
 void TileExtra_Door::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile, uint16 worldVersion)
 {
     TileExtra::Serialize(memBuffer, write);
+
+    if(IsMainDoor(pTile->GetFG())) {
+        name = "EXIT";
+    }
+
     memBuffer.ReadWriteString(name, write);
 
     if(database) {
