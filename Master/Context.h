@@ -4,6 +4,9 @@
 #include "Database/DatabasePool.h"
 #include "Utils/GameConfig.h"
 
+const int32 TICK_RATE = 20;
+const uint64 TICK_INTERVAL = 1000/TICK_RATE;
+
 class Context : public ContextBase {
 public:
     Context();

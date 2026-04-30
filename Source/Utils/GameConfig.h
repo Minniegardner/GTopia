@@ -56,4 +56,5 @@ public:
     uint16 maxAccountsPerVid = 3;
     uint16 maxAccountsPerSid = 3;
     uint16 maxAccountsPerMac = 3;
+    uint32 worldMaxPlayerCount = 50;
 };

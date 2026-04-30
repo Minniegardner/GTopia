@@ -50,16 +50,33 @@ DatabaseWorker* DatabasePool::GetWorker(uint8 index)
     return m_workers[index];
 }
 
-void DatabasePool::AddTask(QueryTaskRequest &&taskReq)
+void DatabasePool::AddTask(QueryTaskRequest&& taskReq)
 {
     taskReq.reqTime = Time::GetSystemTime();
-
     m_workers[taskReq.ownerID % m_workers.size()]->AddTask(std::move(taskReq));
 }
 
 bool DatabasePool::GetResult(QueryTaskResult& taskRes)
 {
     return m_taskQueue.try_dequeue(taskRes);
+}
+
+bool DatabasePool::IsConnectionLost(uint8 workerIdx)
+{
+    return false;
+    
+    /**
+     * todo
+     */
+
+    if(workerIdx >= m_workers.size()) {
+        return true;
+    }
+
+    DatabaseWorker* pWorker = m_workers[workerIdx];
+    if(!pWorker) {
+        return true;
+    }
 }
 
 void DatabasePool::AddResult(QueryTaskResult&& taskRes)
@@ -79,6 +96,8 @@ void DatabaseExec(DatabasePool* pPool, const string& query, QueryRequest& req, u
     taskReq.data = req.data;
     taskReq.extraData = req.extraData;
     taskReq.ownerID = req.ownerID;
+    taskReq.queryID = req.queryID;
+    taskReq.callback = req.callback;
 
     pPool->AddTask(std::move(taskReq));
 }

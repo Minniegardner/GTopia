@@ -19,10 +19,6 @@ PlayerInventory::PlayerInventory()
     }
 
     m_items.reserve(INVENTORY_DEFAULT_CAPACITY);
-
-    //m_items.emplace_back(InventoryItemInfo{ ITEM_ID_FIST, 1, 0 });
-    //m_items.emplace_back(InventoryItemInfo{ ITEM_ID_WRENCH, 1, 0 });
-
     m_quickSlots[0] = ITEM_ID_FIST;
 }
 

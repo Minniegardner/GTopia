@@ -22,22 +22,7 @@ enum eWeatherTypes
     WEATHER_TYPE_HARVEST = 6
 };
 
-enum eWorldFlags
-{
-    WORLD_FLAG_NUKED = 1 << 0,
-    WORLD_FLAG_RESTRICT_NOCLIP = 1 << 1,
-    WORLD_FLAG_JAMMED = 1 << 2,
-    WORLD_FLAG_PUNCH_JAMMER = 1 << 3,
-    WORLD_FLAG_ZOMBIE_JAMMER = 1 << 4,
-    WORLD_FLAG_ANTI_GRAVITY = 1 << 5,
-    WORLD_FLAG_BALLOON_JAMMED = 1 << 6,
-    WORLD_FLAG_MINI_MOD = 1 << 7,
-    WORLD_FLAG_GUARDIAN_PINEAPPLE = 1 << 8,
-    WORLD_FLAG_NOLOCKS = 1 << 9,
-    WORLD_FLAG_HAUNTED = 1 << 10,
-    WORLD_FLAG_NOGO = 1 << 11,
-    WORLD_FLAG_NOEVENTS = 1 << 12
-};
+bool IsValidWorldName(const string& worldName);
 
 class WorldInfo {
 public:
@@ -45,27 +30,17 @@ public:
     virtual ~WorldInfo();
 
 public:
+    void Kill();
+
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database);
     void GenerateWorld(eWorldGenerationType type);
+    uint32 GetMemEstimate(bool database);
 
     void SetName(const string& worldName) { m_name = worldName; }
     const string& GetWorlName() const { return m_name; } 
 
     void SetCurrentWeather(uint32 newWeather) { m_currentWeather = newWeather; }
     uint32 GetCurrentWeather() const { return m_currentWeather; }
-
-    void SetWorldFlag(uint32 flag, bool value) {
-        if(value) {
-            m_flags |= flag;
-        }
-        else {
-            m_flags &= ~flag;
-        }
-    }
-
-    void ToggleWorldFlag(uint32 flag) { m_flags ^= flag; }
-    bool HasWorldFlag(uint32 flag) const { return (m_flags & flag) != 0; }
-    uint32 GetWorldFlags() const { return m_flags; }
 
     uint32 GetDefaultWeather() const { return m_defaultWeather; }
 

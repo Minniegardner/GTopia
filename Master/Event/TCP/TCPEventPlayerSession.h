@@ -4,10 +4,9 @@
 
 struct TCPPlayerSessionEventData
 {
-    int32 netID = -1;
+    int32 netID = 0;
     uint32 userID = 0;
     uint32 token = 0;
-    uint32 serverID = 0;
 
     void FromVariant(VariantVector& varVec);
 };

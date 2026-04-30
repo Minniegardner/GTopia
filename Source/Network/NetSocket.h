@@ -23,6 +23,7 @@
 
 bool MakeSocketNonBlocking(int32 fd);
 void CloseSocket(int32 fd);
+string GetIPFromSocket(int32 socket);
 
 enum eSocketEventType
 {

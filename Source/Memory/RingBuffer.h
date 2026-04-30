@@ -18,6 +18,7 @@ public:
     uint32 GetDataSize() { return m_size; }
 
     int32 GetWriteIndex() const { return m_writeIndex; }
+    uint8 At(uint32 index) const { return m_data[(m_readIndex + index) % m_data.size()]; }
 
 private:
     std::vector<uint8> m_data;

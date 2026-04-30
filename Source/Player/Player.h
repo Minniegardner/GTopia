@@ -5,7 +5,14 @@
 #include "PlayerLoginDetail.h"
 #include "PlayerInventory.h"
 #include "CharacterData.h"
+#include "../Utils/Variant.h"
 #include <enet/enet.h>
+
+enum ePlayerLogonMode
+{
+    LOGON_MODE_WELCOME = 1,
+    LOGON_MODE_TRANSFER = 2
+};
 
 class Player : public NetEntity {
 public:
@@ -16,7 +23,7 @@ public:
     void SendHelloPacket();
     void SendLogonFailWithLog(const string& message);
     void SendWelcomePacket(uint32 itemsDatHash, const string& cdnServer, const string& cdnPath, const string& settings, uint32 tributeHash);
-    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP);
+    void SendOnSendToServer(uint16 port, uint32 token, uint32 userID, const string& serverIP, int32 logonMode);
     void SendOnConsoleMessage(const string& message);
     void SendOnRequestWorldSelectMenu(const string& worldMenu);
     void SendOnFailedToEnterWorld();
@@ -34,16 +41,18 @@ public:
     void SendOnForceTradeEnd();
     void SendSetHasGrowID(bool active, const string& tankIDName, const string& tankIDPass);
     void SendSetHasGrowID(bool active);
+    void SendOnSetBux(uint32 gemCount, bool skipAnim, bool isSupporter, bool isSuperSupporter);
+    void SendOnDataConfig(bool isMod, bool isSMod, Player* pPlayer = nullptr);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);
-
     void SendCallFunctionPacket(VariantVector& data, int32 netID = -1, int32 delay = -1);
 
     PlayerLoginDetail& GetLoginDetail() { return m_loginDetail; }
     ENetPeer* GetPeer() { return m_pPeer; }
 
     uint32 GetUserID() const { return m_userID; }
+    void SetUserID(uint32 userID) { m_userID = userID; }
 
     string GetAddress() const { return m_address; }
 

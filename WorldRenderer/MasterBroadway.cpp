@@ -15,6 +15,23 @@ MasterBroadway::~MasterBroadway()
 {
 }
 
+void MasterBroadway::OnClientConnect(NetClient* pClient)
+{
+    if(m_pNetClient && pClient) {
+        pClient->status = SOCKET_CLIENT_CLOSE;
+    }
+    else if(!m_pNetClient && pClient) {
+        m_pNetClient = pClient;
+    }
+}
+
+void MasterBroadway::OnClientDisconnect(NetClient* pClient)
+{
+    if(pClient && m_pNetClient && (m_pNetClient == pClient)) {
+        m_pNetClient = nullptr;
+    }
+}
+
 void MasterBroadway::RegisterEvents()
 {
     ServerBroadwayBase::RegisterEvents();
@@ -26,7 +43,7 @@ void MasterBroadway::RegisterEvents()
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
 {
-    uint64 startTime = Time::GetSystemTime();
+    Timer startTime;
     TCPPacketEvent event;
 
     uint32 processed = 0;
@@ -39,20 +56,15 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
         int8 type = event.data[0].GetINT();
         m_events.Dispatch(type, event.pClient, event.data);
 
-        processed++;
-        if(Time::GetSystemTime() - startTime >= maxTimeMS) {
+        if(startTime.GetElapsedTime() >= maxTimeMS) {
             break;
         }
-    }
-
-    if(processed > 0) {
-        LOGGER_LOG_DEBUG("Processed %d TCP packets maxMS %d, took %d MS", processed, maxTimeMS, Time::GetSystemTime() - startTime);
     }
 }
 
 void MasterBroadway::SendHelloPacket()
 {
-    if(!m_connected || !m_pNetClient) {
+    if(!m_pNetClient) {
         return;
     }
 
@@ -64,7 +76,7 @@ void MasterBroadway::SendHelloPacket()
 
 void MasterBroadway::SendAuthPacket(const string& authKey)
 {
-    if(!m_connected || !m_pNetClient) {
+    if(!m_pNetClient) {
         return;
     }
 
@@ -101,15 +113,19 @@ void MasterBroadway::SendWorldRenderResult(bool succeed, uint32 userID, uint32 w
 
 void MasterBroadway::SendServerKillPacket()
 {
-    if(!m_connected || !m_pNetClient) {
+    if(!m_pNetClient) {
         return;
     }
 
     VariantVector data(2);
     data[0] = TCP_PACKET_KILL_SERVER;
-    data[1] = (uint32)GetContext()->GetID();
 
     m_pNetClient->Send(data);   
+}
+
+bool MasterBroadway::Connect(const string& host, uint16 port, uint8 retryCount, const volatile sig_atomic_t* shutdownFlag)
+{
+    return ServerBroadwayBase::Connect(host, port, retryCount, &m_pNetClient, shutdownFlag);
 }
 
 MasterBroadway* GetMasterBroadway() { return MasterBroadway::GetInstance(); }

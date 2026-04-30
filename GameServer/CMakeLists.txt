@@ -52,6 +52,7 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/TCP/TCPEventCrossServerAction.cpp
     ${GAME_EVENT}/TCP/TCPEventHeartBeat.cpp
     ${GAME_EVENT}/TCP/TCPEventKillServer.cpp
+    ${GAME_EVENT}/TCP/TCPEventHeartBeat.cpp
 
     ${GAME_EVENT}/UDP/GameMessage/RefreshItemData.cpp
     ${GAME_EVENT}/UDP/GameMessage/EnterGame.cpp
@@ -75,6 +76,8 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/StoreNavigate.cpp
     ${GAME_EVENT}/UDP/GameMessage/Buy.cpp
     ${GAME_EVENT}/UDP/GameMessage/GrowID.cpp
+    ${GAME_EVENT}/UDP/GameMessage/Quit.cpp
+    ${GAME_EVENT}/UDP/GameMessage/SetSkin.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/PlayerCollect.cpp
@@ -156,6 +159,7 @@ set(GAME_FILES PRIVATE
     ${SOURCE_PLAYER}/PlayModManager.cpp
     ${GAME_PLAYER}/AchievementCatalog.cpp
     ${GAME_PLAYER}/GamePlayer.cpp
+    ${GAME_PLAYER}/PlayerManager.cpp
 
     ${SOURCE_SERVER}/ServerBase.cpp
     ${SOURCE_SERVER}/ServerBroadwayBase.cpp

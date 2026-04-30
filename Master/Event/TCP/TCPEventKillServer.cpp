@@ -1,24 +1,21 @@
 #include "TCPEventKillServer.h"
 #include "../../Server/ServerManager.h"
 #include "../../World/WorldManager.h"
-#include "../../Server/GameServer.h"
-
-void TCPKillServerEventData::FromVariant(VariantVector& varVec)
-{
-    if(varVec.size() < 2) {
-        return;
-    }
-
-    serverID = varVec[1].GetUINT();
-}
+#include "../../Player/PlayerManager.h"
 
 void TCPEventKillServer::Execute(NetClient* pClient, VariantVector& data)
 {
-    TCPKillServerEventData eventData;
-    eventData.FromVariant(data);
+    if(!pClient) {
+        return;
+    }
 
-    LOGGER_LOG_WARN("Killing server %d", eventData.serverID);
-    GetServerManager()->RemoveServer(eventData.serverID);
-    GetWorldManager()->RemoveWorldsWithServerID(eventData.serverID);
-    GetGameServer()->EndPlayerSessionsWithServerID(eventData.serverID);
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if(!pServer) {
+        return;
+    }
+
+    LOGGER_LOG_WARN("Killing server %d", pServer->serverID);
+    GetServerManager()->RemoveServer(pServer->serverID);
+    GetWorldManager()->RemoveWorldsWithServerID(pServer->serverID);
+    GetPlayerManager()->EndSessionsByServer(pServer->serverID);
 }

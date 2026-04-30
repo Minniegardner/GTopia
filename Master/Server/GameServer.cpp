@@ -6,7 +6,7 @@
 #include "IO/Log.h"
 #include "ServerManager.h"
 #include "../Context.h"
-#include "Utils/StringUtils.h"
+#include "../Player/PlayerManager.h"
 
 GameServer::GameServer()
 {
@@ -26,7 +26,7 @@ void GameServer::OnEventConnect(ENetEvent& event)
     GamePlayer* pPlayer = new GamePlayer(event.peer);
     event.peer->data = pPlayer;
 
-    m_playerCache.insert_or_assign(pPlayer->GetNetID(), pPlayer);
+    GetPlayerManager()->AddPlayer(pPlayer);
 
     pPlayer->SetState(PLAYER_STATE_LOGIN_REQUEST);
     pPlayer->SendHelloPacket();
@@ -49,7 +49,7 @@ void GameServer::OnEventReceive(ENetEvent& event)
         return;
     }
 
-    if(m_playerCache.size() >= GetContext()->GetGameConfig()->maxLoginsAtOnce) {
+    if(GetPlayerManager()->GetInGamePlayerCount() >= GetContext()->GetGameConfig()->maxLoginsAtOnce) {
         SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|log\nmsg|`4OOPS! ``Too many people logging in at once. Please press `5CANCEL`` and try again.", event.peer);
         SendENetPacket(NET_MESSAGE_GAME_MESSAGE, "action|logon_fail\n", event.peer);
         return;
@@ -86,90 +86,14 @@ void GameServer::OnEventDisconnect(ENetEvent& event)
     if(event.peer != pPlayer->GetPeer()) {
         return;
     }
-    
-    auto it = m_playerCache.find(pPlayer->GetNetID());
-    if(it != m_playerCache.end()) {
-        SAFE_DELETE(pPlayer);
-        m_playerCache.erase(it);
-    }
+
+    GetPlayerManager()->RemovePlayer(pPlayer->GetNetID());
 }
 
 void GameServer::Kill()
 {
     ServerBase::Kill();
-
-    for(auto& [_, pPlayer] : m_playerCache) {
-        SAFE_DELETE(pPlayer);
-    }
-
-    m_playerCache.clear();
-}
-
-PlayerSession* GameServer::GetPlayerSessionByUserID(uint32 userID)
-{
-    auto it = m_sessionCache.find(userID);
-    if(it != m_sessionCache.end()) {
-        return &it->second;
-    }
-
-    return nullptr;
-}
-
-void GameServer::AddPlayerSession(const PlayerSession& session)
-{
-    m_sessionCache.insert_or_assign(session.userID, session);
-}
-
-void GameServer::DeletePlayerSession(uint32 userID)
-{
-    m_sessionCache.erase(userID);
-}
-
-void GameServer::EndPlayerSessionsWithServerID(uint32 serverID)
-{
-    for(auto it = m_sessionCache.begin(); it != m_sessionCache.end();) {
-        if(it->second.serverID == serverID) {
-            it = m_sessionCache.erase(it);
-            continue;
-        }
-
-        ++it;
-    }
-}
-
-std::vector<PlayerSession*> GameServer::FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch)
-{
-    std::vector<PlayerSession*> matches;
-    if(query.empty()) {
-        return matches;
-    }
-
-    const string queryLower = ToLower(query);
-
-    for(auto& [_, session] : m_sessionCache) {
-        if(session.name.empty()) {
-            continue;
-        }
-
-        const string sessionNameLower = ToLower(session.name);
-        if(exactMatch) {
-            if(sessionNameLower == queryLower) {
-                return { &session };
-            }
-
-            continue;
-        }
-
-        if(sessionNameLower.size() < queryLower.size()) {
-            continue;
-        }
-
-        if(sessionNameLower.compare(0, queryLower.size(), queryLower) == 0) {
-            matches.push_back(&session);
-        }
-    }
-
-    return matches;
+    GetPlayerManager()->RemoveAllPlayers();
 }
 
 GameServer* GetGameServer() { return GameServer::GetInstance(); }

@@ -4,7 +4,14 @@
 
 void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
 {
-    pClient->data = new NetServerInfo();
+    if(!pClient) {
+        return;
+    }
+
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if(!pServer) {
+        return;
+    }
 
     uint8 bytes[16];
     if(GetRandomBytes(&bytes, sizeof(bytes)) < 0) {
@@ -13,7 +20,7 @@ void TCPEventHello::Execute(NetClient* pClient, VariantVector& data)
     }
 
     string authKey = ToHex(bytes, sizeof(bytes));
-    ((NetServerInfo*)pClient->data)->authKey = authKey;
+    pServer->authKey = authKey;
 
-    GetServerManager()->SendHelloPacket(authKey, pClient->connectionID);
+    GetServerManager()->SendHelloPacket(pServer, authKey);
 }

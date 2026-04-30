@@ -5,24 +5,25 @@
 #include "Packet/NetPacket.h"
 #include "Utils/GameConfig.h"
 #include "Utils/Timer.h"
+#include "Network/NetEntity.h"
 
-struct NetServerInfo
-{
-    Timer lastHeartbeatTime;
-    string authKey = "";
-    bool authed = false;
-    uint32 serverID = 0;
-};
+class ServerInfo : public NetEntity {
+public:
+    ServerInfo(NetClient* pNetClient);
 
-struct ServerInfo
-{
+public:
+    NetClient* pClient;
     uint16 serverID = 0;
     uint32 playerCount = 0;
     uint32 worldCount = 0;
-    int32 socketConnID = -1;
     string wanIP;
     uint16 port;
     eConfigServerType serverType;
+
+    Timer lastHeartbeatTime;
+    string authKey = "";
+    bool authed = false;
+    bool deleteFlag = false;
 };
 
 class ServerManager : public ServerBroadwayBase {
@@ -45,32 +46,28 @@ public:
     void RegisterEvents() override;
 
 public:
-    void AddServer(uint16 serverID, NetClient* pClient, int8 serverType);
+    void AddServer(ServerInfo* pServer, uint16 serverID, int8 serverType);
     void RemoveServer(uint16 serverID);
     ServerInfo* GetBestGameServer();
     ServerInfo* GetBestRenderServer();
     bool HasAnyGameServer();
-    uint32 GetTotalOnlineCount() const;
+
+    uint32 GetPlayerCount();
+
+    void UpdateServers();
 
     ServerInfo* GetServerByID(uint16 serverID);
-    bool SendPacketRaw(uint16 serverID, VariantVector& data);
 
-    void SendWorldPlayerFailPacket(int32 playerNetID, uint32 serverID);
-    void SendWorldPlayerSuccessPacket(int32 playerNetID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort, uint32 serverIDForPacket);
-    void SendWorldInitPacket(const string& worldName, uint32 serverID);
-    void SendAuthPacket(bool succeed, uint32 serverID);
-    void SendRenderResult(int32 result, uint32 playerUserID, const string& worldName, uint32 serverID);
-    void SendRenderRequest(uint32 playerUserID, uint32 worldID, uint32 serverID);
+    void SendWorldPlayerFailPacket(ServerInfo* pServer, uint32 playerUserID);
+    void SendWorldPlayerSuccessPacket(ServerInfo* pServer, uint32 playerUserID, uint32 serverID, uint32 worldID, const string& serverIP, uint16 serverPort);
+    void SendWorldInitPacket(ServerInfo* pServer, const string& worldName);
+    void SendAuthPacket(ServerInfo* pServer, bool succeed);
+    void SendRenderResult(ServerInfo* pServer, int32 result, uint32 playerUserID, const string& worldName);
+    void SendRenderRequest(ServerInfo* pServer, uint32 playerUserID, uint32 worldID);
+    void SendHeartBeat(ServerInfo* pServer, uint32 totalPlayer);
 
-    void SendPlayerSessionCheck(bool hasSession, int32 playerNetID, int16 connectionID);
-    void SendHelloPacket(const string& authKey, int16 connectionID);
-    void SendCrossServerActionResult(uint16 serverID, int32 actionType, uint32 sourceUserID, int32 resultCode, const string& targetName);
-    bool SendCrossServerActionExecute(uint16 targetServerID, int32 actionType, uint32 targetUserID, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber, const string& targetRawName);
-    bool SendCrossServerActionExecuteAll(int32 actionType, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber);
-
-    uint32 GetDailyEpochDay() const { return m_dailyEpochDay; }
-    uint32 GetDailyEventType() const { return m_dailyEventType; }
-    uint32 GetDailyEventSeed() const { return m_dailyEventSeed; }
+    void SendPlayerSessionCheck(ServerInfo* pServer, bool hasSession, int32 playerNetID, string worldName);
+    void SendHelloPacket(ServerInfo* pServer, const string& authKey);
 
 private:
     template<class T>
@@ -83,14 +80,14 @@ private:
     }
 
 private:
-    void UpdateDailyEventState();
+    Timer m_lastServerUpdateTime;
+    Timer m_lastHeartBeatTime;
+    Timer m_lastPendingUpdateTime;
 
-private:
+    std::unordered_map<uint32, ServerInfo*> m_pendingClients;
     std::unordered_map<uint16, ServerInfo*> m_servers;
+
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
-    uint32 m_dailyEpochDay = 0;
-    uint32 m_dailyEventType = TCP_DAILY_EVENT_NONE;
-    uint32 m_dailyEventSeed = 0;
 };
 
 ServerManager* GetServerManager();

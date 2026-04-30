@@ -24,3 +24,4 @@ int32 GetRandomBytes(void* pDest, uint32 size);
 bool IsFileExists(const string& path);
 bool IsFolderExists(const string& path);
 string GetFileExtension(const string& file);
+uint32 GetSecondsFromMidnight();

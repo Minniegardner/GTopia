@@ -3,7 +3,6 @@
 #include "IO/Log.h"
 
 ServerBroadwayBase::ServerBroadwayBase()
-: m_connected(false), m_pNetClient(nullptr)
 {
 }
 
@@ -14,7 +13,9 @@ ServerBroadwayBase::~ServerBroadwayBase()
 
 bool ServerBroadwayBase::Init(const string& host, uint16 port, int32 backLog)
 {
+    SAFE_DELETE(m_pNetSocket);
     m_pNetSocket = new NetSocket();
+
     if(!m_pNetSocket->Init(host, port, backLog)) {
         return false;
     }
@@ -24,21 +25,12 @@ bool ServerBroadwayBase::Init(const string& host, uint16 port, int32 backLog)
 }
 
 void ServerBroadwayBase::Kill()
-{
-    m_pNetClient = nullptr;
-    m_connected = false;
-    
+{    
     SAFE_DELETE(m_pNetSocket);
 }
 
 void ServerBroadwayBase::OnClientConnect(NetClient* pClient)
 {
-    if(!pClient || pClient->status == SOCKET_CLIENT_CLOSE) {
-        return;
-    }
-
-    m_pNetClient = pClient;
-    m_connected = true;
 }
 
 void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
@@ -48,7 +40,7 @@ void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
     }
 
     {
-        std::lock_guard<std::mutex> lock(pClient->mutex);
+        std::lock_guard<std::mutex> lock(pClient->recvMutex);
         if(pClient->recvQueue.GetDataSize() <= sizeof(uint32)) {
             return;
         }
@@ -67,7 +59,7 @@ void ServerBroadwayBase::OnClientReceive(NetClient* pClient)
 
     VariantVector data;
     {
-        std::lock_guard<std::mutex> lock(pClient->mutex);
+        std::lock_guard<std::mutex> lock(pClient->recvMutex);
         
         uint32 packetSize = 0;
         pClient->recvQueue.Read(&packetSize, sizeof(uint32));
@@ -124,7 +116,7 @@ void ServerBroadwayBase::UpdateTCPLogic(uint64 maxTimeMS)
 {
 }
 
-bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCount, const volatile sig_atomic_t* shutdownFlag)
+bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCount, NetClient** pClient, const volatile sig_atomic_t* shutdownFlag)
 {
     if(!m_pNetSocket) {
         return false;
@@ -135,7 +127,7 @@ bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCou
 
     m_pNetSocket->Connect(host, port, true);
 
-    while(!m_connected && (!shutdownFlag || *shutdownFlag == 0)) {
+    while(!*pClient && (!shutdownFlag || *shutdownFlag == 0)) {
         m_pNetSocket->Update(true);
 
         if(retriedSoFar == retryCount) {
@@ -154,18 +146,18 @@ bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCou
         SleepMS(10);
     }
 
-    return m_connected;
+    return pClient != nullptr;
 }
 
-bool ServerBroadwayBase::SendPacketRaw(VariantVector& data)
+bool ServerBroadwayBase::SendPacketRaw(NetClient* pClient, VariantVector& data)
 {
     if(!m_pNetSocket) {
         return false;
     }
 
-    if(!m_pNetClient) {
+    if(!pClient) {
         return false;
     }
 
-    return m_pNetClient->Send(data);
+    return pClient->Send(data);
 }

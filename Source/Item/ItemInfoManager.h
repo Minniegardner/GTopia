@@ -35,6 +35,7 @@ public:
     void LoadFileHashes(const std::unordered_map<string, uint32>& hashData, bool forOgg);
     void SaveToClientData(bool forOgg);
     
+    uint32 GetBaseItemID(uint32 itemID);
     ItemInfo* GetItemByID(uint32 itemID);
     ItemInfo* GetItemByName(const string& name);
     uint32 GetItemCount() const { return m_itemCount; }
@@ -44,6 +45,7 @@ public:
     const std::vector<ItemInfo>& GetItems() const { return m_items; } 
 
 private:
+    uint32 GetItemRarity(uint32 itemID);
     void SetupItemExtras();
     void CreateDefaultSeedForItem(ItemInfo* pItem);
 

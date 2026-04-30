@@ -1,6 +1,6 @@
 #include "TCPEventRenderWorld.h"
 #include "../../Server/ServerManager.h"
-#include "../../Server/GameServer.h"
+#include "../../Player/PlayerManager.h"
 #include "../../World/WorldManager.h"
 
 void TCPEventRenderWorldData::FromVariant(VariantVector& varVec, bool forResult)
@@ -22,17 +22,21 @@ void TCPEventRenderWorldData::FromVariant(VariantVector& varVec, bool forResult)
 
 void TCPEventRenderWorld::Execute(NetClient* pClient, VariantVector& data)
 {
+    if(!pClient) {
+        return;
+    }
+
     if(data.size() < 2) {
+        return;
+    }
+
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if(!pServer) {
         return;
     }
 
     TCPEventRenderWorldData eventData;
     int32 subType = data[1].GetINT();
-
-    NetServerInfo* pNetServer = (NetServerInfo*)pClient->data;
-    if(!pNetServer) {
-        return;
-    }
 
     eventData.FromVariant(data, subType == TCP_RENDER_RESULT);
 
@@ -46,21 +50,21 @@ void TCPEventRenderWorld::Execute(NetClient* pClient, VariantVector& data)
         case TCP_RENDER_REQUEST: {
             ServerInfo* pRenderServer = GetServerManager()->GetBestRenderServer();
             if(!pRenderServer) {
-                GetServerManager()->SendRenderResult(TCP_RESULT_FAIL, eventData.userID, worldName, pNetServer->serverID);
+                GetServerManager()->SendRenderResult(pServer, TCP_RESULT_FAIL, eventData.userID, worldName);
                 return;
             }
 
-            GetServerManager()->SendRenderRequest(eventData.userID, eventData.worldID, pRenderServer->serverID);
+            GetServerManager()->SendRenderRequest(pRenderServer, eventData.userID, eventData.worldID);
             break;
         }
 
         case TCP_RENDER_RESULT: {
-            PlayerSession* pPlayer = GetGameServer()->GetPlayerSessionByUserID(eventData.userID);
+            PlayerSession* pPlayer = GetPlayerManager()->GetSessionByID(eventData.userID);
             if(!pPlayer) {
                 return;
             }
 
-            GetServerManager()->SendRenderResult(eventData.result, eventData.userID, worldName, pPlayer->serverID);
+            GetServerManager()->SendRenderResult(pServer, eventData.result, eventData.userID, worldName);
             break;
         }
     }

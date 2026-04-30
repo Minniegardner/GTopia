@@ -1,42 +1,123 @@
 #include "EnterGame.h"
-#include "Server/MasterBroadway.h"
-#include "Server/GameServer.h"
-#include "Utils/Timer.h"
+#include "Database/Table/PlayerDBTable.h"
+#include "../../../Context.h"
+#include "../../../Player/PlayerManager.h"
+#include "Player/RoleManager.h"
+#include "IO/Log.h"
+#include "Item/ItemInfoManager.h"
+#include "../../../World/WorldManager.h"
+
+void LoadAccount(QueryTaskResult&& result)
+{
+    GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByNetID(result.ownerID);
+    if(!pPlayer) {
+        return;
+    }
+
+    if(!result.result) {
+        pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
+        return;
+    }
+
+    pPlayer->RemoveState(PLAYER_STATE_ENTERING_GAME);
+    pPlayer->SetState(PLAYER_STATE_IN_GAME);
+
+    PlayerLoginDetail& loginDetail = pPlayer->GetLoginDetail();
+    if(!loginDetail.tankIDName.empty()) {
+        loginDetail.tankIDName = result.result->GetField("Name", 0).GetString();
+    }
+
+    uint32 roleID = result.result->GetField("RoleID", 0).GetUINT();
+    if(roleID == 0) {
+        roleID = GetRoleManager()->GetDefaultRoleID();
+    }
+
+    Role* pRole = GetRoleManager()->GetRole(roleID);
+    if(!pRole) {
+        pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong while setting you up, please re-connect");
+        LOGGER_LOG_WARN("Failed to set player role %d for user %d", roleID, pPlayer->GetUserID());
+        return;
+    }
+    pPlayer->SetRole(pRole);
+
+    uint32 skinColor = result.result->GetField("SkinColor", 0).GetUINT();
+    if(skinColor != 0) {
+        pPlayer->GetCharData().SetSkinColor(skinColor);
+    }
+
+    pPlayer->SetFlags(result.result->GetField("Flags", 0).GetUINT());
+    pPlayer->SetGems(result.result->GetField("Gems", 0).GetUINT());
+
+    PlayerInventory& inventory = pPlayer->GetInventory();
+
+    inventory.SetVersion(pPlayer->GetLoginDetail().protocol);
+    string dbInv = result.result->GetField("Inventory", 0).GetString();
+
+    if(!dbInv.empty()) {
+        uint32 invMemEstimate = dbInv.size() / 2;
+        uint8* pInvData = new uint8[invMemEstimate];
+
+        HexToBytes(dbInv, pInvData);
+
+        MemoryBuffer invMemBuffer(pInvData, invMemEstimate);
+        inventory.Serialize(invMemBuffer, false, true);
+
+        SAFE_DELETE_ARRAY(pInvData);
+    }
+
+    if(inventory.GetCountOfItem(ITEM_ID_FIST) == 0) {
+        inventory.AddItem(ITEM_ID_FIST, 1);
+    }
+
+    if(inventory.GetCountOfItem(ITEM_ID_WRENCH) == 0) {
+        inventory.AddItem(ITEM_ID_WRENCH, 1);
+    }
+
+    pPlayer->SetGuestID(result.result->GetField("GuestID", 0).GetUINT());
+
+    for(uint8 i = 0; i < BODY_PART_SIZE; ++i) {
+        uint16 cloth = inventory.GetClothByPart((eBodyPart)i);
+
+        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(cloth);
+        if(!pItem) {
+            continue;
+        }
+
+        if(pItem->type == ITEM_TYPE_CLOTHES && pItem->playModType != PLAYMOD_TYPE_NONE) {
+            pPlayer->AddPlayMod(pItem->playModType, true);
+        }
+    }
+
+    if(loginDetail.loginMode == LOGON_MODE_WELCOME) {
+        pPlayer->SendOnConsoleMessage("Welcome back, `w" + pPlayer->GetDisplayName() + "`o.");
+    }
+
+    pPlayer->SendGems(true);
+    pPlayer->SendSetHasGrowID(pPlayer->HasGrowID() ? true : false);
+    pPlayer->SendInventoryPacket();
+    
+    if(loginDetail.loginMode == LOGON_MODE_TRANSFER && !pPlayer->GetLogonJoinWorld().empty()) {
+        GetWorldManager()->PlayerJoinRequest(pPlayer, pPlayer->GetLogonJoinWorld());
+    }
+    else {
+        GetWorldManager()->SendWorldSelectMenu(pPlayer);
+    }
+
+    if(loginDetail.loginMode == LOGON_MODE_WELCOME) {
+        loginDetail.loginMode = LOGON_MODE_TRANSFER;
+    }
+}
 
 void EnterGame::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
 {
     if(!pPlayer || !pPlayer->HasState(PLAYER_STATE_ENTERING_GAME)) {
         return;
     }
-    
+
     pPlayer->RemoveState(PLAYER_STATE_ENTERING_GAME);
-    pPlayer->SetState(PLAYER_STATE_IN_GAME);
+    pPlayer->SetState(PLAYER_STATE_LOADING_ACCOUNT);
 
-    const uint32 epochDay = (uint32)(Time::GetTimeSinceEpoch() / 86400ull);
-    pPlayer->ResetDailyRewardProgressIfNewDay(epochDay);
-    pPlayer->SendSetHasGrowID(pPlayer->HasGrowID() ? true : false);
-
-    pPlayer->SendInventoryPacket();
-    pPlayer->SendOnSetBux();
-    pPlayer->SendOnConsoleMessage("Welcome back to `#GTopia``!`o It's going to be a `#BLAST``!");
-
-    const uint32 onlineFriends = pPlayer->CountOnlineFriends();
-    if(onlineFriends > 0) {
-        pPlayer->SendOnConsoleMessage("You have `w" + ToString(onlineFriends) + "`o friend(s) online now.");
-    }
-
-    pPlayer->SendOnConsoleMessage("Where would you like to go? (`w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`o online)");
-
-    const string dailyEventStatus = GetGameServer()->GetDailyEventStatusLine();
-    if(!dailyEventStatus.empty()) {
-        pPlayer->SendOnConsoleMessage(dailyEventStatus);
-    }
-
-    if(pPlayer->CanClaimDailyReward(epochDay)) {
-        pPlayer->SendOnConsoleMessage("`3You have a daily reward waiting! Claim it for continued bonuses and a growing streak!``");
-    }
-
-    pPlayer->SendOnConsoleMessage("Use `/news` to check the latest server updates.");
-
-    pPlayer->SendOnRequestWorldSelectMenu("");
+    QueryRequest req = PlayerDB::GetData(pPlayer->GetUserID(), pPlayer->GetNetID());
+    req.callback = &LoadAccount;
+    DatabasePlayerExec(GetContext()->GetDatabasePool(), req);
 }

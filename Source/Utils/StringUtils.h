@@ -39,6 +39,9 @@ void RemoveExtraWhiteSpaces(char* str);
 void RemoveAllSpaces(string& str);
 void RemoveAllSpaces(char* str);
 
+void RemoveGTColorCodes(string& str);
+void RemoveGTColorCodes(char* str);
+
 enum eToIntResult 
 {
     TO_INT_FAIL,
@@ -66,6 +69,8 @@ uint32 CountCharacter(const char* str, char character);
 
 bool IsAlpha(char c);
 bool IsDigit(char c);
+bool IsUpper(char c);
+bool IsLower(char c);
 
 void ReplaceString(string& str, const string& replaceThis, const string& replaceTo);
 

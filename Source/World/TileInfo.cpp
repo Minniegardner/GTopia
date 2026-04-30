@@ -137,6 +137,14 @@ void TileInfo::SetBG(uint16 itemID)
     m_bg = itemID;
 }
 
+void TileInfo::CopyTempData(TempTileData* temp)
+{
+    temp->fg = m_fg;
+    temp->bg = m_bg;
+    temp->parent = m_parent;
+    temp->flags = m_flags;
+}
+
 void TileInfo::PunchTile(uint8 damage)
 {
     uint16 itemToDamage = GetDisplayedItem();
@@ -167,7 +175,8 @@ void TileInfo::PunchTile(uint8 damage)
 
     if(
         pItem->type == ITEM_TYPE_RACE_FLAG || pItem->type == ITEM_TYPE_SWITCHEROO ||
-        (pItem->type == ITEM_TYPE_DEADLY_IF_ON && pItem->id != ITEM_ID_STEAM_SPIKES)
+        (pItem->type == ITEM_TYPE_DEADLY_IF_ON && pItem->id != ITEM_ID_STEAM_SPIKES) ||
+        pItem->type == ITEM_TYPE_BOOMBOX || pItem->type == ITEM_TYPE_BOOMBOX2
     ) {
         ToggleFlag(TILE_FLAG_IS_ON);
     }

@@ -13,6 +13,10 @@ enum eKeyTile
     KEY_TILE_MAIN_DOOR,
     KEY_TILE_GUARD_PINEAPPLE,
     KEY_TILE_WORLD_LOCK,
+    KEY_TILE_PUNCH_JAMMER,
+    KEY_TILE_ZOMBIE_JAMMER,
+    KEY_TILE_SIGNAL_JAMMER,
+    KEY_TILE_ANTIGRAVITY,
 
     KEY_TILE_SIZE
 };
@@ -34,6 +38,7 @@ public:
 
 public:
     bool Serialize(MemoryBuffer& memBuffer, bool write, bool database, WorldInfo* pWorld);
+    uint32 GetMemEstimate(bool database, WorldInfo* pWorld);
 
     void Clear(bool reInit = false);
 
@@ -66,6 +71,7 @@ private:
 private:
     Vector2Int m_size;
     std::vector<TileInfo> m_tiles;
+    std::vector<TempTileData> m_tempTiles;
 
     std::vector<TileInfo*> m_keyTiles;
     std::vector<Vector2Int> m_onFireTiles;

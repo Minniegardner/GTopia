@@ -1,52 +1,32 @@
 #include "TCPEventHeartBeat.h"
 #include "../../Server/ServerManager.h"
+#include "Packet/GamePacket.h"
 
-struct TCPHeartBeatEventData
+void TCPHeartBeatEventData::FromVariant(VariantVector& varVec)
 {
-	uint16 serverID = 0;
-	uint32 playerCount = 0;
-	uint32 worldCount = 0;
+    if(varVec.size() < 3) {
+        return;
+    }
 
-	void FromVariant(VariantVector& varVec)
-	{
-		if(varVec.size() < 4) {
-			return;
-		}
-
-		serverID = varVec[1].GetUINT();
-		playerCount = varVec[2].GetUINT();
-		worldCount = varVec[3].GetUINT();
-	}
-};
+    playerCount = varVec[1].GetUINT();
+    worldCount = varVec[2].GetUINT();
+}
 
 void TCPEventHeartBeat::Execute(NetClient* pClient, VariantVector& data)
 {
-	if(!pClient) {
-		return;
-	}
+    if(!pClient) {
+        return;
+    }
 
-	TCPHeartBeatEventData eventData;
-	eventData.FromVariant(data);
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if(!pServer) {
+        return;
+    }
 
-	ServerInfo* pServer = GetServerManager()->GetServerByID(eventData.serverID);
-	if(!pServer) {
-		return;
-	}
+    TCPHeartBeatEventData eventData;
+    eventData.FromVariant(data);
 
-	pServer->playerCount = eventData.playerCount;
-	pServer->worldCount = eventData.worldCount;
-
-	NetServerInfo* pClientInfo = (NetServerInfo*)pClient->data;
-	if(pClientInfo) {
-		pClientInfo->lastHeartbeatTime.Reset();
-	}
-
-	VariantVector response(5);
-	response[0] = TCP_PACKET_HEARTBEAT;
-	response[1] = GetServerManager()->GetTotalOnlineCount();
-	response[2] = GetServerManager()->GetDailyEpochDay();
-	response[3] = GetServerManager()->GetDailyEventType();
-	response[4] = GetServerManager()->GetDailyEventSeed();
-
-	pClient->Send(response);
+    pServer->playerCount = eventData.playerCount;
+    pServer->worldCount = eventData.worldCount;
+    pServer->lastHeartbeatTime.Reset();
 }

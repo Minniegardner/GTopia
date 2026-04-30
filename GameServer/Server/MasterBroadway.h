@@ -18,6 +18,8 @@ public:
     }
 
 public:
+    void OnClientConnect(NetClient* pClient) override;
+    void OnClientDisconnect(NetClient* pClient) override;
     void RegisterEvents() override;
     void UpdateTCPLogic(uint64 maxTimeMS) override;
 
@@ -27,23 +29,12 @@ public:
     void SendCheckSessionPacket(int32 netID, uint32 userID, uint32 token, uint16 serverID);
     void SendRenderWorldRequest(uint32 userID, uint32 worldID);
     void SendWorldInitResult(bool succeed, uint32 worldID);
-    void SendPlayerWorldJoin(int32 playerNetID, const string& worldName);
-    void SendCrossServerActionRequest(int32 actionType, uint32 sourceUserID, const string& sourceRawName, const string& targetQuery, bool exactMatch, const string& payloadText, uint64 payloadNumber = 0);
+    void SendPlayerWorldJoin(uint32 playerUserID, const string& worldName);
     void SendHeartBeat();
     void SendEndPlayerSession(uint32 userID);
     void SendServerKillPacket();
-
-    uint32 GetGlobalOnlineCount() const { return m_globalOnlineCount; }
-    void SetGlobalOnlineCount(uint32 onlineCount)
-    {
-        m_globalOnlineCount = onlineCount;
-        m_lastHearthBeatRecvTime.Reset();
-    }
-
-    bool SetDailyEventState(uint32 epochDay, uint32 eventType, uint32 eventSeed);
-    uint32 GetDailyEpochDay() const { return m_dailyEpochDay; }
-    uint32 GetDailyEventType() const { return m_dailyEventType; }
-    uint32 GetDailyEventSeed() const { return m_dailyEventSeed; }
+    bool IsConnected() { return m_pNetClient != nullptr; }
+    bool Connect(const string& host, uint16 port, uint8 retryCount, const volatile sig_atomic_t* shutdownFlag = nullptr);
 
 private:
     template<class T>
@@ -59,10 +50,8 @@ private:
     EventDispatcher<int8, NetClient*, VariantVector&> m_events;
     Timer m_lastHearthBeatSentTime;
     Timer m_lastHearthBeatRecvTime;
-    uint32 m_globalOnlineCount = 0;
-    uint32 m_dailyEpochDay = 0;
-    uint32 m_dailyEventType = TCP_DAILY_EVENT_NONE;
-    uint32 m_dailyEventSeed = 0;
+
+    NetClient* m_pNetClient;
 };
 
 MasterBroadway* GetMasterBroadway();

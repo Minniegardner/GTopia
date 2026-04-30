@@ -79,7 +79,7 @@ bool PlayModManager::Load(const string &filePath)
         if(args[0] == "set_char_flags") {
             auto flags = Split(args[1], ',');
             for(auto& flag : flags) {
-                m_playMods.back().m_charFlags |= StrToCharacterStateFlag(flag);
+                m_playMods.back().m_charState |= StrToCharacterStateFlag(flag);
             }
         }
 

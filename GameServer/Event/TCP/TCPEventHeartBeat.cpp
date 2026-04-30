@@ -1,25 +1,26 @@
 #include "TCPEventHeartBeat.h"
-#include "Server/MasterBroadway.h"
-#include "Server/GameServer.h"
+#include "../../Player/PlayerManager.h"
+#include "../../Server/MasterBroadway.h"
+#include "Packet/GamePacket.h"
+
+void TCPHeartBeatEventData::FromVariant(VariantVector& varVec)
+{
+    if(varVec.size() < 2) {
+        return;
+    }
+
+    playerCount = varVec[1].GetUINT();
+}
 
 void TCPEventHeartBeat::Execute(NetClient* pClient, VariantVector& data)
 {
-    if(!pClient || data.size() < 2) {
+    if(!pClient) {
         return;
     }
 
-    GetMasterBroadway()->SetGlobalOnlineCount(data[1].GetUINT());
+    TCPHeartBeatEventData eventData;
+    eventData.FromVariant(data);
 
-    if(data.size() < 5) {
-        return;
-    }
-
-    const uint32 epochDay = data[2].GetUINT();
-    const uint32 eventType = data[3].GetUINT();
-    const uint32 eventSeed = data[4].GetUINT();
-
-    const bool changed = GetMasterBroadway()->SetDailyEventState(epochDay, eventType, eventSeed);
-    if(changed) {
-        GetGameServer()->OnDailyEventSync(epochDay, eventType, eventSeed, false);
-    }
+    GetPlayerManager()->SetTotalPlayerCount(eventData.playerCount);
+    GetMasterBroadway()->SendHeartBeat();
 }

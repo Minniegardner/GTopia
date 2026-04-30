@@ -27,10 +27,10 @@ void State::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePacket* pPacke
     }
 
     if(pPacket->HasFlag(NET_GAME_PACKET_FLAGS_FACINGLEFT)) {
-        pPlayer->GetCharData().SetPlayerFlag(PLAYER_FLAG_FACING_LEFT);
+        pPlayer->GetCharData().SetCharFlag(CHARACTER_FLAG_FACING_LEFT);
     }
     else {
-        pPlayer->GetCharData().RemovePlayerFlag(PLAYER_FLAG_FACING_LEFT);
+        pPlayer->GetCharData().RemoveCharFlag(CHARACTER_FLAG_FACING_LEFT);
     }
 
     pPlayer->SetWorldPos(pPacket->posX, pPacket->posY);

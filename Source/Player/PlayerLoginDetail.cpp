@@ -149,6 +149,11 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<25>& packet, Player* pPlayer,
         if(!pUser || ToUInt(string(pUser->value, pUser->size), user) != TO_INT_SUCCESS) {
             return false;
         }
+
+        auto pLMode = packet.Find(CompileTimeHashString("lmode"));
+        if(!pLMode || ToUInt(string(pLMode->value, pLMode->size), loginMode) != TO_INT_SUCCESS) {
+            return false;
+        }
     }
 
     return true;

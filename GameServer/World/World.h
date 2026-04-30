@@ -4,17 +4,7 @@
 #include "World/WorldInfo.h"
 #include "Packet/GamePacket.h"
 
-#include <deque>
-#include <chrono>
-
 class GamePlayer;
-
-struct WorldBanContext {
-    uint32 UserID = 0;
-    uint32 AdminUserID = 0;
-    std::chrono::hours Duration = std::chrono::hours(1);  // Default 1 hour
-    std::chrono::steady_clock::time_point BannedAt = std::chrono::steady_clock::now();
-};
 
 class World : public WorldInfo {
 public:
@@ -24,6 +14,9 @@ public:
 public:
     void SetID(uint32 id) { m_worldID = id; }
     uint32 GetID() const { return m_worldID; }
+
+    void SaveToDatabase();
+    void Update();
 
     bool PlayerJoinWorld(GamePlayer* pPlayer);
     void PlayerLeaverWorld(GamePlayer* pPlayer);
@@ -52,58 +45,27 @@ public:
 
     bool IsPlayerWorldOwner(GamePlayer* pPlayer);
     bool IsPlayerWorldAdmin(GamePlayer* pPlayer);
-    bool CanPull(GamePlayer* pTarget, GamePlayer* pInvoker);
-    bool CanKick(GamePlayer* pTarget, GamePlayer* pInvoker);
-    bool CanBan(GamePlayer* pTarget, GamePlayer* pInvoker);
-    void PullPlayer(GamePlayer* pTarget, GamePlayer* pInvoker);
-    void KickPlayer(GamePlayer* pTarget, GamePlayer* pInvoker);
-    void ForceLeavePlayer(GamePlayer* pTarget);
-
-    bool CanPlace(GamePlayer* pPlayer, TileInfo* pTile);
-    bool CanBreak(GamePlayer* pPlayer, TileInfo* pTile);
 
     void DropObject(TileInfo* pTile, WorldObject& obj, bool merge);
-    bool SuckerCheck(WorldObject& obj);
 
     void DropObject(const WorldObject& obj);
     void RemoveObject(uint32 objectID);
     void ModifyObject(const WorldObject& obj);
-
-    void TriggerSteamPulse(TileInfo* pTile);
-    void QueueSteamActivation(TileInfo* pTile, uint32 delayMS);
-    void UpdateSteamActivations();
-    void SendSteamPacket(uint8 mode, const Vector2Int& tilePos);
 
     void SendCurrentWeatherToAll();
     uint32 GetPlayerCount() const { return m_players.size(); }
     Timer& GetLastSaveTime() { return m_worldLastSaveTime; }
     Timer& GetOfflineTime() { return m_worldOfflineTime; }
 
-    void SetWaitingForClose(bool waiting) { m_waitingForClose = waiting; }
-    bool IsWaitingForClose() const { return m_waitingForClose; }
-
-    // Ban system methods (1:1 from GrowtopiaV1)
-    void AddBannedPlayer(const WorldBanContext& banCtx);
-    bool IsPlayerBanned(uint32 userID);
-    void RemoveBannedPlayer(uint32 userID);
-    void ClearBannedPlayers();
-    void BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurationHours = 1);
+    void SetDeleteFlag(bool bDelete) { m_deleteFlag = bDelete; }
+    bool HasDeleteFlag() const { return m_deleteFlag; }
 
 private:
     uint32 m_worldID;
     std::vector<GamePlayer*> m_players;
-    std::unordered_map<uint32, WorldBanContext> m_bannedPlayers;  // Per-world ban list
 
     Timer m_worldOfflineTime;
     Timer m_worldLastSaveTime;
 
-    struct SteamActivationEntry {
-        Vector2Int tilePos;
-        uint64 activateAtMS = 0;
-    };
-
-    std::deque<SteamActivationEntry> m_steamActivationQueue;
-    uint64 m_lastSteamActivationTick = 0;
-
-    bool m_waitingForClose;
+    bool m_deleteFlag;
 };

@@ -5,237 +5,64 @@
 #include "Item/ItemInfoManager.h"
 #include "Math/Rect.h"
 #include "Math/Math.h"
-#include "Utils/StringUtils.h"
-#include "../Server/MasterBroadway.h"
-#include "../Server/GameServer.h"
-#include <array>
-
+#include "../Context.h"
+#include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
-
-namespace {
-
-enum eSteamDirection {
-    STEAM_DIR_NONE,
-    STEAM_DIR_UP,
-    STEAM_DIR_RIGHT,
-    STEAM_DIR_DOWN,
-    STEAM_DIR_LEFT
-};
-
-bool IsReverseDirection(eSteamDirection lastDir, eSteamDirection nextDir)
-{
-    return
-        (lastDir == STEAM_DIR_UP && nextDir == STEAM_DIR_DOWN) ||
-        (lastDir == STEAM_DIR_DOWN && nextDir == STEAM_DIR_UP) ||
-        (lastDir == STEAM_DIR_LEFT && nextDir == STEAM_DIR_RIGHT) ||
-        (lastDir == STEAM_DIR_RIGHT && nextDir == STEAM_DIR_LEFT);
-}
-
-TileInfo* GetTileByDirection(World* pWorld, const Vector2Int& pos, eSteamDirection dir)
-{
-    if(!pWorld) {
-        return nullptr;
-    }
-
-    switch(dir) {
-        case STEAM_DIR_UP: return pWorld->GetTileManager()->GetTile(pos.x, pos.y - 1);
-        case STEAM_DIR_RIGHT: return pWorld->GetTileManager()->GetTile(pos.x + 1, pos.y);
-        case STEAM_DIR_DOWN: return pWorld->GetTileManager()->GetTile(pos.x, pos.y + 1);
-        case STEAM_DIR_LEFT: return pWorld->GetTileManager()->GetTile(pos.x - 1, pos.y);
-        default: return nullptr;
-    }
-}
-
-bool IsSteamConductor(TileInfo* pTile)
-{
-    if(!pTile) {
-        return false;
-    }
-
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    return pItem && pItem->type == ITEM_TYPE_STEAMPUNK;
-}
-
-bool IsItemSucker(uint16 itemID)
-{
-    return itemID == ITEM_ID_MAGPLANT_5000 || itemID == ITEM_ID_UNSTABLE_TESSERACT || itemID == ITEM_ID_GAIAS_BEACON;
-}
-
-bool IsSuckerItemCompatible(uint16 machineID, uint16 itemID)
-{
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
-    if(!pItem) {
-        return false;
-    }
-
-    if(machineID == ITEM_ID_UNSTABLE_TESSERACT && pItem->type == ITEM_TYPE_SEED) {
-        return false;
-    }
-
-    if(machineID == ITEM_ID_GAIAS_BEACON && pItem->type != ITEM_TYPE_SEED) {
-        return false;
-    }
-
-    return true;
-}
-
-string GetWorldInfoSuffix(World* pWorld)
-{
-    if(!pWorld) {
-        return "";
-    }
-
-    std::vector<string> flags;
-    if(pWorld->HasWorldFlag(WORLD_FLAG_JAMMED)) {
-        flags.push_back("JAMMED");
-    }
-
-    if(pWorld->HasWorldFlag(WORLD_FLAG_PUNCH_JAMMER)) {
-        flags.push_back("PUNCH JAMMER");
-    }
-
-    if(pWorld->HasWorldFlag(WORLD_FLAG_ZOMBIE_JAMMER)) {
-        flags.push_back("ZOMBIE JAMMER");
-    }
-
-    if(pWorld->HasWorldFlag(WORLD_FLAG_ANTI_GRAVITY)) {
-        flags.push_back("ANTI-GRAVITY");
-    }
-
-    if(flags.empty()) {
-        return "";
-    }
-
-    string out = " `6(";
-    for(size_t i = 0; i < flags.size(); ++i) {
-        if(i > 0) {
-            out += ", ";
-        }
-
-        out += flags[i];
-    }
-
-    out += ")``";
-    return out;
-}
-
-bool TrySuckerCheck(World* pWorld, WorldObject& obj)
-{
-    if(!pWorld || obj.itemID == ITEM_ID_GEMS || obj.count == 0) {
-        return false;
-    }
-
-    const Vector2Int size = pWorld->GetTileManager()->GetSize();
-    for(int32 y = 0; y < size.y; ++y) {
-        for(int32 x = 0; x < size.x; ++x) {
-            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
-            if(!pTile || !IsItemSucker(pTile->GetDisplayedItem())) {
-                continue;
-            }
-
-            TileExtra_Magplant* pData = pTile->GetExtra<TileExtra_Magplant>();
-            if(!pData || !pData->magnetic) {
-                continue;
-            }
-
-            if(pData->itemLimit <= 0) {
-                continue;
-            }
-
-            if(pData->itemCount < 0) {
-                pData->itemCount = 0;
-            }
-
-            const uint16 machineID = pTile->GetDisplayedItem();
-            if(!IsSuckerItemCompatible(machineID, obj.itemID)) {
-                continue;
-            }
-
-            if(pData->itemID != obj.itemID) {
-                continue;
-            }
-
-            if((pData->itemCount + (int32)obj.count) > pData->itemLimit) {
-                continue;
-            }
-
-            pData->itemCount += (int32)obj.count;
-
-            const Vector2Int tilePos = pTile->GetPos();
-            pWorld->SendParticleEffectToAll((tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f, 44, 0, 0);
-            pWorld->SendTileUpdate(pTile);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-TileInfo* FindDoorByIDInWorld(World* pWorld, const string& doorID)
-{
-    if(!pWorld || doorID.empty()) {
-        return nullptr;
-    }
-
-    const Vector2Int size = pWorld->GetTileManager()->GetSize();
-    for(int32 y = 0; y < size.y; ++y) {
-        for(int32 x = 0; x < size.x; ++x) {
-            TileInfo* pTile = pWorld->GetTileManager()->GetTile(x, y);
-            if(!pTile) {
-                continue;
-            }
-
-            ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-            if(!pItem || (pItem->type != ITEM_TYPE_DOOR && pItem->type != ITEM_TYPE_USER_DOOR && pItem->type != ITEM_TYPE_PORTAL && pItem->type != ITEM_TYPE_SUNGATE)) {
-                continue;
-            }
-
-            TileExtra_Door* pDoor = pTile->GetExtra<TileExtra_Door>();
-            if(pDoor && ToUpper(pDoor->id) == doorID) {
-                return pTile;
-            }
-        }
-    }
-
-    return nullptr;
-}
-
-bool ActivateFunctionalSteamTile(World* pWorld, TileInfo* pTile, uint32 connectorCount)
-{
-    if(!pWorld || !pTile) {
-        return false;
-    }
-
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem) {
-        return false;
-    }
-
-    switch(pItem->id) {
-        case ITEM_ID_STEAM_VENT:
-        case ITEM_ID_SPIRIT_STORAGE_UNIT:
-        case ITEM_ID_STEAM_DOOR: {
-            pWorld->QueueSteamActivation(pTile, connectorCount * 115);
-            return true;
-        }
-        default: return false;
-    }
-}
-
-}
-
-bool World::SuckerCheck(WorldObject& obj)
-{
-    return TrySuckerCheck(this, obj);
-}
+#include "../Player/PlayerManager.h"
 
 World::World()
-: m_worldID(0)
+: m_worldID(0), m_deleteFlag(false)
 {
 }
 
 World::~World()
 {
+}
+
+void World::SaveToDatabase()
+{
+    File file;
+    string worldSavePath = GetContext()->GetGameConfig()->worldSavePath + "/world_" + ToString(GetID()) + ".bin";
+    if(!file.Open(worldSavePath, FILE_MODE_WRITE)) {
+        return;
+    }
+
+    MemoryBuffer memSize;
+    Serialize(memSize, true, true);
+
+    uint32 worldMemSize = memSize.GetOffset();
+    uint8* pWorldData = new uint8[worldMemSize];
+
+    MemoryBuffer memBuffer(pWorldData, worldMemSize);
+    Serialize(memBuffer, true, true);
+
+    if(file.Write(pWorldData, worldMemSize) != worldMemSize) {
+        file.Close();
+        SAFE_DELETE_ARRAY(pWorldData);
+        return;
+    }
+
+    file.Close();
+    SAFE_DELETE_ARRAY(pWorldData);
+
+    QueryRequest req = WorldDB::SaveWorld(GetWorlName(), GetID());
+    DatabaseWorldExec(GetContext()->GetDatabasePool(), req);
+}
+
+void World::Update()
+{
+    if(m_players.size() > 0) {
+        m_worldOfflineTime.Reset();
+    }
+    else {
+        if(m_worldOfflineTime.GetElapsedTime() >= 3600 * 1000) {
+            m_deleteFlag = true;
+        }
+    }
+
+    if(m_worldLastSaveTime.GetElapsedTime() >= 40 * 60 * 1000) {
+        SaveToDatabase();
+    }
 }
 
 bool World::PlayerJoinWorld(GamePlayer* pPlayer)
@@ -244,57 +71,22 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
         return false;
     }
 
-    // Check if player is banned from this world
-    if(IsPlayerBanned(pPlayer->GetUserID())) {
-        pPlayer->SendOnConsoleMessage("`4Oh no! ``You've been banned from that world! Try again later after ban wears off.");
-        return false;
-    }
-
-    TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-    if(pWorldLockTile) {
-        TileExtra_Lock* pLockExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
-        if(pLockExtra && pLockExtra->minEntryLevel > 1) {
-            if((int32)pPlayer->GetLevel() < pLockExtra->minEntryLevel) {
-                pPlayer->SendOnConsoleMessage("`4You must be level " + ToString(pLockExtra->minEntryLevel) + " to enter this world!``");
-                return false;
-            }
-        }
-    }
-
-    pPlayer->SetJoinWorld(false);
+    pPlayer->SetJoiningWorld(false);
     pPlayer->SetCurrentWorld(m_worldID);
-    pPlayer->SetMagplantPos({ -1, -1 });
     m_players.push_back(pPlayer);
 
-    if(m_players.size() >= 20) {
-        pPlayer->GiveAchievement("Social Butterfly (Classic)");
-    }
-
     TileInfo* pMainDoorTile = GetTileManager()->GetKeyTile(KEY_TILE_MAIN_DOOR);
-    TileInfo* pSpawnDoorTile = pMainDoorTile;
-
-    string pendingDoorID = ToUpper(pPlayer->ConsumePendingDoorWarpID());
-    if(!pendingDoorID.empty()) {
-        TileInfo* pTargetDoor = FindDoorByIDInWorld(this, pendingDoorID);
-        if(pTargetDoor) {
-            pSpawnDoorTile = pTargetDoor;
-        }
-    }
-
-    if(!pSpawnDoorTile) {
+    if(!pMainDoorTile) {
         pPlayer->SetWorldPos(0, 0);
         pPlayer->SetRespawnPos(0, 0);
     }
     else {
-        Vector2Int spawnPos = pSpawnDoorTile->GetPos();
-        pPlayer->SetWorldPos(spawnPos.x * 32, spawnPos.y * 32);
-        pPlayer->SetRespawnPos(spawnPos.x * 32, spawnPos.y * 32);
+        Vector2Int mainDoorPos = pMainDoorTile->GetPos();
+        pPlayer->SetWorldPos(mainDoorPos.x * 32, mainDoorPos.y * 32);
+        pPlayer->SetRespawnPos(mainDoorPos.x * 32, mainDoorPos.y * 32);
     }
-
-    MemoryBuffer memSize;
-    Serialize(memSize, true, false);
     
-    uint32 worldMemSize = memSize.GetOffset();
+    uint32 worldMemSize = GetMemEstimate(false);
     uint8* pWorldData = new uint8[worldMemSize];
 
     MemoryBuffer memBuffer(pWorldData, worldMemSize);
@@ -312,6 +104,9 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
     pPlayer->SendOnSetClothing();
     pPlayer->SendCharacterState();
 
+    string playerDisplayName = pPlayer->GetDisplayName();
+    string joinNotifyOtherMsg = "`5<" + playerDisplayName + " `5entered, `w" + ToString(GetPlayerCount() - 1) + " `5others here``>";
+
     for(auto& pWorldPlayer : m_players) {
         if(pWorldPlayer && pWorldPlayer != pPlayer) {
             pPlayer->SendOnSpawn(pWorldPlayer->GetSpawnData(false));
@@ -321,34 +116,50 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
             pWorldPlayer->SendOnSpawn(pPlayer->GetSpawnData(false));
             pWorldPlayer->SendOnSetClothing(pPlayer);
             pWorldPlayer->SendCharacterState(pPlayer);
+            pWorldPlayer->SendOnTalkBubble(joinNotifyOtherMsg, true, pPlayer);
+            pWorldPlayer->SendOnConsoleMessage(joinNotifyOtherMsg);
         }
     }
 
-    const int32 otherPlayersHere = std::max<int32>(0, static_cast<int32>(m_players.size()) - 1);
-    const string worldInfoSuffix = GetWorldInfoSuffix(this);
-    const string worldLabel = worldInfoSuffix.empty() ? ("`w" + GetWorlName() + "``") : ("`w" + GetWorlName() + worldInfoSuffix);
-    pPlayer->SendOnConsoleMessage(
-        "World " + worldLabel + " entered. There are `w" + ToString(otherPlayersHere) +
-        "`` other people here, `w" + ToString(GetMasterBroadway()->GetGlobalOnlineCount()) + "`` online."
-    );
+    string worldSituationMsg;
 
-    TileInfo* pLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-    TileExtra_Lock* pLockExtra = pLockTile ? pLockTile->GetExtra<TileExtra_Lock>() : nullptr;
+    WorldTileManager* pTileMgr = GetTileManager();
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_PUNCH_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2NOPUNCH``";
+    }
 
-    if(pLockExtra && pLockExtra->ownerID > 0) {
-        string ownerUsername = "DeletedUser";
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ZOMBIE_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2IMMUNE``";
+    }
 
-        GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
-        if(pOwner) {
-            ownerUsername = pOwner->GetRawName();
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_SIGNAL_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`4JAMMED``";
+    }
+
+    if(TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ANTIGRAVITY); pTile && pTile->HasFlag(TILE_FLAG_IS_ON)) {
+        if(!worldSituationMsg.empty()) worldSituationMsg += ", ";
+        worldSituationMsg += "`2ANTIGRAVITY``";
+    }
+
+    string worldEnterMsg = "World `w" + GetWorlName() + "`o ";
+    if(!worldSituationMsg.empty()) {
+        worldEnterMsg += "`0[``" + worldSituationMsg + "`0] ";
+    }
+    worldEnterMsg += "`oentered, There are `w" + ToString(GetPlayerCount() - 1) + "`o other people here, `w" + ToString(GetPlayerManager()->GetTotalPlayerCount()) + " `oonline.";
+
+    pPlayer->SendOnConsoleMessage(worldEnterMsg);
+
+    TileInfo* pWorldLock = pTileMgr->GetKeyTile(KEY_TILE_WORLD_LOCK);
+    if(pWorldLock) {
+        TileExtra_Lock* pExtra = pWorldLock->GetExtra<TileExtra_Lock>();
+        if(pExtra) {
+            /**
+             * InactivityManager! :)
+             */
         }
-
-        const bool hasAccess = pLockExtra->ownerID == (int32)pPlayer->GetUserID();
-        pPlayer->SendOnConsoleMessage(
-            "`5[`w" + GetWorlName() + " World Locked by " + ownerUsername +
-            (hasAccess ? " (ACCESS GRANTED)" : "") +
-            "`5]``"
-        );
     }
 
     return true;
@@ -377,7 +188,6 @@ void World::PlayerLeaverWorld(GamePlayer* pPlayer)
         m_players.pop_back();
 
         pPlayer->SetCurrentWorld(0);
-        pPlayer->SetMagplantPos({ -1, -1 });
     }
 
     if(m_players.empty()) {
@@ -468,7 +278,9 @@ void World::SendParticleEffectToAll(float coordX, float coordY, uint32 particleT
     packet.particleEffectSize = particleSize;
     packet.delay = delay;
 
-    SendGamePacketToAll(&packet);
+    for(auto& pWorldPlayer : m_players) {
+        SendGamePacketToAll(&packet);
+    }
 }
 
 void World::SendTileUpdate(TileInfo* pTile)
@@ -672,14 +484,7 @@ void World::HandleTilePackets(GameUpdatePacket* pGamePacket)
                 pTile->SetBG(pItem->id);
             }
             else if(pItem->type == ITEM_TYPE_SEED) {
-                pTile->SetFG(pItem->id, GetTileManager());
-                pTile->SetFlag(TILE_FLAG_IS_SEEDLING);
 
-                TileExtra_Seed* pSeedExtra = pTile->GetExtra<TileExtra_Seed>();
-                if(pSeedExtra) {
-                    pSeedExtra->growTime = (uint32)Time::GetSystemTime();
-                    pSeedExtra->fruitCount = (uint8)(2 + (rand() % 11));
-                }
             }
             else if(pItem->type == ITEM_TYPE_FIST) {
                 if(pTile->GetFG() != ITEM_ID_BLANK) {
@@ -768,10 +573,6 @@ bool World::PlayerHasAccessOnTile(GamePlayer* pPlayer, TileInfo* pTile)
         return false;
     }
 
-    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
-        return true;
-    }
-
     return pMainLockExtra->HasAccess(pPlayer->GetUserID());
 }
 
@@ -802,8 +603,8 @@ void World::OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, uint16 lockID)
 
     std::vector<TileInfo*> lockedTiles;
 
-    if(IsAreaLock(lockID)) {
-        bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles, false);
+    if(!IsWorldLock(lockID)) {
+        bool lockSuccsess = GetTileManager()->ApplyLockTiles(pTile, GetMaxTilesToLock(lockID), false, lockedTiles);
         if(!lockSuccsess) {
             pPlayer->SendOnTalkBubble("Something went wrong, unable to place lock in here", true);
             return;
@@ -899,381 +700,6 @@ bool World::IsPlayerWorldAdmin(GamePlayer* pPlayer)
     return false;
 }
 
-namespace {
-
-bool HasKickBanPullException(GamePlayer* pPlayer)
-{
-    if(!pPlayer) {
-        return false;
-    }
-
-    Role* pRole = pPlayer->GetRole();
-    return pRole && pRole->HasPerm(ROLE_PERM_COMMAND_MOD);
-}
-
-TileExtra_Lock* GetTileLockContext(World* pWorld, TileInfo* pTile, TileInfo** ppLockTile = nullptr)
-{
-    if(ppLockTile) {
-        *ppLockTile = nullptr;
-    }
-
-    if(!pWorld || !pTile) {
-        return nullptr;
-    }
-
-    if(pTile->GetParent() != 0) {
-        TileInfo* pParentLock = pWorld->GetTileManager()->GetTile(pTile->GetParent());
-        if(ppLockTile) {
-            *ppLockTile = pParentLock;
-        }
-
-        return pParentLock ? pParentLock->GetExtra<TileExtra_Lock>() : nullptr;
-    }
-
-    TileInfo* pWorldLock = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-    if(ppLockTile) {
-        *ppLockTile = pWorldLock;
-    }
-
-    return pWorldLock ? pWorldLock->GetExtra<TileExtra_Lock>() : nullptr;
-}
-
-}
-
-bool World::CanKick(GamePlayer* pTarget, GamePlayer* pInvoker)
-{
-    if(!pTarget || !pInvoker) {
-        return false;
-    }
-
-    TileInfo* pTargetTile = GetTileManager()->GetTile((int32)(pTarget->GetWorldPos().x / 32.0f), (int32)(pTarget->GetWorldPos().y / 32.0f));
-    TileInfo* pInvokerTile = GetTileManager()->GetTile((int32)(pInvoker->GetWorldPos().x / 32.0f), (int32)(pInvoker->GetWorldPos().y / 32.0f));
-    if(!pTargetTile || !pInvokerTile) {
-        return false;
-    }
-
-    const bool targetException = HasKickBanPullException(pTarget);
-    const bool invokerException = HasKickBanPullException(pInvoker);
-
-    if(targetException && !invokerException) {
-        return false;
-    }
-
-    if(invokerException) {
-        return pTarget->GetUserID() != pInvoker->GetUserID();
-    }
-
-    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
-        return false;
-    }
-
-    TileExtra_Lock* pTargetLock = GetTileLockContext(this, pTargetTile);
-    TileExtra_Lock* pInvokerLock = GetTileLockContext(this, pInvokerTile);
-
-    const int32 targetOwnerID = pTargetLock ? pTargetLock->ownerID : 0;
-    const int32 invokerTileOwnerID = pInvokerLock ? pInvokerLock->ownerID : 0;
-    const bool invokerHasTargetAccess = pTargetLock && pTargetLock->HasAccess((int32)pInvoker->GetUserID());
-
-    if(!invokerHasTargetAccess && targetOwnerID != (int32)pInvoker->GetUserID() && invokerTileOwnerID != (int32)pInvoker->GetUserID()) {
-        return false;
-    }
-
-    if(targetOwnerID == (int32)pTarget->GetUserID() || invokerTileOwnerID == (int32)pTarget->GetUserID()) {
-        return false;
-    }
-
-    if(targetOwnerID == 0 || invokerTileOwnerID == 0) {
-        return false;
-    }
-
-    return true;
-}
-
-bool World::CanPull(GamePlayer* pTarget, GamePlayer* pInvoker)
-{
-    if(!pTarget || !pInvoker) {
-        return false;
-    }
-
-    TileInfo* pTargetTile = GetTileManager()->GetTile((int32)(pTarget->GetWorldPos().x / 32.0f), (int32)(pTarget->GetWorldPos().y / 32.0f));
-    TileInfo* pInvokerTile = GetTileManager()->GetTile((int32)(pInvoker->GetWorldPos().x / 32.0f), (int32)(pInvoker->GetWorldPos().y / 32.0f));
-    if(!pTargetTile || !pInvokerTile) {
-        return false;
-    }
-
-    const bool targetException = HasKickBanPullException(pTarget);
-    const bool invokerException = HasKickBanPullException(pInvoker);
-
-    if(targetException && !invokerException) {
-        return false;
-    }
-
-    if(invokerException) {
-        return pTarget->GetUserID() != pInvoker->GetUserID();
-    }
-
-    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
-        return false;
-    }
-
-    TileExtra_Lock* pTargetLock = GetTileLockContext(this, pTargetTile);
-    TileExtra_Lock* pInvokerLock = GetTileLockContext(this, pInvokerTile);
-
-    const int32 targetOwnerID = pTargetLock ? pTargetLock->ownerID : 0;
-    const int32 invokerTileOwnerID = pInvokerLock ? pInvokerLock->ownerID : 0;
-    const bool invokerHasTargetAccess = pTargetLock && pTargetLock->HasAccess((int32)pInvoker->GetUserID());
-    const bool invokerHasInvokerTileAccess = pInvokerLock && pInvokerLock->HasAccess((int32)pInvoker->GetUserID());
-
-    if((!invokerHasTargetAccess || !invokerHasInvokerTileAccess) && targetOwnerID != (int32)pInvoker->GetUserID() && invokerTileOwnerID != (int32)pInvoker->GetUserID()) {
-        return false;
-    }
-
-    if(targetOwnerID == (int32)pTarget->GetUserID() || invokerTileOwnerID == (int32)pTarget->GetUserID()) {
-        return false;
-    }
-
-    if(targetOwnerID == 0 || invokerTileOwnerID == 0) {
-        return false;
-    }
-
-    return true;
-}
-
-bool World::CanBan(GamePlayer* pTarget, GamePlayer* pInvoker)
-{
-    if(!pTarget || !pInvoker) {
-        return false;
-    }
-
-    const bool targetException = HasKickBanPullException(pTarget);
-    const bool invokerException = HasKickBanPullException(pInvoker);
-
-    if(targetException && !invokerException) {
-        return false;
-    }
-
-    if(invokerException) {
-        return pTarget->GetUserID() != pInvoker->GetUserID();
-    }
-
-    if(pTarget->GetUserID() == pInvoker->GetUserID()) {
-        return false;
-    }
-
-    TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-    TileExtra_Lock* pWorldLock = pWorldLockTile ? pWorldLockTile->GetExtra<TileExtra_Lock>() : nullptr;
-
-    const int32 worldOwnerID = pWorldLock ? pWorldLock->ownerID : 0;
-    if(worldOwnerID == 0 || worldOwnerID == (int32)pTarget->GetUserID()) {
-        return false;
-    }
-
-    if(!pWorldLock->HasAccess((int32)pInvoker->GetUserID()) && worldOwnerID != (int32)pInvoker->GetUserID()) {
-        return false;
-    }
-
-    if(pWorldLock->HasAccess((int32)pTarget->GetUserID())) {
-        return false;
-    }
-
-    return true;
-}
-
-void World::PullPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
-{
-    if(!pTarget || !pInvoker) {
-        return;
-    }
-
-    const Vector2Float invokerPos = pInvoker->GetWorldPos();
-    pTarget->SetWorldPos(invokerPos.x, invokerPos.y);
-    pTarget->SetRespawnPos(invokerPos.x, invokerPos.y);
-    pTarget->SendPositionToWorldPlayers();
-    pTarget->SendOnTextOverlay("You were pulled by " + pInvoker->GetDisplayName());
-
-    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `5pulls `w" + pTarget->GetDisplayName() + "`o!");
-    for(GamePlayer* pWorldPlayer : m_players) {
-        if(pWorldPlayer) {
-            pWorldPlayer->SendOnPlayPositioned("audio/object_spawn.wav", pTarget);
-        }
-    }
-}
-
-void World::KickPlayer(GamePlayer* pTarget, GamePlayer* pInvoker)
-{
-    if(!pTarget || !pInvoker) {
-        return;
-    }
-
-    pTarget->SendOnConsoleMessage("`4You were kicked by ``" + pInvoker->GetDisplayName() + "``.");
-    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `4kicks `w" + pTarget->GetDisplayName() + "`o!");
-    ForceLeavePlayer(pTarget);
-}
-
-void World::ForceLeavePlayer(GamePlayer* pTarget)
-{
-    if(!pTarget) {
-        return;
-    }
-
-    PlayerLeaverWorld(pTarget);
-    pTarget->SendOnRequestWorldSelectMenu("");
-}
-
-bool World::CanPlace(GamePlayer* pPlayer, TileInfo* pTile)
-{
-    if(!pPlayer || !pTile) {
-        return false;
-    }
-
-    if(IsPlayerWorldOwner(pPlayer)) {
-        return true;
-    }
-
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem) {
-        return false;
-    }
-
-    if(pItem->type == ITEM_TYPE_LOCK) {
-        return false;
-    }
-
-    if(pItem->HasFlag(ITEM_FLAG_PUBLIC) || pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return true;
-    }
-
-    if(pTile->GetParent() == 0) {
-        TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-        if(!pWorldLockTile) {
-            return true;
-        }
-
-        TileExtra_Lock* pWLExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
-        if(!pWLExtra) {
-            return false;
-        }
-
-        if(pWLExtra->HasAccess(pPlayer->GetUserID())) {
-            return true;
-        }
-
-        return pWorldLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
-    }
-
-    TileInfo* pMainLockTile = GetTileManager()->GetTile(pTile->GetParent());
-    if(!pMainLockTile) {
-        return false;
-    }
-
-    TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
-    if(!pMainLockExtra) {
-        return false;
-    }
-
-    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
-        return true;
-    }
-
-    ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());
-    const bool isBuilderLock = pMainLockItem && pMainLockItem->id == ITEM_ID_BUILDERS_LOCK;
-
-    if(pMainLockExtra->HasAccess(pPlayer->GetUserID())) {
-        if(isBuilderLock && pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS)) {
-            return pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
-        }
-
-        return true;
-    }
-
-    if(isBuilderLock && pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
-    }
-
-    if(pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool World::CanBreak(GamePlayer* pPlayer, TileInfo* pTile)
-{
-    if(!pPlayer || !pTile) {
-        return false;
-    }
-
-    if(IsPlayerWorldOwner(pPlayer)) {
-        return true;
-    }
-
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if(!pItem) {
-        return false;
-    }
-
-    if(pItem->type == ITEM_TYPE_LOCK) {
-        return false;
-    }
-
-    if(pItem->HasFlag(ITEM_FLAG_PUBLIC) || pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return true;
-    }
-
-    if(pTile->GetParent() == 0) {
-        TileInfo* pWorldLockTile = GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK);
-        if(!pWorldLockTile) {
-            return true;
-        }
-
-        TileExtra_Lock* pWLExtra = pWorldLockTile->GetExtra<TileExtra_Lock>();
-        if(!pWLExtra) {
-            return false;
-        }
-
-        if(pWLExtra->HasAccess(pPlayer->GetUserID())) {
-            return true;
-        }
-
-        return pWorldLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC);
-    }
-
-    TileInfo* pMainLockTile = GetTileManager()->GetTile(pTile->GetParent());
-    if(!pMainLockTile) {
-        return false;
-    }
-
-    TileExtra_Lock* pMainLockExtra = pMainLockTile->GetExtra<TileExtra_Lock>();
-    if(!pMainLockExtra) {
-        return false;
-    }
-
-    if(pMainLockExtra->ownerID == (int32)pPlayer->GetUserID()) {
-        return true;
-    }
-
-    ItemInfo* pMainLockItem = GetItemInfoManager()->GetItemByID(pMainLockTile->GetFG());
-    const bool isBuilderLock = pMainLockItem && pMainLockItem->id == ITEM_ID_BUILDERS_LOCK;
-
-    if(pMainLockExtra->HasAccess(pPlayer->GetUserID())) {
-        if(isBuilderLock && pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_RESTRICT_ADMINS)) {
-            return !pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
-        }
-
-        return true;
-    }
-
-    if(isBuilderLock && pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return !pMainLockExtra->HasFlag(TILE_EXTRA_LOCK_FLAG_BUILDING_ONLY);
-    }
-
-    if(pMainLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC)) {
-        return true;
-    }
-
-    return false;
-}
-
 void World::DropObject(TileInfo* pTile, WorldObject& obj, bool merge)
 {
     if(!pTile) {
@@ -1286,10 +712,6 @@ void World::DropObject(TileInfo* pTile, WorldObject& obj, bool merge)
     vBasePos.y += 16.0f;
 
     obj.pos += vBasePos;
-
-    if(SuckerCheck(obj)) {
-        return;
-    }
 
     if(merge) {
         RectFloat tileRect(vTilePos.x * 32, vTilePos.y * 32, (vTilePos.x + 1) * 32, (vTilePos.y + 1) * 32);
@@ -1405,410 +827,9 @@ void World::ModifyObject(const WorldObject& obj)
     packet.worldObjectCount = obj.count;
     packet.worldObjectFlags = obj.flags;
     packet.worldObjectType = -3;
-    packet.worldObjectID = obj.objectID;
+
+    packet.field4 = obj.objectID; // ?
 
     GetObjectManager()->HandleObjectPackets(&packet);
     SendGamePacketToAll(&packet);
-}
-
-void World::SendSteamPacket(uint8 mode, const Vector2Int& tilePos)
-{
-    GameUpdatePacket packet;
-    packet.type = NET_GAME_PACKET_STEAM;
-    packet.tileX = tilePos.x;
-    packet.tileY = tilePos.y;
-    packet.netID = -1;
-    packet.field2 = mode;
-    packet.particleEffectType = static_cast<float>(mode);
-
-    SendGamePacketToAll(&packet);
-}
-
-void World::QueueSteamActivation(TileInfo* pTile, uint32 delayMS)
-{
-    if(!pTile) {
-        return;
-    }
-
-    SteamActivationEntry entry;
-    entry.tilePos = pTile->GetPos();
-    entry.activateAtMS = Time::GetSystemTime() + delayMS;
-
-    m_steamActivationQueue.push_back(entry);
-}
-
-void World::UpdateSteamActivations()
-{
-    if(m_steamActivationQueue.empty()) {
-        return;
-    }
-
-    const uint64 nowMS = Time::GetSystemTime();
-    if(nowMS - m_lastSteamActivationTick < 200) {
-        return;
-    }
-
-    m_lastSteamActivationTick = nowMS;
-
-    int32 processed = 0;
-    auto it = m_steamActivationQueue.begin();
-    while(it != m_steamActivationQueue.end() && processed < 64) {
-        const Vector2Int tilePos = it->tilePos;
-
-        TileInfo* pTile = GetTileManager()->GetTile(tilePos.x, tilePos.y);
-        if(!pTile) {
-            it = m_steamActivationQueue.erase(it);
-            continue;
-        }
-
-        if(nowMS < it->activateAtMS) {
-            ++it;
-            continue;
-        }
-
-        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-        if(pItem) {
-            switch(pItem->id) {
-                case ITEM_ID_SPIRIT_STORAGE_UNIT: {
-                    RectFloat tileRect(tilePos.x * 32.0f, tilePos.y * 32.0f, (tilePos.x + 1) * 32.0f, (tilePos.y + 1) * 32.0f);
-                    auto jars = GetObjectManager()->GetObjectsInRectByItemID(tileRect, ITEM_ID_GHOST_IN_A_JAR);
-
-                    int32 spiritCollected = 0;
-                    for(auto* pObj : jars) {
-                        if(!pObj) {
-                            continue;
-                        }
-
-                        spiritCollected += pObj->count;
-                        RemoveObject(pObj->objectID);
-                    }
-
-                    TileExtra_SpiritStorage* pSpiritData = pTile->GetExtra<TileExtra_SpiritStorage>();
-                    if(pSpiritData) {
-                        pSpiritData->spiritCount += spiritCollected;
-
-                        if(pSpiritData->spiritCount > 40) {
-                            SendSteamPacket(22, tilePos);
-                            pTile->SetFG(ITEM_ID_DESTROYED_SPIRIT_STORAGE_UNIT, GetTileManager());
-                        }
-                        else {
-                            SendSteamPacket(20, tilePos);
-                        }
-
-                        SendTileUpdate(pTile);
-                    }
-                    else {
-                        SendSteamPacket(20, tilePos);
-                    }
-                    break;
-                }
-
-                case ITEM_ID_STEAM_VENT: {
-                    SendSteamPacket(3, tilePos);
-                    break;
-                }
-
-                case ITEM_ID_STEAM_DOOR: {
-                    pTile->ToggleFlag(TILE_FLAG_IS_ON);
-                    SendSteamPacket(pTile->HasFlag(TILE_FLAG_IS_ON) ? 4 : 5, tilePos);
-                    SendTileUpdate(pTile);
-                    break;
-                }
-            }
-        }
-
-        it = m_steamActivationQueue.erase(it);
-        ++processed;
-    }
-}
-
-void World::TriggerSteamPulse(TileInfo* pTile)
-{
-    if(!pTile) {
-        return;
-    }
-
-    SendSteamPacket(0, pTile->GetPos());
-
-    eSteamDirection pulseDir = STEAM_DIR_NONE;
-    eSteamDirection lastDir = STEAM_DIR_NONE;
-
-    Vector2Int currentPos = pTile->GetPos();
-    uint8 maxSteamConductors = 49;
-    int32 redirectsSinceFound = 0;
-    bool cutPulse = false;
-    bool noLookup = false;
-
-    while(maxSteamConductors > 0 && !cutPulse) {
-        if(redirectsSinceFound >= 4) {
-            break;
-        }
-
-        TileInfo* upTile = GetTileManager()->GetTile(currentPos.x, currentPos.y - 1);
-        TileInfo* rightTile = GetTileManager()->GetTile(currentPos.x + 1, currentPos.y);
-        TileInfo* downTile = GetTileManager()->GetTile(currentPos.x, currentPos.y + 1);
-        TileInfo* leftTile = GetTileManager()->GetTile(currentPos.x - 1, currentPos.y);
-
-        if(upTile && (pulseDir == STEAM_DIR_UP || pulseDir == STEAM_DIR_NONE)) {
-            if(IsSteamConductor(upTile) && lastDir != STEAM_DIR_DOWN) {
-                --maxSteamConductors;
-                currentPos.y -= 1;
-                lastDir = STEAM_DIR_UP;
-                redirectsSinceFound = 0;
-                goto found;
-            }
-            else {
-                pulseDir = STEAM_DIR_RIGHT;
-                redirectsSinceFound += 1;
-                continue;
-            }
-        }
-
-        if(rightTile && pulseDir == STEAM_DIR_RIGHT) {
-            if(IsSteamConductor(rightTile) && lastDir != STEAM_DIR_LEFT) {
-                --maxSteamConductors;
-                currentPos.x += 1;
-                lastDir = STEAM_DIR_RIGHT;
-                redirectsSinceFound = 0;
-                goto found;
-            }
-            else {
-                pulseDir = STEAM_DIR_DOWN;
-                redirectsSinceFound += 1;
-                continue;
-            }
-        }
-
-        if(downTile && pulseDir == STEAM_DIR_DOWN) {
-            if(IsSteamConductor(downTile) && lastDir != STEAM_DIR_UP) {
-                --maxSteamConductors;
-                currentPos.y += 1;
-                lastDir = STEAM_DIR_DOWN;
-                redirectsSinceFound = 0;
-                goto found;
-            }
-            else {
-                pulseDir = STEAM_DIR_LEFT;
-                redirectsSinceFound += 1;
-                continue;
-            }
-        }
-
-        if(leftTile && pulseDir == STEAM_DIR_LEFT) {
-            if(IsSteamConductor(leftTile) && lastDir != STEAM_DIR_RIGHT) {
-                --maxSteamConductors;
-                currentPos.x -= 1;
-                lastDir = STEAM_DIR_LEFT;
-                redirectsSinceFound = 0;
-                goto found;
-            }
-            else {
-                pulseDir = STEAM_DIR_UP;
-                redirectsSinceFound += 1;
-                continue;
-            }
-        }
-
-        break;
-
-found:
-
-        TileInfo* currentTile = GetTileManager()->GetTile(currentPos.x, currentPos.y);
-        if(!currentTile) {
-            break;
-        }
-
-        const uint16 itemID = currentTile->GetDisplayedItem();
-
-        switch(itemID) {
-            case ITEM_ID_STEAM_FUNNEL: {
-                pulseDir = currentTile->HasFlag(TILE_FLAG_FLIPPED_X) ? STEAM_DIR_LEFT : STEAM_DIR_RIGHT;
-                break;
-            }
-
-            case ITEM_ID_STEAM_FUNNEL_UP: {
-                pulseDir = STEAM_DIR_UP;
-                break;
-            }
-
-            case ITEM_ID_STEAM_FUNNEL_DOWN: {
-                pulseDir = STEAM_DIR_DOWN;
-                break;
-            }
-
-            case ITEM_ID_STEAM_SCRAMBLER: {
-                std::array<eSteamDirection, 4> dirs = { STEAM_DIR_UP, STEAM_DIR_RIGHT, STEAM_DIR_DOWN, STEAM_DIR_LEFT };
-                std::vector<eSteamDirection> choices;
-
-                for(eSteamDirection dir : dirs) {
-                    if(IsReverseDirection(lastDir, dir)) {
-                        continue;
-                    }
-
-                    TileInfo* nextTile = GetTileByDirection(this, currentPos, dir);
-                    if(IsSteamConductor(nextTile)) {
-                        choices.push_back(dir);
-                    }
-                }
-
-                if(choices.empty()) {
-                    cutPulse = true;
-                    break;
-                }
-
-                pulseDir = choices[rand() % choices.size()];
-                if(pulseDir == STEAM_DIR_UP) {
-                    SendSteamPacket(9, currentPos);
-                }
-                else if(pulseDir == STEAM_DIR_RIGHT) {
-                    SendSteamPacket(6, currentPos);
-                }
-                else if(pulseDir == STEAM_DIR_DOWN) {
-                    SendSteamPacket(7, currentPos);
-                }
-                else if(pulseDir == STEAM_DIR_LEFT) {
-                    SendSteamPacket(8, currentPos);
-                }
-
-                break;
-            }
-
-            case ITEM_ID_STEAM_CROSSOVER: {
-                if(currentTile->HasFlag(TILE_FLAG_FLIPPED_X)) {
-                    if(lastDir == STEAM_DIR_UP) pulseDir = STEAM_DIR_RIGHT;
-                    else if(lastDir == STEAM_DIR_RIGHT) pulseDir = STEAM_DIR_UP;
-                    else if(lastDir == STEAM_DIR_LEFT) pulseDir = STEAM_DIR_DOWN;
-                    else if(lastDir == STEAM_DIR_DOWN) pulseDir = STEAM_DIR_LEFT;
-                }
-                else {
-                    if(lastDir == STEAM_DIR_UP) pulseDir = STEAM_DIR_LEFT;
-                    else if(lastDir == STEAM_DIR_RIGHT) pulseDir = STEAM_DIR_DOWN;
-                    else if(lastDir == STEAM_DIR_LEFT) pulseDir = STEAM_DIR_UP;
-                    else if(lastDir == STEAM_DIR_DOWN) pulseDir = STEAM_DIR_RIGHT;
-                }
-                break;
-            }
-
-            case ITEM_ID_STEAM_CRANK: {
-                if(currentTile->HasFlag(TILE_FLAG_IS_ON)) {
-                    if(lastDir == STEAM_DIR_DOWN || lastDir == STEAM_DIR_UP) {
-                        noLookup = true;
-                        cutPulse = true;
-                    }
-                }
-                else {
-                    if(lastDir == STEAM_DIR_LEFT || lastDir == STEAM_DIR_RIGHT) {
-                        noLookup = true;
-                        cutPulse = true;
-                    }
-                }
-                break;
-            }
-
-            default: {
-                break;
-            }
-        }
-    }
-
-    int8 lookupIterations = 0;
-    while(lookupIterations < 2 && !noLookup) {
-        if(pulseDir == STEAM_DIR_UP) {
-            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x, currentPos.y - 1);
-            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
-                break;
-            }
-            pulseDir = STEAM_DIR_RIGHT;
-        }
-
-        if(pulseDir == STEAM_DIR_RIGHT) {
-            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x + 1, currentPos.y);
-            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
-                break;
-            }
-            pulseDir = STEAM_DIR_DOWN;
-        }
-
-        if(pulseDir == STEAM_DIR_DOWN) {
-            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x, currentPos.y + 1);
-            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
-                break;
-            }
-            pulseDir = STEAM_DIR_LEFT;
-        }
-
-        if(pulseDir == STEAM_DIR_LEFT) {
-            TileInfo* pLookupTile = GetTileManager()->GetTile(currentPos.x - 1, currentPos.y);
-            if(pLookupTile && ActivateFunctionalSteamTile(this, pLookupTile, 49 - maxSteamConductors)) {
-                break;
-            }
-            pulseDir = STEAM_DIR_UP;
-        }
-
-        ++lookupIterations;
-    }
-}
-
-bool World::IsPlayerBanned(uint32 userID)
-{
-    auto it = m_bannedPlayers.find(userID);
-    if(it != m_bannedPlayers.end()) {
-        auto now = std::chrono::steady_clock::now();
-        auto bannedTime = it->second.BannedAt;
-        auto duration = it->second.Duration;
-
-        // Check if ban has expired
-        if(now > (bannedTime + duration)) {
-            m_bannedPlayers.erase(it);
-            return false;
-        }
-        return true;
-    }
-    return false;
-}
-
-void World::AddBannedPlayer(const WorldBanContext& banCtx)
-{
-    if(banCtx.UserID == 0) {
-        return;
-    }
-    m_bannedPlayers[banCtx.UserID] = banCtx;
-}
-
-void World::RemoveBannedPlayer(uint32 userID)
-{
-    if(userID == 0) {
-        return;
-    }
-    m_bannedPlayers.erase(userID);
-}
-
-void World::ClearBannedPlayers()
-{
-    m_bannedPlayers.clear();
-}
-
-void World::BanPlayer(GamePlayer* pTarget, GamePlayer* pInvoker, uint32 banDurationHours)
-{
-    if(!pTarget || !pInvoker) {
-        return;
-    }
-
-    uint32 targetUserID = pTarget->GetUserID();
-    if(targetUserID == 0) {
-        return;
-    }
-
-    // Create ban context
-    WorldBanContext banCtx;
-    banCtx.UserID = targetUserID;
-    banCtx.AdminUserID = pInvoker->GetUserID();
-    banCtx.Duration = std::chrono::hours(banDurationHours);
-    banCtx.BannedAt = std::chrono::steady_clock::now();
-
-    // Add to banned players list
-    AddBannedPlayer(banCtx);
-
-    SendConsoleMessageToAll(pInvoker->GetDisplayName() + " `4world bans `w" + pTarget->GetDisplayName() + " `ofrom `w" + GetWorlName() + "`o!");
-    PlaySFXForEveryone("audio/repair.wav", 0);
 }
