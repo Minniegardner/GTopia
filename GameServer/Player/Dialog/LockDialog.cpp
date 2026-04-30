@@ -11,7 +11,7 @@ namespace {
 
 string GetNameByUserID(int32 userID)
 {
-    GamePlayer* pPlayer = GetGameServer()->GetPlayerByUserID((uint32)userID);
+    GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByUserID((uint32)userID);
     if(pPlayer) {
         return pPlayer->GetDisplayName();
     }
@@ -208,7 +208,7 @@ void LockDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
     if(pAdminNetID) {
         int32 netID = 0;
         if(ToInt(string(pAdminNetID->value, pAdminNetID->size), netID) == TO_INT_SUCCESS && netID >= 0) {
-            GamePlayer* pNewAdmin = GetGameServer()->GetPlayerByNetID((uint32)netID);
+            GamePlayer* pNewAdmin = GetPlayerManager()->GetPlayerByNetID((uint32)netID);
             if(pNewAdmin && pNewAdmin->GetCurrentWorld() == pPlayer->GetCurrentWorld() &&
                 !pTileExtra->HasAccess(pNewAdmin->GetUserID()) && pNewAdmin->GetUserID() != pTileExtra->ownerID)
             {

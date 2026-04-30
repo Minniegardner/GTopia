@@ -173,18 +173,21 @@ void World::PlayerLeaverWorld(GamePlayer* pPlayer)
 
     int32 playerIdx = -1;
 
-    for(uint16 i = 0; i < m_players.size(); ++i) {
+    for(uint32 i = 0; i < m_players.size(); ++i) {
         GamePlayer* pWorldPlayer = m_players[i];
+        if(!pWorldPlayer) {
+            continue;
+        }
 
         pWorldPlayer->SendOnRemove(pPlayer->GetNetID());
 
         if(pWorldPlayer == pPlayer) {
-            playerIdx = i;
+            playerIdx = (int32)i;
         }
     }
 
     if(playerIdx != -1) {
-        m_players[playerIdx] = m_players.back();
+        m_players[(size_t)playerIdx] = m_players.back();
         m_players.pop_back();
 
         pPlayer->SetCurrentWorld(0);
@@ -278,9 +281,7 @@ void World::SendParticleEffectToAll(float coordX, float coordY, uint32 particleT
     packet.particleEffectSize = particleSize;
     packet.delay = delay;
 
-    for(auto& pWorldPlayer : m_players) {
-        SendGamePacketToAll(&packet);
-    }
+    SendGamePacketToAll(&packet);
 }
 
 void World::SendTileUpdate(TileInfo* pTile)

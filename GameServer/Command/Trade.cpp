@@ -36,7 +36,7 @@ void Trade::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByRawName(args[1]);
+    GamePlayer* pTarget = GetPlayerManager()->GetPlayerByRawName(args[1]);
     if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
         pPlayer->SendOnConsoleMessage("`4Player not found.``");
         return;

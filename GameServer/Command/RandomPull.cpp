@@ -28,7 +28,7 @@ void RandomPull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
 
     std::vector<GamePlayer*> candidates;
     candidates.reserve(matches.size());

@@ -27,6 +27,6 @@ void Stats::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     pPlayer->SendOnConsoleMessage("`5Server Statistics``");
     pPlayer->SendOnConsoleMessage("`oServer ID: `w" + ToString((int)GetContext()->GetID()) + "``");
-    pPlayer->SendOnConsoleMessage("`oOnline Players: `w" + ToString((int)GetGameServer()->GetOnlineCount()) + "``");
+    pPlayer->SendOnConsoleMessage("`oOnline Players: `w" + ToString((int)GetPlayerManager()->GetOnlineCount()) + "``");
     pPlayer->SendOnConsoleMessage("`oLoaded Worlds: `w" + ToString((int)GetWorldManager()->GetWorldCount()) + "``");
 }

@@ -41,7 +41,7 @@ void Reply::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByUserID(targetUserID);
+    GamePlayer* pTarget = GetPlayerManager()->GetPlayerByUserID(targetUserID);
     if(!pTarget || pTarget == pPlayer) {
         pPlayer->SendOnConsoleMessage("`6>> We can't really track that person. Please use `$/msg `6again.``");
         return;

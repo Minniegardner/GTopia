@@ -26,7 +26,7 @@ void Wrench::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         return;
     }
 
-    GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(targetNetID);
+    GamePlayer* pTarget = GetPlayerManager()->GetPlayerByNetID(targetNetID);
     if(!pTarget) {
         return;
     }

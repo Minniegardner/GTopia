@@ -18,7 +18,7 @@
 
 GamePlayer::GamePlayer(ENetPeer* pPeer) 
 : Player(pPeer), m_currentWorldID(0), m_joiningWorld(false), m_guestID(0), 
-m_lastItemActivateTime(0), m_state(0), m_flags(0), m_gems(0)
+m_lastItemActivateTime(0), m_lastMovePacketPos(0, 0), m_lastMovePacketTime(0), m_lastSteamStepTile(0, 0), m_lastSteamStepTime(0), m_state(0), m_flags(0), m_gems(0)
 {
     RandomizeNextDBSaveTime();
 }
@@ -161,6 +161,52 @@ void GamePlayer::LogOff(bool forceDelete)
         SetState(PLAYER_STATE_DELETE);
         GetMasterBroadway()->SendEndPlayerSession(m_userID);
     }
+}
+
+bool GamePlayer::CanProcessMovePacket(float posX, float posY, uint64 timeMS)
+{
+    if(timeMS == 0) {
+        return false;
+    }
+
+    if(m_lastMovePacketTime != 0 && timeMS < m_lastMovePacketTime) {
+        return false;
+    }
+
+    if(m_lastMovePacketTime != 0) {
+        const uint64 elapsed = timeMS - m_lastMovePacketTime;
+        if(elapsed < 5) {
+            if(m_lastMovePacketPos.x == posX && m_lastMovePacketPos.y == posY) {
+                return false;
+            }
+        }
+    }
+
+    m_lastMovePacketPos = { posX, posY };
+    m_lastMovePacketTime = timeMS;
+    return true;
+}
+
+bool GamePlayer::CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS)
+{
+    if(nowMS == 0) {
+        return false;
+    }
+
+    if(m_lastSteamStepTime != 0 && nowMS < m_lastSteamStepTime) {
+        return false;
+    }
+
+    if(m_lastSteamStepTime != 0) {
+        const uint64 elapsed = nowMS - m_lastSteamStepTime;
+        if(m_lastSteamStepTile.x == tilePos.x && m_lastSteamStepTile.y == tilePos.y && elapsed < 350) {
+            return false;
+        }
+    }
+
+    m_lastSteamStepTile = tilePos;
+    m_lastSteamStepTime = nowMS;
+    return true;
 }
 
 void GamePlayer::Update()

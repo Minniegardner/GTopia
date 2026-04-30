@@ -93,6 +93,9 @@ public:
     bool CanActivateItemNow() { return Time::GetSystemTime() - m_lastItemActivateTime >= 100; };
     void ResetItemActiveTime() { m_lastItemActivateTime = Time::GetSystemTime(); }
 
+    bool CanProcessMovePacket(float posX, float posY, uint64 timeMS);
+    bool CanTriggerSteamByStep(const Vector2Int& tilePos, uint64 nowMS);
+
     bool HasGrowID() { return !m_loginDetail.tankIDPass.empty(); }
     void CheckLimitsForAccountCreation(bool fromDialog, const VariantVector& extraData = VariantVector{});
 
@@ -118,6 +121,12 @@ private:
 
     uint64 m_lastItemActivateTime;
     Timer m_lastActionTime;
+
+    Vector2Float m_lastMovePacketPos;
+    uint64 m_lastMovePacketTime;
+
+    Vector2Int m_lastSteamStepTile;
+    uint64 m_lastSteamStepTime;
 
     string m_logonJoinWorld;
 

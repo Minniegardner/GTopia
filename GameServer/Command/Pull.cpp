@@ -39,7 +39,7 @@ void Pull::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, true, pPlayer->GetCurrentWorld());
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(query, true, pPlayer->GetCurrentWorld());
     if(matches.empty()) {
         pPlayer->SendOnConsoleMessage("`4Oops:`` There is nobody currently in this server with a name starting with `w" + query + "``.");
         return;

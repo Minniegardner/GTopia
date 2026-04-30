@@ -50,7 +50,7 @@ void InvSee::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(username, true, pPlayer->GetCurrentWorld());
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(username, true, pPlayer->GetCurrentWorld());
     if(matches.empty()) {
         pPlayer->SendOnConsoleMessage("`4Oops: ``No Players Found.");
         return;

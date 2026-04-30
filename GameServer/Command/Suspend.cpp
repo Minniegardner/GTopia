@@ -72,7 +72,7 @@ void Suspend::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         }
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
         const uint64 payloadMinutes = unmuteCommand ? 0 : (uint64)minutes;
 

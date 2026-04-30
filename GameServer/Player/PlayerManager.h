@@ -20,10 +20,13 @@ public:
     GamePlayer* IsPlayerAlreadyOn(GamePlayer* pNewPlayer);
     GamePlayer* GetPlayerByNetID(uint32 netID);
     GamePlayer* GetPlayerByUserID(uint32 userID);
+    GamePlayer* GetPlayerByRawName(const string& rawName);
+    std::vector<GamePlayer*> FindPlayersByNamePrefix(const string& query, bool sameWorldOnly, uint32 worldID);
     void AddPlayer(GamePlayer* pPlayer);
     void RemovePlayer(uint32 netID);
     void RemoveAllPlayers();
     uint32 GetPlayerCount();
+    uint32 GetOnlineCount() { return GetPlayerCount(); }
 
     void SetTotalPlayerCount(uint32 totalPlayerCount) { m_totalPlayerCount = totalPlayerCount; }
     uint32 GetTotalPlayerCount();

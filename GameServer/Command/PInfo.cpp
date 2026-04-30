@@ -41,7 +41,7 @@ void PInfo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
 
     pPlayer->SendOnConsoleMessage("Searching for `w" + args[1] + "``...");
 
-    auto players = GetGameServer()->FindPlayersByNamePrefix(args[1], false, 0);
+    auto players = GetPlayerManager()->FindPlayersByNamePrefix(args[1], false, 0);
     if(players.empty()) {
         pPlayer->SendOnConsoleMessage("`4Oops: ``No Players Found.");
         return;

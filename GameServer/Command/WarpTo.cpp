@@ -36,7 +36,7 @@ void WarpTo::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         query.erase(query.begin());
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
         pPlayer->SendOnConsoleMessage("`6>> No one online who has a name starting with `$" + query + "`6.``");
         return;

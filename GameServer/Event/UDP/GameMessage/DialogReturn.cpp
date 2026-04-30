@@ -57,7 +57,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
-            GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+            GamePlayer* pTarget = GetPlayerManager()->GetPlayerByNetID(netID);
             if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
                 pPlayer->SendOnConsoleMessage("`4Target is no longer valid.``");
                 return;
@@ -139,7 +139,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
             }
 
             string buttonClicked(pButtonClicked->value, pButtonClicked->size);
-            GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+            GamePlayer* pTarget = GetPlayerManager()->GetPlayerByNetID(netID);
             if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
                 pPlayer->SendOnConsoleMessage("`4Target is no longer valid.``");
                 return;
@@ -443,7 +443,7 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
                 return;
             }
 
-            GamePlayer* pTarget = GetGameServer()->GetPlayerByNetID(netID);
+            GamePlayer* pTarget = GetPlayerManager()->GetPlayerByNetID(netID);
             if(!pTarget || pTarget == pPlayer || pTarget->GetCurrentWorld() != pPlayer->GetCurrentWorld()) {
                 pPlayer->SendOnConsoleMessage("`4Target is no longer valid.``");
                 return;

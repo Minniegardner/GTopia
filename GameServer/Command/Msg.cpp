@@ -52,7 +52,7 @@ void Msg::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         message.resize(180);
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(query, false, 0);
     if(matches.empty()) {
         GetMasterBroadway()->SendCrossServerActionRequest(
             TCP_CROSS_ACTION_MSG,

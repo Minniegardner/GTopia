@@ -2,6 +2,41 @@
 #include "GamePlayer.h"
 #include "../Context.h"
 #include "Math/Math.h"
+#include "Utils/StringUtils.h"
+
+namespace {
+
+bool EqualsIgnoreCase(const string& left, const string& right)
+{
+    if(left.size() != right.size()) {
+        return false;
+    }
+
+    for(size_t index = 0; index < left.size(); ++index) {
+        if(std::tolower((unsigned char)left[index]) != std::tolower((unsigned char)right[index])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool StartsWithIgnoreCase(const string& value, const string& prefix)
+{
+    if(prefix.size() > value.size()) {
+        return false;
+    }
+
+    for(size_t index = 0; index < prefix.size(); ++index) {
+        if(std::tolower((unsigned char)value[index]) != std::tolower((unsigned char)prefix[index])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+}
 
 PlayerManager::PlayerManager()
 : m_totalPlayerCount(0)
@@ -57,6 +92,49 @@ GamePlayer* PlayerManager::GetPlayerByUserID(uint32 userID)
     return nullptr;
 }
 
+GamePlayer* PlayerManager::GetPlayerByRawName(const string& rawName)
+{
+    if(rawName.empty()) {
+        return nullptr;
+    }
+
+    for(auto& [_, pPlayer] : m_gamePlayers) {
+        if(!pPlayer) {
+            continue;
+        }
+
+        if(EqualsIgnoreCase(pPlayer->GetRawName(), rawName)) {
+            return pPlayer;
+        }
+    }
+
+    return nullptr;
+}
+
+std::vector<GamePlayer*> PlayerManager::FindPlayersByNamePrefix(const string& query, bool sameWorldOnly, uint32 worldID)
+{
+    std::vector<GamePlayer*> matches;
+    matches.reserve(m_gamePlayers.size());
+
+    for(auto& [_, pPlayer] : m_gamePlayers) {
+        if(!pPlayer) {
+            continue;
+        }
+
+        if(sameWorldOnly && pPlayer->GetCurrentWorld() != worldID) {
+            continue;
+        }
+
+        if(!query.empty() && !StartsWithIgnoreCase(pPlayer->GetRawName(), query)) {
+            continue;
+        }
+
+        matches.push_back(pPlayer);
+    }
+
+    return matches;
+}
+
 void PlayerManager::AddPlayer(GamePlayer* pPlayer)
 {
     if(!pPlayer) {
@@ -108,8 +186,7 @@ void PlayerManager::UpdatePlayers()
         }
 
         if(!pPlayer->HasState(PLAYER_STATE_IN_GAME)) {
-            // ?
-            return;
+            continue;
         }
 
         if(!pPlayer->HasState(PLAYER_STATE_LOGGING_OFF)) {

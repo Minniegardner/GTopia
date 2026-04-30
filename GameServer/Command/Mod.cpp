@@ -102,7 +102,7 @@ void Mod::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayersByNamePrefix(query, true, pPlayer->GetCurrentWorld());
+    auto matches = GetPlayerManager()->FindPlayersByNamePrefix(query, true, pPlayer->GetCurrentWorld());
 
     std::vector<GamePlayer*> filtered;
     filtered.reserve(matches.size());

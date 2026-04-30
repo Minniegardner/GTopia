@@ -84,7 +84,7 @@ string GetOwnerDisplayName(World* pWorld, TileInfo* pTile)
         return "DeletedUser";
     }
 
-    GamePlayer* pOwner = GetGameServer()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
+    GamePlayer* pOwner = GetPlayerManager()->GetPlayerByUserID((uint32)pLockExtra->ownerID);
     if(!pOwner) {
         return "DeletedUser";
     }

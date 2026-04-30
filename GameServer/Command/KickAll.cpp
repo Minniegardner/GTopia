@@ -27,7 +27,7 @@ void KickAll::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto players = GetGameServer()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
+    auto players = GetPlayerManager()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
     uint32 kicked = 0;
 
     for(GamePlayer* pTarget : players) {

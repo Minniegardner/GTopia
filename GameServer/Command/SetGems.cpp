@@ -41,7 +41,7 @@ void SetGems::Execute(GamePlayer* pPlayer, std::vector<string>& args)
     }
 
     string query = ToLower(args[1]);
-    auto players = GetGameServer()->FindPlayersByNamePrefix(query, false, 0);
+    auto players = GetPlayerManager()->FindPlayersByNamePrefix(query, false, 0);
     if(players.empty()) {
         pPlayer->SendOnConsoleMessage("Player '" + args[1] + "' not found or offline");
         return;

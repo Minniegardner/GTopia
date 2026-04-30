@@ -22,5 +22,5 @@ void Online::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    pPlayer->SendOnConsoleMessage("`oThere are currently `w" + ToString((int)GetGameServer()->GetOnlineCount()) + "`` players online.");
+    pPlayer->SendOnConsoleMessage("`oThere are currently `w" + ToString((int)GetPlayerManager()->GetOnlineCount()) + "`` players online.");
 }

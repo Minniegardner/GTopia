@@ -27,7 +27,7 @@ void Who::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return;
     }
 
-    auto players = GetGameServer()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
+    auto players = GetPlayerManager()->FindPlayersByNamePrefix("", true, pPlayer->GetCurrentWorld());
     if(players.empty()) {
         pPlayer->SendOnConsoleMessage("`oNo players found in this world.``");
         return;
