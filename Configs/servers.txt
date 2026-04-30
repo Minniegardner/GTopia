@@ -14,6 +14,6 @@ tcp_start|18500
 # server gonna host on port udp_start + server_id
 udp_start|18000
 
-set_master|CHANGE HERE|CHANGE HERE|
-add_server|CHANGE HERE|CHANGE HERE|1|
+set_master|178.128.118.220|178.128.118.220|
+add_server|178.128.118.220|178.128.118.220|1|
 #add_renderer|CHANGE HERE|CHANGE HERE|1|

@@ -1,6 +1,7 @@
 #include "TCPEventCrossServerAction.h"
 #include "../../Server/ServerManager.h"
 #include "../../Server/GameServer.h"
+#include "../../Player/PlayerManager.h"
 
 void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
 {
@@ -42,7 +43,7 @@ void TCPEventCrossServerAction::Execute(NetClient* pClient, VariantVector& data)
         return;
     }
 
-    auto matches = GetGameServer()->FindPlayerSessionsByNamePrefix(targetQuery, exactMatch);
+    auto matches = GetPlayerManager()->FindPlayerSessionsByNamePrefix(targetQuery, exactMatch);
     if(matches.empty()) {
         GetServerManager()->SendCrossServerActionResult(sourceServerID, actionType, sourceUserID, TCP_CROSS_ACTION_RESULT_NOT_FOUND, "");
         return;

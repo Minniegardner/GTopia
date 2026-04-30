@@ -32,6 +32,7 @@ public:
     void CreateSession(const PlayerSession& session);
     void EndSessionByID(uint32 userID);
     void EndSessionsByServer(uint16 serverID);
+    vector<PlayerSession*> FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch);
 
     GamePlayer* GetPlayerByNetID(uint32 netID);
     void AddPlayer(GamePlayer* pPlayer);

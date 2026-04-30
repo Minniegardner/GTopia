@@ -1,19 +1,19 @@
 # configs to connect database
 # host user pass databaseName port
-database_info|localhost|root|my_db_password|my_database_name|3306|
+database_info|127.0.0.1|gtopia|gtopia123|gtopia|3306|
 
 # static server using while sending OnSuperMain
 # cdnURL cdnPATH(SLASH REQUIRED)
-cdn_server|127.0.0.1|cache/|
+cdn_server|178.128.118.220|cache/|
 
 # world renderer assets(rttex, font) path NO SLASH AT END
-rendererStaticPath|
+rendererStaticPath|cache|
 
 # world renderer save path for results NO SLASH AT END
-rendererSavePath|
+rendererSavePath|renderer_output|
 
 # game worlds save path NO SLASH AT END
-worldSavePath|
+worldSavePath|worlds|
 
 # X people can login at once others gonna kicked
 max_logins_at_once|20

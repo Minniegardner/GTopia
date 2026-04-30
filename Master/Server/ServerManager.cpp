@@ -469,3 +469,70 @@ void ServerManager::UpdateServers()
 }
 
 ServerManager* GetServerManager() { return ServerManager::GetInstance(); }
+
+void ServerManager::SendCrossServerActionResult(uint16 targetServerID, int32 actionType, uint32 sourceUserID, int32 resultCode, const string& targetName)
+{
+    ServerInfo* pServer = GetServerByID(targetServerID);
+    if(!pServer || !pServer->pClient) {
+        return;
+    }
+
+    VariantVector data(6);
+    data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+    data[1] = TCP_CROSS_ACTION_RESULT;
+    data[2] = actionType;
+    data[3] = sourceUserID;
+    data[4] = resultCode;
+    data[5] = targetName;
+
+    pServer->pClient->Send(data);
+}
+
+bool ServerManager::SendCrossServerActionExecuteAll(int32 actionType, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber)
+{
+    bool success = true;
+    
+    for(auto& [_, pServer] : m_servers) {
+        if(!pServer || pServer->serverType != CONFIG_SERVER_GAME) {
+            continue;
+        }
+
+        VariantVector data(9);
+        data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+        data[1] = TCP_CROSS_ACTION_EXECUTE;
+        data[2] = actionType;
+        data[3] = sourceUserID;
+        data[4] = sourceRawName;
+        data[5] = payloadText;
+        data[6] = (uint32)payloadNumber;
+        data[7] = 0;  // targetUserID (not used for EXECUTE_ALL)
+        data[8] = "";  // targetName (not used for EXECUTE_ALL)
+
+        if(!pServer->pClient || pServer->pClient->Send(data) != 0) {
+            success = false;
+        }
+    }
+
+    return success;
+}
+
+bool ServerManager::SendCrossServerActionExecute(uint16 targetServerID, int32 actionType, uint32 targetUserID, uint32 sourceUserID, const string& sourceRawName, const string& payloadText, uint64 payloadNumber, const string& targetName)
+{
+    ServerInfo* pServer = GetServerByID(targetServerID);
+    if(!pServer || !pServer->pClient) {
+        return false;
+    }
+
+    VariantVector data(9);
+    data[0] = TCP_PACKET_CROSS_SERVER_ACTION;
+    data[1] = TCP_CROSS_ACTION_EXECUTE;
+    data[2] = actionType;
+    data[3] = sourceUserID;
+    data[4] = sourceRawName;
+    data[5] = payloadText;
+    data[6] = (uint32)payloadNumber;
+    data[7] = targetUserID;
+    data[8] = targetName;
+
+    return pServer->pClient->Send(data) == 0;
+}

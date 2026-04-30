@@ -52,6 +52,26 @@ void PlayerManager::EndSessionsByServer(uint16 serverID)
     m_isPlayerCountDirty = true;
 }
 
+vector<PlayerSession*> PlayerManager::FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch)
+{
+    vector<PlayerSession*> results;
+    
+    for(auto& [_, session] : m_sessions) {
+        if(exactMatch) {
+            if(session.name == query) {
+                results.push_back(&session);
+            }
+        }
+        else {
+            if(session.name.find(query) == 0) {
+                results.push_back(&session);
+            }
+        }
+    }
+    
+    return results;
+}
+
 GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
 {
     auto it = m_gamePlayers.find(netID);
