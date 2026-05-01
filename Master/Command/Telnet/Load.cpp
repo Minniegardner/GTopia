@@ -1,6 +1,6 @@
 #include "Load.h"
 #include "../../Context.h"
-#include "../../Player/RoleManager.h"
+#include "../../../Source/Player/RoleManager.h"
 
 const TelnetCommandInfo& Load::GetInfo()
 {
