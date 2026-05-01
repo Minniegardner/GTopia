@@ -164,7 +164,7 @@ void TelnetServer::OnClientConnect(NetClient* pClient)
     m_clients.insert_or_assign(pNetClient->GetNetID(), pNetClient);
 
     pNetClient->SendMessage("\r\n****************************************\r\n", true);
-    pNetClient->SendMessage("*        GROWTOPIA BY Vinz ADMIN SERVER         *\r\n", true);
+    pNetClient->SendMessage("*        Growtopia By Vinz ADMIN SERVER       *\r\n", true);
     pNetClient->SendMessage("****************************************\r\n\r\n", true);
     pNetClient->SendMessage("Please enter your password to login: ", false);
 }

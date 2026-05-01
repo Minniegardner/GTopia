@@ -59,3 +59,6 @@ set_items|3066|
 add_playmod|1204|Focused Eyes|Give people the evil eye.|Your vision is normal.|
 set_punch_type|10|
 set_items|1204|
+
+add_playmod|732|Banned|Reality flickers as you begin to wake up.|You are no longer banned. Now be good!|
+set_items|732|

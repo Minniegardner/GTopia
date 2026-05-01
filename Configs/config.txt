@@ -13,7 +13,7 @@ rendererStaticPath|cache|
 rendererSavePath|renderer_output|
 
 # game worlds save path NO SLASH AT END
-worldSavePath|worlds|
+worldSavePath|data/worlds|
 
 # X people can login at once others gonna kicked
 max_logins_at_once|20

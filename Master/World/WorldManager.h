@@ -2,6 +2,7 @@
 
 #include "Precompiled.h"
 #include "Database/QueryUtils.h"
+#include <functional>
 
 class ServerInfo;
 

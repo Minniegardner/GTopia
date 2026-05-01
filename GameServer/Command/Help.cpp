@@ -126,7 +126,7 @@ void Help::Execute(GamePlayer* pPlayer, std::vector<string>& args)
         return ToLower(lhs) < ToLower(rhs);
     });
 
-    string commands = "`o>>Commands: ";
+    string commands = "`o>> Commands: ";
     for(size_t i = 0; i < commandNames.size(); ++i) {
         if(i == 0) {
             commands += commandNames[i];
