@@ -15,7 +15,7 @@ void AltCheckDBCB(QueryTaskResult&& result)
     }
 
     int cnt = result.result->GetRowCount();
-    pNetClient->SendMessage(string("DB matches: ") + to_string(cnt), true);
+    pNetClient->SendMessage(string("DB matches: ") + ToString(cnt), true);
     pNetClient->SetBusy(false);
 }
 
@@ -64,7 +64,7 @@ void AltCheck::Execute(TelnetClient* pNetClient, std::vector<string>& args)
         for(auto s : all) {
             if(!s) continue;
             if(s->ip == ip) {
-                pNetClient->SendMessage(string("-> ") + to_string(s->userID) + " - " + s->name, true);
+                pNetClient->SendMessage(string("-> ") + ToString(s->userID) + " - " + s->name, true);
             }
         }
 
@@ -86,6 +86,6 @@ void AltCheck::Execute(TelnetClient* pNetClient, std::vector<string>& args)
     pNetClient->SendMessage("Live matches:", true);
     for(auto s : results) {
         if(!s) continue;
-        pNetClient->SendMessage(string("-> ") + to_string(s->userID) + " - " + s->name + " - " + s->ip, true);
+        pNetClient->SendMessage(string("-> ") + ToString(s->userID) + " - " + s->name + " - " + s->ip, true);
     }
 }
