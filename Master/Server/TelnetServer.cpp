@@ -5,9 +5,16 @@
 
 #include "../Command/Telnet/TelnetCommandBase.h"
 #include "../Command/Telnet/SetRole.h"
+#include "../Command/Telnet/Tail.h"
+#include "../Command/Telnet/AltCheck.h"
+#include "../Command/Telnet/Players.h"
+#include "../Command/Telnet/Load.h"
+#include "../Command/Telnet/Mods.h"
+#include "../Command/Telnet/RankedWorlds.h"
+#include "../Command/Telnet/Shutdown.h"
 
 TelnetClient::TelnetClient(NetClient* pClient)
-: NetEntity(ENTITY_TYPE_TELNET), m_adminLevel(0), m_displayName("Unknown"), m_authed(false), m_isBusy(false)
+: NetEntity(ENTITY_TYPE_TELNET), m_adminLevel(0), m_displayName("Unknown"), m_authed(false), m_isBusy(false), m_tailLog(false), m_passTryCount(0)
 {
     m_pClient = pClient;
 }
@@ -81,6 +88,13 @@ bool TelnetServer::Init()
 void TelnetServer::RegisterCommands()
 {
     RegisterCommand<SetRole>();
+    RegisterCommand<Tail>();
+    RegisterCommand<AltCheck>();
+    RegisterCommand<Players>();
+    RegisterCommand<Load>();
+    RegisterCommand<Mods>();
+    RegisterCommand<RankedWorlds>();
+    RegisterCommand<Shutdown>();
 }
 
 void TelnetServer::Kill()
@@ -150,7 +164,7 @@ void TelnetServer::OnClientConnect(NetClient* pClient)
     m_clients.insert_or_assign(pNetClient->GetNetID(), pNetClient);
 
     pNetClient->SendMessage("\r\n****************************************\r\n", true);
-    pNetClient->SendMessage("*        GTOPIA ADMIN SERVER         *\r\n", true);
+    pNetClient->SendMessage("*        GROWTOPIA BY Vinz ADMIN SERVER         *\r\n", true);
     pNetClient->SendMessage("****************************************\r\n\r\n", true);
     pNetClient->SendMessage("Please enter your password to login: ", false);
 }

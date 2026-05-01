@@ -56,6 +56,9 @@ public:
     void SetBusy(bool busy) { m_isBusy = busy; }
     bool IsBusy() const { return m_isBusy; }
 
+    void SetTailEnabled(bool v) { m_tailLog = v; }
+    bool IsTailEnabled() const { return m_tailLog; }
+
 private:
     NetClient* m_pClient;
     int32 m_adminLevel;
@@ -65,6 +68,7 @@ private:
     bool m_authed;
     uint8 m_passTryCount;
     bool m_isBusy; // for async
+    bool m_tailLog;
 };
 
 class TelnetServer {

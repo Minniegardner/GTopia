@@ -105,6 +105,9 @@ public:
 
     void SendPositionToWorldPlayers();
 
+    void IncreaseStat(const string& statName, uint64 amount = 1);
+    uint64 GetStatCount(const string& statName) const;
+
     Timer& GetLastActionTime() { return m_lastActionTime; }
     Timer& GetLastDBSaveTime() { return m_lastDbSaveTime; }
     Timer& GetLastJoinRequestTime() { return m_lastJoinRequestTime; }
@@ -143,4 +146,5 @@ private:
     Timer m_logonStartTime;
 
     Role* m_pRole;
+    std::unordered_map<string, uint64> m_statistics;
 };

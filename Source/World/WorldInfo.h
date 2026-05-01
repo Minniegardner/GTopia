@@ -5,6 +5,56 @@
 #include "../Memory/MemoryBuffer.h"
 #include "WorldObjectManager.h"
 
+enum eWorldCategory
+{
+    WORLD_CATEGORY_DEFAULT,
+    WORLD_CATEGORY_TOP_WORLDS,
+    WORLD_CATEGORY_RANDOM,
+    WORLD_CATEGORY_YOUR_WORLDS,
+    WORLD_CATEGORY_ADVENTURE,
+    WORLD_CATEGORY_ART,
+    WORLD_CATEGORY_FARM,
+    WORLD_CATEGORY_GAME,
+    WORLD_CATEGORY_GUILD,
+    WORLD_CATEGORY_INFORMATION,
+    WORLD_CATEGORY_MUSIC,
+    WORLD_CATEGORY_PARKOUR,
+    WORLD_CATEGORY_PUZZLE,
+    WORLD_CATEGORY_ROLEPLAY,
+    WORLD_CATEGORY_SHOP,
+    WORLD_CATEGORY_SOCIAL,
+    WORLD_CATEGORY_STORAGE,
+    WORLD_CATEGORY_STORY,
+    WORLD_CATEGORY_TRADE
+};
+
+inline const char* WorldCategoryToString(eWorldCategory category)
+{
+    switch(category) {
+        case WORLD_CATEGORY_DEFAULT: return "Default";
+        case WORLD_CATEGORY_TOP_WORLDS: return "Top Worlds";
+        case WORLD_CATEGORY_RANDOM: return "Random";
+        case WORLD_CATEGORY_YOUR_WORLDS: return "Your Worlds";
+        case WORLD_CATEGORY_ADVENTURE: return "Adventure";
+        case WORLD_CATEGORY_ART: return "Art";
+        case WORLD_CATEGORY_FARM: return "Farm";
+        case WORLD_CATEGORY_GAME: return "Game";
+        case WORLD_CATEGORY_GUILD: return "Guild";
+        case WORLD_CATEGORY_INFORMATION: return "Information";
+        case WORLD_CATEGORY_MUSIC: return "Music";
+        case WORLD_CATEGORY_PARKOUR: return "Parkour";
+        case WORLD_CATEGORY_PUZZLE: return "Puzzle";
+        case WORLD_CATEGORY_ROLEPLAY: return "Roleplay";
+        case WORLD_CATEGORY_SHOP: return "Shop";
+        case WORLD_CATEGORY_SOCIAL: return "Social";
+        case WORLD_CATEGORY_STORAGE: return "Storage";
+        case WORLD_CATEGORY_STORY: return "Story";
+        case WORLD_CATEGORY_TRADE: return "Trade";
+    }
+
+    return "Default";
+}
+
 enum eWorldGenerationType
 {
     WORLD_GENERATION_DEFAULT = 0,
@@ -39,6 +89,10 @@ public:
     void SetName(const string& worldName) { m_name = worldName; }
     const string& GetWorlName() const { return m_name; } 
 
+    void SetCategory(eWorldCategory category) { m_category = category; }
+    eWorldCategory GetCategory() const { return m_category; }
+    string GetWorldInfoString() const;
+
     void SetCurrentWeather(uint32 newWeather) { m_currentWeather = newWeather; }
     uint32 GetCurrentWeather() const { return m_currentWeather; }
 
@@ -53,6 +107,7 @@ private:
     uint16 m_version;
     uint32 m_flags;
     string m_name;
+    eWorldCategory m_category;
 
     WorldTileManager* m_pTileMgr;
     WorldObjectManager* m_pObjMgr;

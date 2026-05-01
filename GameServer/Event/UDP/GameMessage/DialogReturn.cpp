@@ -373,7 +373,8 @@ void DialogReturn::Execute(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         }
 
         case CompileTimeHashString("lock_edit"):
-        case CompileTimeHashString("lock_remove_self"): {
+        case CompileTimeHashString("lock_remove_self"):
+        case CompileTimeHashString("lock_category_pick"): {
             LockDialog::Handle(pPlayer, packet);
             break;
         }

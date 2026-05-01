@@ -3,6 +3,7 @@
 #include "Algorithm/ChemsynthAlgorithm.h"
 #include "../../../Player/Dialog/PlayerDialog.h"
 #include "../../../Server/GameServer.h"
+#include <chrono>
 
 namespace {
 
@@ -315,6 +316,45 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         }
 
         pPlayer->ModifyInventoryItem(pItem->id, -1);
+    }
+
+    // Neutron gun behaviour: pull ghosts toward punched tile if in line
+    if(pPacket->itemID == ITEM_ID_NEUTRON_GUN) {
+        vec2 tilePosFloat = {(tilePos.x * 32.0f) + 16.0f, (tilePos.y * 32.0f) + 16.0f};
+
+        pWorld->Npcs([&](uint32 npcID, uint16 npcType, World::Npc* npc)
+        {
+            if (pWorld->IsGhost(npcType))
+            {
+                auto curPair = pWorld->GetNpcLerpPosition(npcID);
+                float curX = curPair.first;
+                float curY = curPair.second;
+
+                float lineLength = sqrtf(powf(tilePosFloat.x - pPlayer->GetPos().x, 2) + powf(tilePosFloat.y - pPlayer->GetPos().y, 2));
+                float d1 = sqrtf(powf(curX - pPlayer->GetPos().x, 2) + powf(curY - pPlayer->GetPos().y, 2));
+                float d2 = sqrtf(powf(curX - tilePosFloat.x, 2) + powf(curY - tilePosFloat.y, 2));
+
+                float distance = fabsf(d1 + d2 - lineLength);
+
+                if (distance < 20.0f)
+                {
+                    vec2 playerPos = pPlayer->GetPos();
+                    float ratio = 0.6f;
+
+                    // set current position as last pos so interpolation remains smooth
+                    npc->PosX = curX;
+                    npc->PosY = curY;
+                    npc->LastMove = std::chrono::steady_clock::now();
+
+                    float newX = curX + ratio * (playerPos.x - curX);
+                    float newY = curY + ratio * (playerPos.y - curY);
+
+                    pWorld->MoveNpc(npcID, 40.0f, newX, newY);
+                }
+            }
+        });
+
+        return;
     }
 
     if(pPacket->itemID == ITEM_ID_FIST) {

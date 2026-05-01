@@ -109,7 +109,7 @@ void WorldManager::CheckWorldExistCB(QueryTaskResult&& result)
         return;
     }
 
-    QueryRequest req = WorldDB::Create(pWorldName->GetString());
+    QueryRequest req = WorldDB::Create(pWorldName->GetString(), WORLD_CATEGORY_DEFAULT);
     req.extraData = std::move(result.extraData);
     req.callback = &WorldManager::CreateWorldCB;
 
@@ -237,6 +237,13 @@ WorldSession* WorldManager::GetWorldByID(uint32 worldID)
     }
 
     return nullptr;
+}
+
+void WorldManager::ForEachWorldSession(const std::function<void(const WorldSession&)>& fn) const
+{
+    for(const auto& [_, worldSession] : m_worldSessions) {
+        fn(worldSession);
+    }
 }
 
 void WorldManager::RemoveWorldsWithServerID(uint32 serverID)

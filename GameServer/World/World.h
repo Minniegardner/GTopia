@@ -3,6 +3,9 @@
 #include "Precompiled.h"
 #include "World/WorldInfo.h"
 #include "Packet/GamePacket.h"
+#include <chrono>
+#include <unordered_map>
+#include <functional>
 
 class GamePlayer;
 
@@ -68,4 +71,33 @@ private:
     Timer m_worldLastSaveTime;
 
     bool m_deleteFlag;
+    
+public:
+    struct Npc {
+        uint16 Type = 0;
+        float PosX = 0.0f;
+        float PosY = 0.0f;
+
+        float LastPosX = 0.0f;
+        float LastPosY = 0.0f;
+        float LastSpeed = 0.0f;
+        std::chrono::steady_clock::time_point LastMove = std::chrono::steady_clock::now();
+    };
+
+private:
+    uint32 m_NpcID = 0;
+    std::unordered_map<uint32, Npc> m_Npcs;
+
+public:
+    uint32 AddNpc(const Npc& npc);
+    void RemoveNpc(uint32 npcID);
+    void TeleportNpc(uint32 npcID, float x, float y);
+    void MoveNpc(uint32 npcID, float speed, float x, float y);
+    void Npcs(const std::function<void(uint32, uint16, Npc*)>& fn);
+    std::pair<float, float> GetNpcLerpPosition(uint32 npcID);
+    bool IsGhost(uint16 type);
+    uint32 GetNpcID() const { return m_NpcID; }
+    uint32 IncrementNpcID() { return ++m_NpcID; }
+    void SetNpcID(uint32 val) { m_NpcID = val; }
+    size_t GetNpcCount() const { return m_Npcs.size(); }
 };

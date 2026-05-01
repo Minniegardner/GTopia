@@ -18,7 +18,7 @@ bool IsValidWorldName(const string& worldName)
 }
 
 WorldInfo::WorldInfo()
-: m_version(10), m_flags(0)
+: m_version(10), m_flags(0), m_category(WORLD_CATEGORY_DEFAULT)
 {
     m_pTileMgr = new WorldTileManager();
     m_pObjMgr = new WorldObjectManager();
@@ -83,4 +83,17 @@ uint32 WorldInfo::GetMemEstimate(bool database)
     memSize += sizeof(m_defaultWeather) + sizeof(m_currentWeather);
 
     return memSize;
+}
+
+string WorldInfo::GetWorldInfoString() const
+{
+    string info;
+
+    if(m_category != WORLD_CATEGORY_DEFAULT) {
+        info += "``[`9";
+        info += WorldCategoryToString(m_category);
+        info += "``]";
+    }
+
+    return info;
 }

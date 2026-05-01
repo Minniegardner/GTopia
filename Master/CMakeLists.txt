@@ -62,6 +62,13 @@ set(MASTER_FILES PRIVATE
     ${MASTER_SERVER}/TelnetServer.cpp
 
     ${MASTER_COMMAND}/Telnet/SetRole.cpp
+    ${MASTER_COMMAND}/Telnet/Tail.cpp
+    ${MASTER_COMMAND}/Telnet/AltCheck.cpp
+    ${MASTER_COMMAND}/Telnet/Players.cpp
+    ${MASTER_COMMAND}/Telnet/Load.cpp
+    ${MASTER_COMMAND}/Telnet/Mods.cpp
+    ${MASTER_COMMAND}/Telnet/RankedWorlds.cpp
+    ${MASTER_COMMAND}/Telnet/Shutdown.cpp
 
     ${MASTER_ROOT}/Context.cpp
     ${MASTER_ROOT}/Main.cpp

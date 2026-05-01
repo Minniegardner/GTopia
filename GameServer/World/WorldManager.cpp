@@ -6,9 +6,40 @@
 #include "../Player/PlayerManager.h"
 #include "IO/File.h"
 
+#include <algorithm>
+
 #include "../Event/UDP/GamePacket/ItemActivateRequest.h"
 #include "../Event/UDP/GamePacket/TileChangeRequest.h"
 #include "../Event/UDP/GamePacket/State.h"
+
+namespace {
+
+struct WorldSelectEntry
+{
+    World* pWorld = nullptr;
+    uint32 playerCount = 0;
+};
+
+void AppendWorldEntries(string& worldMenu, const std::string& heading, const std::vector<WorldSelectEntry>& worlds)
+{
+    worldMenu += "add_heading|" + heading + "|\n";
+
+    for(const auto& entry : worlds) {
+        if(!entry.pWorld) {
+            continue;
+        }
+
+        string displayName = entry.pWorld->GetWorlName();
+        string infoString = entry.pWorld->GetWorldInfoString();
+        if(!infoString.empty()) {
+            displayName += infoString;
+        }
+
+        worldMenu += "add_floater|" + displayName + "|" + entry.pWorld->GetWorlName() + "|" + ToString(entry.playerCount) + "|0.5|3529161471\n";
+    }
+}
+
+}
 
 WorldManager::WorldManager()
 {
@@ -97,6 +128,10 @@ void WorldManager::WorldDBInitCB(QueryTaskResult&& result)
     }
 
     pWorld->SetID(worldID);
+    Variant* pCategory = result.result->GetFieldSafe("Category", 0);
+    if(pCategory) {
+        pWorld->SetCategory((eWorldCategory)pCategory->GetUINT());
+    }
     GetWorldManager()->AddWorld(pWorld);
 
     pMasterBroadway->SendWorldInitResult(true, worldID);
@@ -145,7 +180,69 @@ void WorldManager::SendWorldSelectMenu(GamePlayer* pPlayer)
         return;
     }
 
-    pPlayer->SendOnRequestWorldSelectMenu("");
+    std::vector<WorldSelectEntry> topWorlds;
+    std::vector<WorldSelectEntry> activeWorlds;
+    std::unordered_map<uint32, std::vector<WorldSelectEntry>> categoryWorlds;
+
+    for(auto& [_, pWorld] : m_worlds) {
+        if(!pWorld) {
+            continue;
+        }
+
+        WorldSelectEntry entry;
+        entry.pWorld = pWorld;
+        entry.playerCount = pWorld->GetPlayerCount();
+
+        topWorlds.push_back(entry);
+
+        if(entry.playerCount > 0) {
+            activeWorlds.push_back(entry);
+        }
+
+        if(pWorld->GetCategory() != WORLD_CATEGORY_DEFAULT) {
+            categoryWorlds[(uint32)pWorld->GetCategory()].push_back(entry);
+        }
+    }
+
+    auto sortByPlayers = [](const WorldSelectEntry& lhs, const WorldSelectEntry& rhs) {
+        if(lhs.playerCount != rhs.playerCount) {
+            return lhs.playerCount > rhs.playerCount;
+        }
+
+        return lhs.pWorld->GetWorlName() < rhs.pWorld->GetWorlName();
+    };
+
+    std::sort(topWorlds.begin(), topWorlds.end(), sortByPlayers);
+    std::sort(activeWorlds.begin(), activeWorlds.end(), sortByPlayers);
+
+    if(topWorlds.size() > 10) {
+        topWorlds.resize(10);
+    }
+
+    if(activeWorlds.size() > 20) {
+        activeWorlds.resize(20);
+    }
+
+    string worldMenu = "add_filter|\n";
+    AppendWorldEntries(worldMenu, "Top Worlds", topWorlds);
+    AppendWorldEntries(worldMenu, "World Active", activeWorlds);
+
+    for(uint32 categoryID = (uint32)WORLD_CATEGORY_ADVENTURE; categoryID <= (uint32)WORLD_CATEGORY_TRADE; ++categoryID) {
+        auto it = categoryWorlds.find(categoryID);
+        if(it == categoryWorlds.end() || it->second.empty()) {
+            continue;
+        }
+
+        auto categoryEntries = it->second;
+        std::sort(categoryEntries.begin(), categoryEntries.end(), sortByPlayers);
+        if(categoryEntries.size() > 5) {
+            categoryEntries.resize(5);
+        }
+
+        AppendWorldEntries(worldMenu, WorldCategoryToString((eWorldCategory)categoryID), categoryEntries);
+    }
+
+    pPlayer->SendOnRequestWorldSelectMenu(worldMenu);
 }
 
 void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldName)

@@ -41,6 +41,7 @@ CREATE TABLE `Worlds` (
   `ID` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(64) NOT NULL,
   `Flags` int NOT NULL DEFAULT '0',
+  `Category` int NOT NULL DEFAULT '0',
   `LastSeenTime` datetime DEFAULT NULL,
   `Version` int NOT NULL DEFAULT '0',
   `CreationDate` date DEFAULT NULL,

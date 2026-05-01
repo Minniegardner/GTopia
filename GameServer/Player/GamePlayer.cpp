@@ -273,6 +273,25 @@ string GamePlayer::GetDisplayName()
     return displayName;
 }
 
+void GamePlayer::IncreaseStat(const string& statName, uint64 amount)
+{
+    if(statName.empty() || amount == 0) {
+        return;
+    }
+
+    m_statistics[statName] += amount;
+}
+
+uint64 GamePlayer::GetStatCount(const string& statName) const
+{
+    auto it = m_statistics.find(statName);
+    if(it != m_statistics.end()) {
+        return it->second;
+    }
+
+    return 0;
+}
+
 string GamePlayer::GetRawName()
 {
     return m_loginDetail.tankIDName.empty() ? 

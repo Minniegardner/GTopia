@@ -9,10 +9,10 @@ QueryRequest WorldDB::ExistsByName(const string& worldName, uint32 ownerID)
     return req;
 }
 
-QueryRequest WorldDB::Create(const string& worldName, uint32 ownerID)
+QueryRequest WorldDB::Create(const string& worldName, eWorldCategory category, uint32 ownerID)
 {
     QueryRequest req(ownerID);
-    req.AddData(worldName);
+    req.AddData(worldName, (uint32)category);
 
     req.queryID = DB_WORLD_CREATE;
     return req;
@@ -27,10 +27,10 @@ QueryRequest WorldDB::GetWorldData(const string& worldName, uint32 ownerID)
     return req;
 }
 
-QueryRequest WorldDB::SaveWorld(const string& worldName, uint32 worldID, uint32 ownerID)
+QueryRequest WorldDB::SaveWorld(const string& worldName, uint32 worldID, eWorldCategory category, uint32 ownerID)
 {
     QueryRequest req(ownerID);
-    req.AddData(worldName, worldID);
+    req.AddData(worldName, (uint32)category, worldID);
 
     req.queryID = DB_WORLD_SAVE;
     return req;

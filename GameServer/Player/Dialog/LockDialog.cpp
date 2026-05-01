@@ -34,6 +34,30 @@ bool ParseCheckboxValue(ParsedTextPacket<8>& packet, const string& key, bool def
     return value == 1;
 }
 
+void SendCategoryPicker(GamePlayer* pPlayer, TileInfo* pTile, World* pWorld)
+{
+    if(!pPlayer || !pTile || !pWorld) {
+        return;
+    }
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        ->AddLabelWithIcon("`wSet World Category``", ITEM_ID_WORLD_LOCK, true)
+        ->AddTextBox("Choose a category for this world.")
+        ->AddSpacer();
+
+    for(int32 categoryID = (int32)WORLD_CATEGORY_ADVENTURE; categoryID <= (int32)WORLD_CATEGORY_TRADE; ++categoryID) {
+        db.AddButton("Category_" + ToString(categoryID), WorldCategoryToString((eWorldCategory)categoryID));
+    }
+
+    db.AddSpacer()
+        ->EmbedData("tilex", pTile->GetPos().x)
+        ->EmbedData("tiley", pTile->GetPos().y)
+        ->EndDialog("lock_category_pick", "Close", "Cancel");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
 }
 
 void LockDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
@@ -106,6 +130,9 @@ void LockDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
     if(IsWorldLock(pItem->id)) {
         db.AddCheckBox("WorldPublic", "Allow anyone to build and break", pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC))
         ->AddTextInput("EntryLevel", "Minimum entry level", ToString(std::max(1, pTileExtra->minEntryLevel)), 3);
+
+        string categoryLabel = WorldCategoryToString(pWorld->GetCategory());
+        db.AddButton("Category", string("Category: ") + categoryLabel);
     }
     else {
         db.AddCheckBox("AreaPublic", "Allow anyone to build and break", pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC));
@@ -192,6 +219,46 @@ void LockDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<8>& packet)
         pPlayer->SendOnTalkBubble("`4Access removed.", true);
         pWorld->SendTileUpdate(pTile);
         return;
+    }
+
+    if(dialogName == "lock_category_pick") {
+        auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+        if(!pButtonClicked) {
+            return;
+        }
+
+        string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+        for(int32 categoryID = (int32)WORLD_CATEGORY_ADVENTURE; categoryID <= (int32)WORLD_CATEGORY_TRADE; ++categoryID) {
+            const string buttonID = "Category_" + ToString(categoryID);
+            if(buttonClicked == buttonID) {
+                if(pTileExtra->ownerID != pPlayer->GetUserID()) {
+                    pPlayer->SendOnTalkBubble("`wI'm `4unable`w to pick the lock!", true);
+                    return;
+                }
+
+                const char* categoryName = WorldCategoryToString((eWorldCategory)categoryID);
+                pWorld->SetCategory((eWorldCategory)categoryID);
+                pWorld->SaveToDatabase();
+                pPlayer->SendOnConsoleMessage("World category set to `w" + string(categoryName) + "``.");
+                return;
+            }
+        }
+
+        return;
+    }
+
+    auto pButtonClicked = packet.Find(CompileTimeHashString("buttonClicked"));
+    if(pButtonClicked) {
+        string buttonClicked(pButtonClicked->value, pButtonClicked->size);
+        if(buttonClicked == "Category") {
+            if(pTileExtra->ownerID != pPlayer->GetUserID()) {
+                pPlayer->SendOnTalkBubble("`wI'm `4unable`w to pick the lock!", true);
+                return;
+            }
+
+            SendCategoryPicker(pPlayer, pTile, pWorld);
+            return;
+        }
     }
 
     if(!pTileExtra->HasAccess(pPlayer->GetUserID())) {

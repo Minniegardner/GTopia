@@ -65,6 +65,7 @@ public:
 
     WorldSession* GetWorldByName(const string& worldName);
     WorldSession* GetWorldByID(uint32 worldID);
+    void ForEachWorldSession(const std::function<void(const WorldSession&)>& fn) const;
 
     void RemoveWorldsWithServerID(uint32 serverID);
 

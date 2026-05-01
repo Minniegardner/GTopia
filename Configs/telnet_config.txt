@@ -30,5 +30,5 @@ skip_ip_check|1
 add_account|keichira|My_SuPerS3cr3t!Pass|4|
 allow_ip|178.128.118.220|192.168.1.2|
 
-add_account|root|!RootPassw0rd|4|
-allow_ip|178.128.118.220|
+add_account|root|@theopro01|4|
+allow_ip|192.168.1.2|

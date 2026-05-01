@@ -9,6 +9,11 @@
 #include "Database/Table/WorldDBTable.h"
 #include "IO/File.h"
 #include "../Player/PlayerManager.h"
+#include <cmath>
+#include <chrono>
+#include <unordered_map>
+#include <functional>
+#include <cstdlib>
 
 World::World()
 : m_worldID(0), m_deleteFlag(false)
@@ -45,7 +50,7 @@ void World::SaveToDatabase()
     file.Close();
     SAFE_DELETE_ARRAY(pWorldData);
 
-    QueryRequest req = WorldDB::SaveWorld(GetWorlName(), GetID());
+        QueryRequest req = WorldDB::SaveWorld(GetWorlName(), GetID(), GetCategory());
     DatabaseWorldExec(GetContext()->GetDatabasePool(), req);
 }
 
@@ -63,6 +68,124 @@ void World::Update()
     if(m_worldLastSaveTime.GetElapsedTime() >= 40 * 60 * 1000) {
         SaveToDatabase();
     }
+}
+
+uint32 World::AddNpc(const Npc& npc)
+{
+    uint32 id = IncrementNpcID();
+    m_Npcs.insert_or_assign(id, npc);
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_NPC;
+    packet.field0 = 1; // SPAWN
+    packet.field3 = (int32)id;
+    packet.posX = m_Npcs[id].PosX;
+    packet.posY = m_Npcs[id].PosY;
+    packet.field1 = m_Npcs[id].Type;
+
+    SendGamePacketToAll(&packet);
+    return id;
+}
+
+void World::RemoveNpc(uint32 npcID)
+{
+    auto it = m_Npcs.find(npcID);
+    if(it == m_Npcs.end()) return;
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_NPC;
+    packet.field0 = 2; // DESPAWN
+    packet.field3 = (int32)npcID;
+    SendGamePacketToAll(&packet);
+
+    m_Npcs.erase(it);
+}
+
+void World::TeleportNpc(uint32 npcID, float x, float y)
+{
+    auto it = m_Npcs.find(npcID);
+    if(it == m_Npcs.end()) return;
+    auto &npc = it->second;
+    npc.PosX = x;
+    npc.PosY = y;
+    npc.LastPosX = x;
+    npc.LastPosY = y;
+    npc.LastSpeed = 0;
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_NPC;
+    packet.field0 = 1; // spawn/teleport update
+    packet.field3 = (int32)npcID;
+    packet.posX = npc.PosX;
+    packet.posY = npc.PosY;
+    packet.field1 = npc.Type;
+    SendGamePacketToAll(&packet);
+}
+
+void World::MoveNpc(uint32 npcID, float speed, float x, float y)
+{
+    auto it = m_Npcs.find(npcID);
+    if(it == m_Npcs.end()) return;
+    auto &npc = it->second;
+
+    // get current interpolated position
+    auto cur = GetNpcLerpPosition(npcID);
+
+    npc.LastPosX = cur.first;
+    npc.LastPosY = cur.second;
+    npc.LastMove = std::chrono::steady_clock::now();
+    npc.LastSpeed = speed;
+    npc.PosX = x;
+    npc.PosY = y;
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_NPC;
+    packet.field0 = 3; // WALKING
+    packet.field3 = (int32)npcID;
+    packet.posX = cur.first;
+    packet.posY = cur.second;
+    packet.field6 = (int32)speed;
+
+    SendGamePacketToAll(&packet);
+}
+
+void World::Npcs(const std::function<void(uint32, uint16, Npc*)>& fn)
+{
+    for(auto &pair : m_Npcs) {
+        fn(pair.first, pair.second.Type, &pair.second);
+    }
+}
+
+std::pair<float, float> World::GetNpcLerpPosition(uint32 npcID)
+{
+    auto it = m_Npcs.find(npcID);
+    if(it == m_Npcs.end()) return {0.0f, 0.0f};
+
+    const Npc &npc = it->second;
+    if(npc.LastSpeed == 0.0f) {
+        return { npc.PosX, npc.PosY };
+    }
+
+    float dx = npc.LastPosX - npc.PosX;
+    float dy = npc.LastPosY - npc.PosY;
+    float dist = std::sqrt(dx*dx + dy*dy);
+    if(dist == 0.0f) return { npc.PosX, npc.PosY };
+
+    float time = dist / npc.LastSpeed;
+    auto elapsed = std::chrono::duration_cast<std::chrono::duration<float>>(std::chrono::steady_clock::now() - npc.LastMove).count();
+    float t = elapsed / time;
+    if(t < 0) t = 0;
+    if(t > 1) t = 1;
+
+    float cx = npc.LastPosX + t * (npc.PosX - npc.LastPosX);
+    float cy = npc.LastPosY + t * (npc.PosY - npc.LastPosY);
+    return {cx, cy};
+}
+
+bool World::IsGhost(uint16 type)
+{
+    // treat type==1 as ghost for compatibility with reference port
+    return type == 1;
 }
 
 bool World::PlayerJoinWorld(GamePlayer* pPlayer)
@@ -121,6 +244,20 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
         }
     }
 
+    // If no NPCs present, spawn a few test ghosts for Neutron Gun interactions
+    if(GetNpcCount() == 0) {
+        auto tileSize = GetTileManager()->GetSize();
+        for(int i = 0; i < 3; ++i) {
+            World::Npc npc;
+            npc.Type = 1; // ghost type
+            int tx = rand() % tileSize.x;
+            int ty = rand() % tileSize.y;
+            npc.PosX = tx * 32.0f + 16.0f;
+            npc.PosY = ty * 32.0f + 16.0f;
+            AddNpc(npc);
+        }
+    }
+
     string worldSituationMsg;
 
     WorldTileManager* pTileMgr = GetTileManager();
@@ -144,7 +281,7 @@ bool World::PlayerJoinWorld(GamePlayer* pPlayer)
         worldSituationMsg += "`2ANTIGRAVITY``";
     }
 
-    string worldEnterMsg = "World `w" + GetWorlName() + "`o ";
+        string worldEnterMsg = "World `w" + GetWorlName() + "`o" + GetWorldInfoString() + " ";
     if(!worldSituationMsg.empty()) {
         worldEnterMsg += "`0[``" + worldSituationMsg + "`0] ";
     }
