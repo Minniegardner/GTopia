@@ -52,9 +52,9 @@ void PlayerManager::EndSessionsByServer(uint16 serverID)
     m_isPlayerCountDirty = true;
 }
 
-vector<PlayerSession*> PlayerManager::FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch)
+std::vector<PlayerSession*> PlayerManager::FindPlayerSessionsByNamePrefix(const string& query, bool exactMatch)
 {
-    vector<PlayerSession*> results;
+    std::vector<PlayerSession*> results;
     
     for(auto& [_, session] : m_sessions) {
         if(exactMatch) {
