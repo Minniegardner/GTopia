@@ -1,7 +1,7 @@
 #include "AltCheck.h"
 #include "../../Context.h"
 #include "../../Player/PlayerManager.h"
-#include "../../Database/Table/PlayerDBTable.h"
+#include "../../../Source/Database/Table/PlayerDBTable.h"
 
 void AltCheckDBCB(QueryTaskResult&& result)
 {
