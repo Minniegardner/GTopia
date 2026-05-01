@@ -26,7 +26,7 @@ void Mods::Execute(TelnetClient* pNetClient, std::vector<string>& args)
     int printed = 0;
     for(auto s : all) {
         if(!s) continue;
-        pNetClient->SendMessage(string("-> ") + to_string(s->userID) + " - " + s->name + " - " + s->ip, true);
+        pNetClient->SendMessage(string("-> ") + ToString(s->userID) + " - " + s->name + " - " + s->ip, true);
         if(++printed >= 200) break;
     }
 

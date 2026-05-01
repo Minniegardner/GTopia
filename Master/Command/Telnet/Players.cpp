@@ -30,7 +30,7 @@ void Players::Execute(TelnetClient* pNetClient, std::vector<string>& args)
     int printed = 0;
     for(auto pSession : results) {
         if(!pSession) continue;
-        string line = to_string(pSession->userID) + " - " + pSession->name + " - " + pSession->ip + " - " + pSession->worldName;
+        string line = ToString(pSession->userID) + " - " + pSession->name + " - " + pSession->ip + " - " + pSession->worldName;
         pNetClient->SendMessage(line, true);
         if(++printed >= 200) break;
     }

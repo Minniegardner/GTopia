@@ -48,7 +48,7 @@ void RankedWorlds::Execute(TelnetClient* pNetClient, std::vector<string>& args)
     size_t index = 0;
     for(const auto& entry : worlds) {
         pNetClient->SendMessage(
-            string("#") + to_string(++index) + " " + entry.name + " [worldID=" + to_string(entry.worldID) + ", server=" + to_string(entry.serverID) + ", pending=" + to_string(entry.pendingCount) + "]",
+            string("#") + ToString(++index) + " " + entry.name + " [worldID=" + ToString(entry.worldID) + ", server=" + ToString(entry.serverID) + ", pending=" + ToString(entry.pendingCount) + "]",
             true
         );
     }
